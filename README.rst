@@ -1,3 +1,3 @@
-Fuxedo - Open Source implementation of Oracle Tuxedo
+Fuxedo is my implementation of some of Oracle (ex BEA) Tuxedo APIs (http://www.oracle.com/tuxedo)
 
-Requires compiler with C++11 support and Boost libraries.
+This is my toy project where I play with the new C++11 and Boost libraries (Interprocess, Property Tree, Spirit, Test, Thread) so don't expect much. Current goal is to implement FML32 buffer type and tpacall.
