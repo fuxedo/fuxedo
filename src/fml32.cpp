@@ -1,620 +1,1405 @@
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <string>
-#include <cstring>
-#include <cstdlib>
-#include <cctype>
+
+#include <algorithm>
+#include <atomic>
+#include <cstddef>
 #include <map>
+#include <memory>
+#include <vector>
 
-#include <boost/cstdint.hpp>
-#include <boost/thread/tss.hpp>
-#include <boost/tokenizer.hpp>
-#include <boost/lexical_cast.hpp>
+#include <shared_mutex>
 
-#include "fml32.h"
-#include "typeinfo.hpp"
+#include <fml32.h>
+#include <regex.h>
+#include "fieldtbl32.h"
 
-static std::map<FLDID32, std::string> g_idnm_map;
-static std::map<std::string, FLDID32> g_nmid_map;
+#include <iostream>
 
-static const std::map<std::string, int> fml32_types = {
-    { "short", FLD_SHORT },
-    { "long", FLD_LONG },
-    { "char", FLD_CHAR },
-    { "float", FLD_FLOAT },
-    { "double", FLD_DOUBLE },
-    { "string", FLD_STRING },
-    { "vardata", FLD_CARRAY },
-    { "ptr", FLD_PTR },
-    { "fml32", FLD_FML32 },
-    { "view32", FLD_VIEW32 },
-    { "mbstring", FLD_MBSTRING },
-    { "fml", FLD_FML }
-};
+unsigned int crc32b(unsigned char *data, size_t len) {
+  unsigned crc = 0xFFFFFFFF;
+  for (size_t i = 0; i < len; i++) {
+    auto byte = data[i];
+    crc = crc ^ byte;
+    for (auto j = 7; j >= 0; j--) {
+      auto mask = -(crc & 1);
+      crc = (crc >> 1) ^ (0xEDB88320 & mask);
+    }
+  }
+  return ~crc;
+}
 
-static bool read_fld32_file(const std::string &fname) {
+std::vector<std::string> split(const std::string &s, const std::string &delim) {
+  std::vector<std::string> tokens;
+  std::string token;
+
+  for (auto const c : s) {
+    if (delim.find(c) == std::string::npos) {
+      token += c;
+    } else if (!token.empty()) {
+      tokens.push_back(token);
+      token.clear();
+    }
+  }
+  if (!token.empty()) {
+    tokens.push_back(token);
+  }
+  return tokens;
+}
+
+struct Fbfr32fields {
+  std::shared_timed_mutex mutex;
+  std::map<FLDID32, std::string> id_to_name;
+  std::map<std::string, FLDID32> name_to_id;
+  std::atomic<bool> id_to_name_loaded;
+  std::atomic<bool> name_to_id_loaded;
+
+  Fbfr32fields() : id_to_name_loaded(false), name_to_id_loaded(false) {}
+
+  static constexpr int Fldtype32(FLDID32 fieldid) { return fieldid >> 24; }
+  static constexpr long Fldno32(FLDID32 fieldid) { return fieldid & 0xffffff; }
+
+  char *name(FLDID32 fieldid) {
+    if (!id_to_name_loaded) {
+      load_fieldtbls32();
+    }
+    std::shared_lock<std::shared_timed_mutex> lock(mutex);
+    auto it = id_to_name.find(fieldid);
+    if (it != id_to_name.end()) {
+      return const_cast<char *>(it->second.c_str());
+    }
+    Ferror32 = FBADFLD;
+    return nullptr;
+  }
+
+  FLDID32 fldid(const char *name) {
+    if (!name_to_id_loaded) {
+      load_fieldtbls32();
+    }
+    std::shared_lock<std::shared_timed_mutex> lock(mutex);
+    auto it = name_to_id.find(name);
+    if (it != name_to_id.end()) {
+      return it->second;
+    }
+    Ferror32 = FBADNAME;
+    return BADFLDID;
+  }
+
+  void idnm_unload() {
+    std::unique_lock<std::shared_timed_mutex> lock(mutex);
+    id_to_name.clear();
+    id_to_name_loaded = false;
+  }
+
+  void nmid_unload() {
+    std::unique_lock<std::shared_timed_mutex> lock(mutex);
+    name_to_id.clear();
+    name_to_id_loaded = false;
+  }
+
+ private:
+  bool read_fld32_file(const std::string &fname) {
     std::ifstream fields(fname);
     if (!fields) {
-        return false;
+      return false;
     }
 
-    std::string line;
-    long base = 0;
-    while (std::getline(fields, line)) {
-
-        boost::tokenizer<boost::char_separator<char>> tk(line, boost::char_separator<char>(" \t\r\n"));
-        auto nparts = std::distance(tk.begin(), tk.end());
-
-        if (nparts < 2) {
-            continue;
-        }
-
-        auto it = tk.begin();
-        if ((*it)[0] == '#' || (*it)[0] == '$') {
-            continue;
-        } else if (*it == "*base") {
-            ++it;
-            std::string x = *it;
-            base = boost::lexical_cast<long>(x);
-        } else if (nparts > 2) {
-            std::string name = *it;
-            ++it;
-            long fieldno = base + boost::lexical_cast<long>(*it);
-            ++it;
-            std::string type = *it;
-
-            auto type_it = fml32_types.find(type);
-            if (type_it == fml32_types.end()) {
-            }
-
-            auto fieldid = Fmkfldid32(type_it->second, fieldno);
-            g_idnm_map.insert(make_pair(fieldid, name));
-            g_nmid_map.insert(make_pair(name, fieldid));
-        }
+    parser p(fields);
+    p.parse();
+    for (auto field : p.fields()) {
+      id_to_name.insert(make_pair(field.fieldid, field.name));
+      name_to_id.insert(make_pair(field.name, field.fieldid));
     }
 
     return true;
-}
+  }
 
-static void read_fieldtbls32() {
+  void load_fieldtbls32() {
     auto fieldtbls32 = getenv("FIELDTBLS32");
     auto fldtbldir32 = getenv("FLDTBLDIR32");
 
     if (fieldtbls32 == nullptr || fldtbldir32 == nullptr) {
-        return;
+      return;
     }
 
-    std::string sfieldtbls32(fieldtbls32), sfldtbldir32(fldtbldir32);
-    boost::tokenizer<boost::char_separator<char>> files(sfieldtbls32, boost::char_separator<char>(","));
+    auto files = split(fieldtbls32, ",");
+    auto dirs = split(fldtbldir32, ":");
 
-    boost::tokenizer<boost::char_separator<char>> dirs(sfldtbldir32, boost::char_separator<char>(":"));
+    std::unique_lock<std::shared_timed_mutex> lock(mutex);
 
-    for (std::string fname : files) {
-        for (auto dname : dirs) {
-            if (read_fld32_file(dname + "/" + fname)) {
-                break;
-            }
+    id_to_name.clear();
+    name_to_id.clear();
+
+    id_to_name_loaded = true;
+    name_to_id_loaded = true;
+
+    for (auto &fname : files) {
+      for (auto &dname : dirs) {
+        if (read_fld32_file(dname + "/" + fname)) {
+          break;
         }
+      }
     }
-}
+  }
+};
+
+static Fbfr32fields Fbfr32fields_;
+static thread_local char conv_val_[32] __attribute__((aligned(8)));
+
+int Fldtype32(FLDID32 fieldid) { return Fbfr32fields::Fldtype32(fieldid); }
+
+long Fldno32(FLDID32 fieldid) { return Fbfr32fields::Fldno32(fieldid); }
+
+char *Fname32(FLDID32 fieldid) { return Fbfr32fields_.name(fieldid); }
+
+FLDID32 Fldid32(FUXCONST char *name) { return Fbfr32fields_.fldid(name); }
+
+void Fidnm_unload32() { return Fbfr32fields_.idnm_unload(); }
+
+void Fnmid_unload32() { return Fbfr32fields_.nmid_unload(); }
 
 ////////////////////////////////////////////////////////////////////////////
 
-class fml32 {
-    public:
+struct fieldhead {
+  FLDID32 fieldid;
+};
 
-        int init(FLDLEN32 buflen) {
-            if (buflen < min_size()) {
-                Ferror32 = FNOSPACE;
-                return -1;
-            }
-            m_size = buflen - min_size();
-            m_len = 0;
+struct field8b : fieldhead {
+  field8b(FLDID32 fieldid) : fieldhead{fieldid} {}
+  bool operator<(const field8b &other) const { return fieldid < other.fieldid; }
+  union {
+    char c;
+    short s;
+    float f;
+    char data[4];
+  };
+};
+static_assert(sizeof(field8b) == 8);
+
+struct field16b : fieldhead {
+  field16b(FLDID32 fieldid) : fieldhead{fieldid} {}
+  bool operator<(const field16b &other) const {
+    return fieldid < other.fieldid;
+  }
+  union {
+    long l;
+    double d;
+    char data[8];
+  };
+};
+static_assert(sizeof(field16b) == 16);
+
+struct fieldn : fieldhead {
+  FLDLEN32 flen;
+  char data[];
+
+  FLDLEN32 size() { return size(flen); }
+  static constexpr FLDLEN32 size(FLDLEN32 ilen) {
+    if (ilen & 3) {
+      ilen += 4 - (ilen & 3);
+    }
+    return ilen;
+  }
+};
+static_assert(sizeof(fieldn) == 8);
+
+class Fbfr32 {
+  Fbfr32() = delete;
+  Fbfr32(const Fbfr32 &) = delete;
+  Fbfr32 &operator=(const Fbfr32 &) = delete;
+
+ public:
+  static constexpr long needed(FLDOCC32 F, FLDLEN32 V) {
+    return F * (sizeof(FLDID32) + sizeof(uint32_t) + V) + sizeof(Fbfr32);
+  }
+
+  static char *typcvt(char *toval, FLDLEN32 *tolen, int totype, char *fromval,
+                      int fromtype, FLDLEN32 fromlen) {
+    FLDLEN32 dummy;
+    if (tolen == nullptr) {
+      tolen = &dummy;
+    }
+
+#define COPY_N(what)                   \
+  auto to = what;                      \
+  std::copy_n(&to, sizeof(to), toval); \
+  *tolen = sizeof(to)
+
+#define TYPCVT(what)                                         \
+  auto from = what;                                          \
+  if (totype == FLD_SHORT) {                                 \
+    COPY_N(static_cast<short>(from));                        \
+  } else if (totype == FLD_CHAR) {                           \
+    COPY_N(static_cast<char>(from));                         \
+  } else if (totype == FLD_FLOAT) {                          \
+    COPY_N(static_cast<float>(from));                        \
+  } else if (totype == FLD_LONG) {                           \
+    COPY_N(static_cast<long>(from));                         \
+  } else if (totype == FLD_DOUBLE) {                         \
+    COPY_N(static_cast<double>(from));                       \
+  } else if (totype == FLD_STRING || totype == FLD_CARRAY) { \
+    auto s = std::to_string(from);                           \
+    strcpy(toval, s.c_str());                                \
+    *tolen = s.size() + 1;                                   \
+  } else {                                                   \
+    Ferror32 = FEBADOP;                                      \
+    return nullptr;                                          \
+  }
+
+#define TYPCVTS                                              \
+  if (totype == FLD_SHORT) {                                 \
+    COPY_N(static_cast<short>(atol(from.c_str())));          \
+  } else if (totype == FLD_CHAR) {                           \
+    COPY_N(static_cast<char>(atol(from.c_str())));           \
+  } else if (totype == FLD_FLOAT) {                          \
+    COPY_N(static_cast<float>(atof(from.c_str())));          \
+  } else if (totype == FLD_LONG) {                           \
+    COPY_N(static_cast<long>(atol(from.c_str())));           \
+  } else if (totype == FLD_DOUBLE) {                         \
+    COPY_N(static_cast<double>(atof(from.c_str())));         \
+  } else if (totype == FLD_STRING || totype == FLD_CARRAY) { \
+    auto s = from;                                           \
+    strcpy(toval, s.c_str());                                \
+    *tolen = from.size() + 1;                                \
+  } else {                                                   \
+    Ferror32 = FEBADOP;                                      \
+    return nullptr;                                          \
+  }
+
+    if (fromtype == FLD_SHORT) {
+      TYPCVT(*reinterpret_cast<short *>(fromval));
+    } else if (fromtype == FLD_CHAR) {
+      TYPCVT(*reinterpret_cast<char *>(fromval));
+    } else if (fromtype == FLD_FLOAT) {
+      TYPCVT(*reinterpret_cast<float *>(fromval));
+    } else if (fromtype == FLD_LONG) {
+      TYPCVT(*reinterpret_cast<long *>(fromval));
+    } else if (fromtype == FLD_DOUBLE) {
+      TYPCVT(*reinterpret_cast<double *>(fromval));
+    } else if (fromtype == FLD_STRING) {
+      auto from = std::string(fromval);
+      TYPCVTS;
+    } else if (fromtype == FLD_CARRAY) {
+      auto from = std::string(fromval, fromlen);
+      TYPCVTS;
+    } else {
+      Ferror32 = FEBADOP;
+      return nullptr;
+    }
+    return toval;
+  }
+
+  int init(FLDLEN32 buflen) {
+    if (buflen < min_size()) {
+      Ferror32 = FNOSPACE;
+      return -1;
+    }
+    size_ = buflen - min_size();
+    len_ = 0;
+
+    offset_long_ = 0;
+    offset_char_ = 0;
+    offset_float_ = 0;
+    offset_double_ = 0;
+    offset_string_ = 0;
+    offset_carray_ = 0;
+    offset_fml32_ = 0;
+    return 0;
+  }
+  void reinit(FLDLEN32 buflen) { size_ = buflen - min_size(); }
+  void finit() {}
+
+  long size() const { return size_ + min_size(); }
+  long used() const { return len_ + min_size(); }
+  long unused() const { return size_ - len_; }
+
+  long chksum() {
+    return crc32b(reinterpret_cast<unsigned char *>(data_), len_);
+  }
+
+  int cpy(FBFR32 *src) {
+    if (size() < src->used()) {
+      Ferror32 = FNOSPACE;
+      return -1;
+    }
+    len_ = src->len_;
+    offset_long_ = src->offset_long_;
+    offset_char_ = src->offset_char_;
+    offset_double_ = src->offset_double_;
+    offset_float_ = src->offset_float_;
+    offset_string_ = src->offset_string_;
+    offset_carray_ = src->offset_carray_;
+    offset_fml32_ = src->offset_fml32_;
+    std::copy_n(src->data_, src->len_, data_);
+    return 0;
+  }
+
+  int chg(FLDID32 fieldid, FLDOCC32 oc, const char *value, FLDLEN32 flen) {
+    auto type = Fldtype32(fieldid);
+    auto klass = fldclass(fieldid);
+
+    // Fill in default values
+    flen = value_len(type, value, flen);
+
+    ssize_t need;
+    if (klass == FIELD8) {
+      need = sizeof(field8b);
+    } else if (klass == FIELD16) {
+      need = sizeof(field16b);
+    } else if (klass == FIELDN) {
+      need = sizeof(fieldn) + fieldn::size(flen);
+    }
+
+    auto *field = where(fieldid, oc);
+    if (field == nullptr) {
+      field = end(type);
+    } else if (field->fieldid == fieldid) {
+      if (klass == FIELD8 || klass == FIELD16) {
+        need = 0;
+      } else if (klass == FIELDN) {
+        need -= sizeof(fieldn) + reinterpret_cast<fieldn *>(field)->size();
+      }
+    }
+
+    if (need != 0) {
+      if (len_ + need > size_) {
+        Ferror32 = FNOSPACE;
+        return -1;
+      }
+
+      char *ptr = reinterpret_cast<char *>(field);
+      // std::copy(ptr, data_ + len_, ptr + need);
+      // copy does not work for overlaps?
+      memmove(ptr + need, ptr, (data_ + len_) - ptr);
+    }
+
+    field->fieldid = fieldid;
+
+    if (klass == FIELD8) {
+      auto f = reinterpret_cast<field8b *>(field);
+      // To avoid junk and terminating null helps FLD_CHAR -> FLD_STRING conversion
+      memset(f->data, 0x0, sizeof(f->data));
+      std::copy_n(value, flen, reinterpret_cast<field8b *>(field)->data);
+    } else if (klass == FIELD16) {
+      std::copy_n(value, flen, reinterpret_cast<field16b *>(field)->data);
+    } else if (klass == FIELDN) {
+      auto f = reinterpret_cast<fieldn *>(field);
+      f->flen = flen;
+      std::copy_n(value, flen, f->data);
+      if (type == FLD_FML32) {
+        FBFR32 *fbfr = reinterpret_cast<FBFR32 *>(f->data);
+        fbfr->size_ = fbfr->len_;
+      }
+    }
+
+    shift(type, need);
+    return 0;
+  }
+
+  FLDOCC32 findocc(FLDID32 fieldid, char *value, FLDLEN32 len) {
+    auto *it = where(fieldid, 0);
+    FLDOCC32 oc = 0;
+    auto type = Fldtype32(fieldid);
+
+    regex_t re;
+    // at scope exit delete regex if we created it
+    std::unique_ptr<regex_t, decltype(&::regfree)> guard(nullptr, &::regfree);
+    if (type == FLD_STRING && len != 0) {
+      if (regcomp(&re, value, REG_EXTENDED | REG_NOSUB) != 0) {
+        Ferror32 = FEINVAL;
+        return -1;
+      }
+      guard = std::unique_ptr<regex_t, decltype(&::regfree)>(&re, &::regfree);
+    }
+
+    while (it != nullptr && it->fieldid == fieldid) {
+      if (type == FLD_SHORT) {
+        if (reinterpret_cast<field8b *>(it)->s ==
+            *reinterpret_cast<short *>(value)) {
+          return oc;
         }
-
-        long size() {
-            return m_size + min_size();
+      } else if (type == FLD_CHAR) {
+        if (reinterpret_cast<field8b *>(it)->c ==
+            *reinterpret_cast<char *>(value)) {
+          return oc;
         }
-
-        long used() {
-            return m_len + min_size();
+      } else if (type == FLD_FLOAT) {
+        if (reinterpret_cast<field8b *>(it)->f ==
+            *reinterpret_cast<float *>(value)) {
+          return oc;
         }
-
-        int chg(FLDID32 fieldid, FLDOCC32 oc, char *value, FLDLEN32 flen) {
-            field_t *field = where(fieldid, oc);
-
-            size_t value_size = value_len(fieldid, value, flen);
-            ssize_t need = align(sizeof(FLDID32) + value_size);
-
-            if (field == nullptr) {
-                field = reinterpret_cast<field_t *>(m_data + m_len);
-            } else if (field->fieldid == fieldid) {
-                need -= align(sizeof(FLDID32) + field_len(field));
-            }
-
-            if (need != 0) {
-                if (m_len + need > m_size) {
-                    Ferror32 = FNOSPACE;
-                    return -1;
-                }
-
-                char *ptr = reinterpret_cast<char *>(field);
-                //std::copy(ptr, m_data + m_len, ptr + need);
-                // copy does not work for overlaps?
-                memmove(ptr + need, ptr, (m_data + m_len) - ptr);
-            }
-
-            field->fieldid = fieldid;
-            std::copy_n(value, value_size, field->value.data);
-            m_len += need;
-            return 0;
+      } else if (type == FLD_LONG) {
+        if (reinterpret_cast<field16b *>(it)->l ==
+            *reinterpret_cast<long *>(value)) {
+          return oc;
         }
-
-        char *find(FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *flen) {
-            field_t *field = where(fieldid, oc);
-            if (field == nullptr || field->fieldid != fieldid) {
-                Ferror32 = FNOTPRES;
-                return nullptr;
-            }
-
-            if (flen != nullptr) {
-                *flen = field_len(field);
-            }
-            return field_value(field);
+      } else if (type == FLD_DOUBLE) {
+        if (reinterpret_cast<field16b *>(it)->d ==
+            *reinterpret_cast<double *>(value)) {
+          return oc;
         }
-
-        int pres(FLDID32 fieldid, FLDOCC32 oc) {
-            field_t *field = where(fieldid, oc);
-            if (field == nullptr || field->fieldid != fieldid) {
-                return 0;
-            }
-            return 1;
-        }
-
-        FLDOCC32 occur(FLDID32 fieldid) {
-            field_t *field = where(fieldid, 0);
-            FLDOCC32 oc = 0;
-            while (field != nullptr && field->fieldid == fieldid) {
-                oc++;
-                field = next_field(field);
-            }
+      } else if (type == FLD_STRING) {
+        auto *field = reinterpret_cast<fieldn *>(it);
+        if (len == 0) {
+          if (strcmp(field->data, value) == 0) {
             return oc;
+          }
+        } else {
+          if (regexec(&re, field->data, 0, nullptr, 0) == 0) {
+            return oc;
+          }
         }
 
-        long len(FLDID32 fieldid, FLDOCC32 oc) {
-            field_t *field = where(fieldid, oc);
-            if (field == nullptr || field->fieldid != fieldid) {
-                Ferror32 = FNOTPRES;
-                return -1;
-            }
-
-            return field_len(field);
+      } else if (type == FLD_CARRAY) {
+        auto *field = reinterpret_cast<fieldn *>(it);
+        if (field->flen == len && memcmp(field->data, value, len) == 0) {
+          return oc;
         }
+      }
+      oc++;
+      it = next_(it);
+    }
+    Ferror32 = FNOTPRES;
+    return -1;
+  }
 
-        int fprint(FILE *iop) {
-            field_t *field = first_field();
-            while (field != nullptr) {
-                auto it = g_idnm_map.find(field->fieldid);
-                if (it != g_idnm_map.end()) {
-                    printf("%s\t", it->second.c_str());
-                } else {
-                    printf("(FLDID32(%d))\t", field->fieldid);
-                }
+  char *find(FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *flen) {
+    auto *field = where(fieldid, oc);
+    if (field == nullptr || field->fieldid != fieldid) {
+      Ferror32 = FNOTPRES;
+      return nullptr;
+    }
 
-                auto type = Fldtype32(field->fieldid);
-                if (type == FLD_SHORT) {
-                    short data;
-                    memcpy(&data, field->value.data, sizeof(data));
-                    printf("%d", data);
-                } else if (type == FLD_LONG) {
-                    long data;
-                    memcpy(&data, field->value.data, sizeof(data));
-                    printf("%ld", data);
-                } else if (type == FLD_CHAR) {
-                    printf("%c", field->value.data[0]);
-                } else if (type == FLD_FLOAT) {
-                    float data;
-                    memcpy(&data, field->value.data, sizeof(data));
-                    printf("%f", data);
-                } else if (type == FLD_DOUBLE) {
-                    double data;
-                    memcpy(&data, field->value.data, sizeof(data));
-                    printf("%f", data);
-                } else if (type == FLD_STRING) {
-                    print_string(iop, field->value.data, strlen(field->value.data));
-                } else if (type == FLD_CARRAY) {
-                    print_string(iop, field->value.vardata.data, field->value.vardata.len);
-                }
+    if (flen != nullptr) {
+      *flen = flength(field);
+    }
+    return fvalue(field);
+  }
+  char *cfind(FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *flen, int type) {
+    FLDLEN32 local_flen;
+    if (flen == nullptr) {
+      flen = &local_flen;
+    }
+    auto res = find(fieldid, oc, flen);
+    if (res == nullptr) {
+      return nullptr;
+    }
+    if (Fldtype32(fieldid) != type) {
+      return Fbfr32::typcvt(conv_val_, flen, type, res, Fldtype32(fieldid),
+                            *flen);
+    }
+    return res;
+  }
 
-                printf("\n");
+  int pres(FLDID32 fieldid, FLDOCC32 oc) {
+    auto *field = where(fieldid, oc);
+    if (field == nullptr || field->fieldid != fieldid) {
+      return 0;
+    }
+    return 1;
+  }
 
-                field = next_field(field);
-            }
-            // FMALLOC
-            printf("\n");
-            return 0;
+  FLDOCC32 occur(FLDID32 fieldid) {
+    auto *field = where(fieldid, 0);
+    FLDOCC32 oc = 0;
+    while (field != nullptr && field->fieldid == fieldid) {
+      oc++;
+      field = next_(field);
+    }
+    return oc;
+  }
+
+  int next(FLDID32 *fieldid, FLDOCC32 *oc, char *value, FLDLEN32 *len) {
+    if (fieldid == nullptr || oc == nullptr) {
+      Ferror32 = FEINVAL;
+      return -1;
+    }
+
+    auto *it = reinterpret_cast<fieldhead *>(data_);
+    auto *end = reinterpret_cast<fieldhead *>(data_ + len_);
+
+    if (*fieldid != BADFLDID) {
+      it = where(*fieldid, *oc);
+      if (it != nullptr && it < end) {
+        it = next_(it);
+      }
+    }
+
+    if (it != nullptr && it < end) {
+      if (it->fieldid == *fieldid) {
+        (*oc)++;
+      } else {
+        *fieldid = it->fieldid;
+        *oc = 0;
+      }
+
+      if (len != nullptr) {
+        auto flen = flength(it);
+        if (value != nullptr && *len >= flen) {
+          std::copy_n(fvalue(it), flen, value);
         }
+        *len = flen;
+      }
+      return 1;
+    }
+    return 0;
+  }
 
-        int print() {
-            return fprint(stdout);
+  long len(FLDID32 fieldid, FLDOCC32 oc) {
+    auto *field = where(fieldid, oc);
+    if (field == nullptr || field->fieldid != fieldid) {
+      Ferror32 = FNOTPRES;
+      return -1;
+    }
+
+    return flength(field);
+  }
+
+  int fprint(FILE *iop, int indent = 0) {
+    auto *it = reinterpret_cast<fieldhead *>(data_);
+    auto *end = reinterpret_cast<fieldhead *>(data_ + len_);
+
+    while (it != nullptr && it < end) {
+      auto *name = Fname32(it->fieldid);
+      for (int i = 0; i < indent; i++) {
+        fputc('\t', iop);
+      }
+      if (name != nullptr) {
+        fprintf(iop, "%s\t", name);
+      } else {
+        fprintf(iop, "(FLDID32(%d))\t", it->fieldid);
+      }
+
+      auto type = Fldtype32(it->fieldid);
+      if (type == FLD_SHORT) {
+        fprintf(iop, "%d", reinterpret_cast<field8b *>(it)->s);
+      } else if (type == FLD_CHAR) {
+        print_bytes(iop, &reinterpret_cast<field8b *>(it)->c, 1);
+      } else if (type == FLD_FLOAT) {
+        fprintf(iop, "%f", reinterpret_cast<field8b *>(it)->f);
+      } else if (type == FLD_LONG) {
+        fprintf(iop, "%ld", reinterpret_cast<field16b *>(it)->l);
+      } else if (type == FLD_DOUBLE) {
+        fprintf(iop, "%f", reinterpret_cast<field16b *>(it)->d);
+      } else if (type == FLD_STRING) {
+        auto *field = reinterpret_cast<fieldn *>(it);
+        print_bytes(iop, field->data, field->flen - 1);
+      } else if (type == FLD_CARRAY) {
+        auto *field = reinterpret_cast<fieldn *>(it);
+        print_bytes(iop, field->data, field->flen);
+      } else if (type == FLD_FML32) {
+        auto *field = reinterpret_cast<fieldn *>(it);
+        auto *fbfr = reinterpret_cast<FBFR32 *>(field->data);
+        fputc('\n', iop);
+        fbfr->fprint(iop, indent + 1);
+      }
+
+      fputc('\n', iop);
+
+      it = next_(it);
+    }
+
+    fprintf(iop, "\n");
+    return 0;
+  }
+
+  int print() { return fprint(stdout); }
+
+  int del(FLDID32 fieldid, FLDOCC32 oc) {
+    auto *field = where(fieldid, oc);
+
+    while (field == nullptr || field->fieldid != fieldid) {
+      Ferror32 = FNOTPRES;
+      return -1;
+    }
+
+    auto *next = next_(field);
+    erase(field, next);
+    return 0;
+  }
+
+  int delall(FLDID32 fieldid) {
+    auto *field = where(fieldid, 0);
+
+    while (field == nullptr || field->fieldid != fieldid) {
+      Ferror32 = FNOTPRES;
+      return -1;
+    }
+
+    auto *next = field;
+    while (next != nullptr && next->fieldid == fieldid) {
+      next = next_(next);
+    }
+    erase(field, next);
+    return 0;
+  }
+
+  int get(FLDID32 fieldid, FLDOCC32 oc, char *loc, FLDLEN32 *maxlen) {
+    auto *field = where(fieldid, oc);
+
+    while (field == nullptr || field->fieldid != fieldid) {
+      Ferror32 = FNOTPRES;
+      return -1;
+    }
+
+    auto len = flength(field);
+    if (maxlen != nullptr) {
+      if (*maxlen < len) {
+        *maxlen = len;
+        Ferror32 = FNOSPACE;
+        return -1;
+      }
+      *maxlen = len;
+    }
+    if (loc != nullptr) {
+      std::copy_n(fvalue(field), len, loc);
+    }
+    return 0;
+  }
+
+  int xdelete(FLDID32 *fieldid) {
+    FLDID32 *badfld;
+    if (sort(fieldid, &badfld) == -1) {
+      return -1;
+    }
+
+    auto *it = reinterpret_cast<fieldhead *>(data_);
+    auto *end = reinterpret_cast<fieldhead *>(data_ + len_);
+
+    while (it != nullptr && it < end) {
+      auto *f = std::find(fieldid, badfld, it->fieldid);
+      if (f == badfld) {
+        it = next_(it);
+      } else {
+        delall(it->fieldid);
+        end = reinterpret_cast<fieldhead *>(data_ + len_);
+      }
+    }
+    return 0;
+  }
+
+  int projcpy(FBFR32 *src, FLDID32 *fieldid) {
+    FLDID32 *badfld;
+    if (sort(fieldid, &badfld) == -1) {
+      return -1;
+    }
+    init(size());
+
+    auto *it = reinterpret_cast<fieldhead *>(src->data_);
+    auto *end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
+
+    while (it != nullptr && it < end) {
+      auto *f = std::find(fieldid, badfld, it->fieldid);
+      if (f != badfld) {
+        auto oc = occur(it->fieldid);
+
+        if (chg(it->fieldid, oc, src->fvalue(it), src->flength(it)) == -1) {
+          return -1;
         }
+      }
+      it = src->next_(it);
+    }
+    return 0;
+  }
 
-        int del(FLDID32 fieldid, FLDOCC32 oc) {
-            field_t *field = where(fieldid, oc);
+  int proj(FLDID32 *fieldid) {
+    FLDID32 *badfld;
+    if (sort(fieldid, &badfld) == -1) {
+      return -1;
+    }
 
-            while (field == nullptr || field->fieldid != fieldid) {
-                Ferror32 = FNOTPRES;
-                return -1;
-            }
+    auto *it = reinterpret_cast<fieldhead *>(data_);
+    auto *end = reinterpret_cast<fieldhead *>(data_ + len_);
 
-            field_t *next = next_field(field);
-            erase(reinterpret_cast<char *>(field), reinterpret_cast<char *>(next));
-            return 0;
+    while (it != nullptr && it < end) {
+      auto *f = std::find(fieldid, badfld, it->fieldid);
+      if (f == badfld) {
+        delall(it->fieldid);
+        end = reinterpret_cast<fieldhead *>(data_ + len_);
+      } else {
+        it = next_(it);
+      }
+    }
+    return 0;
+  }
+
+  int update(FBFR32 *src) {
+    auto *it = reinterpret_cast<fieldhead *>(src->data_);
+    auto *end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
+
+    FLDOCC32 oc = 0;
+    FLDID32 prev = BADFLDID;
+    while (it != nullptr && it < end) {
+      if (it->fieldid != prev) {
+        oc = 0;
+        prev = it->fieldid;
+      } else {
+        oc++;
+      }
+      if (chg(it->fieldid, oc, src->fvalue(it), src->flength(it)) == -1) {
+        return -1;
+      }
+
+      it = src->next_(it);
+    }
+    return 0;
+  }
+
+  int join(FBFR32 *src) {
+    {
+      auto *it = reinterpret_cast<fieldhead *>(data_);
+      auto *end = reinterpret_cast<fieldhead *>(data_ + len_);
+
+      while (it != nullptr && it < end) {
+        if (src->pres(it->fieldid, 0)) {
+          it = next_(it);
+        } else {
+          delall(it->fieldid);
+          end = reinterpret_cast<fieldhead *>(data_ + len_);
         }
+      }
+    }
 
-        int delall(FLDID32 fieldid) {
-            field_t *field = where(fieldid, 0);
+    {
+      auto *it = reinterpret_cast<fieldhead *>(src->data_);
+      auto *end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
 
-            while (field == nullptr || field->fieldid != fieldid) {
-                Ferror32 = FNOTPRES;
-                return -1;
-            }
-
-            field_t *next = field;
-            while (next != nullptr && next->fieldid == fieldid) {
-                next = next_field(next);
-            }
-            erase(reinterpret_cast<char *>(field), reinterpret_cast<char *>(next));
-            return 0;
+      FLDOCC32 oc = 0;
+      FLDID32 prev = BADFLDID;
+      while (it != nullptr && it < end) {
+        if (it->fieldid != prev) {
+          oc = 0;
+          prev = it->fieldid;
+        } else {
+          oc++;
         }
-
-        int get(FLDID32 fieldid, FLDOCC32 oc, char *loc, FLDLEN32 *flen) {
-            field_t *field = where(fieldid, 0);
-
-            while (field == nullptr || field->fieldid != fieldid) {
-                Ferror32 = FNOTPRES;
-                return -1;
-            }
-            return 0;
+        if (pres(it->fieldid, 0)) {
+          if (chg(it->fieldid, oc, src->fvalue(it), src->flength(it)) == -1) {
+            return -1;
+          }
         }
+        it = src->next_(it);
+      }
+    }
+    return 0;
+  }
 
-        long idxused() { return 0; }
-        int index(FLDOCC32 intvl) { return 0; }
-        int unindex() { return 0; }
-        int rstrindex(FLDOCC32 numidx) { return 0; }
-    private:
+  int concat(FBFR32 *src) {
+    if (unused() < src->used()) {
+      Ferror32 = FNOSPACE;
+      return -1;
+    }
 
-        void print_string(FILE *iop, const char *s, int len) {
-            for (int i = 0; i < len; i++, s++) {
-                if (isprint(*s)) {
-                    fprintf(iop, "%c", *s);
-                } else {
-                    fprintf(iop, "\\%02x", *s);
-                }
-            }
+    auto *it = reinterpret_cast<fieldhead *>(src->data_);
+    auto *end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
+
+    while (it != nullptr && it < end) {
+      auto oc = occur(it->fieldid);
+
+      if (chg(it->fieldid, oc, src->fvalue(it), src->flength(it)) == -1) {
+        return -1;
+      }
+      it = src->next_(it);
+    }
+    return 0;
+  }
+
+  int ojoin(FBFR32 *src) {
+    auto *it = reinterpret_cast<fieldhead *>(src->data_);
+    auto *end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
+
+    FLDOCC32 oc = 0;
+    FLDID32 prev = BADFLDID;
+    while (it != nullptr && it < end) {
+      if (it->fieldid != prev) {
+        oc = 0;
+        prev = it->fieldid;
+      } else {
+        oc++;
+      }
+      if (pres(it->fieldid, oc)) {
+        if (chg(it->fieldid, oc, src->fvalue(it), src->flength(it)) == -1) {
+          return -1;
         }
+      }
+      it = src->next_(it);
+    }
+    return 0;
+  }
 
-        void erase(char *from, char *to) {
-            if (to == nullptr) {
-                m_len = from - m_data;
-            } else {
-                memmove(from, to, (m_data + m_len) - to);
-                m_len -= (to - from);
-            }
+  char *getalloc(FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *extralen) {
+    auto *field = where(fieldid, oc);
+
+    while (field == nullptr || field->fieldid != fieldid) {
+      Ferror32 = FNOTPRES;
+      return nullptr;
+    }
+
+    auto len = flength(field);
+    auto size = len;
+    if (extralen != nullptr) {
+      size += *extralen;
+      *extralen = len;
+    }
+    char *loc = (char *)malloc(size);
+    std::copy_n(fvalue(field), len, loc);
+    return loc;
+  }
+
+ private:
+  void print_bytes(FILE *iop, const char *s, int len) {
+    for (int i = 0; i < len; i++, s++) {
+      if (isprint(*s)) {
+        fputc(*s, iop);
+      } else {
+        fprintf(iop, "\\%02x", *s);
+      }
+    }
+  }
+
+  void erase(fieldhead *from, fieldhead *to) {
+    if (to == nullptr) {
+      to = reinterpret_cast<fieldhead *>(data_ + len_);
+    }
+
+    auto diff = reinterpret_cast<char *>(to) - reinterpret_cast<char *>(from);
+    memmove(from, to, (data_ + len_) - reinterpret_cast<char *>(to));
+    shift(Fldtype32(from->fieldid), -diff);
+  }
+
+  void shift(int type, ssize_t delta) {
+    switch (type) {
+      case FLD_SHORT:
+        offset_long_ += delta;
+      case FLD_LONG:
+        offset_char_ += delta;
+      case FLD_CHAR:
+        offset_float_ += delta;
+      case FLD_FLOAT:
+        offset_double_ += delta;
+      case FLD_DOUBLE:
+        offset_string_ += delta;
+      case FLD_STRING:
+        offset_carray_ += delta;
+      case FLD_CARRAY:
+        offset_fml32_ += delta;
+      case FLD_FML32:
+        len_ += delta;
+      default:
+        break;
+    }
+  }
+
+  uint32_t size_;
+  uint32_t len_;
+  uint32_t offset_long_;
+  uint32_t offset_char_;
+  uint32_t offset_float_;
+  uint32_t offset_double_;
+  uint32_t offset_string_;
+  uint32_t offset_carray_;
+  uint32_t offset_fml32_;
+  char data_[] __attribute__((aligned(8)));
+
+  size_t min_size() const { return offsetof(Fbfr32, data_); }
+
+  size_t value_len(int type, const char *data, FLDLEN32 flen) {
+    switch (type) {
+      case FLD_SHORT:
+        return sizeof(short);
+      case FLD_CHAR:
+        return sizeof(char);
+      case FLD_FLOAT:
+        return sizeof(float);
+      case FLD_LONG:
+        return sizeof(long);
+      case FLD_DOUBLE:
+        return sizeof(double);
+      case FLD_STRING:
+        return strlen(data) + 1;
+      case FLD_CARRAY:
+        return flen;
+      case FLD_FML32:
+        return Fused32(reinterpret_cast<const FBFR32 *>(data));
+      default:
+        return 0;
+    }
+  }
+
+  fieldhead *next_(fieldhead *head) {
+    fieldhead *next;
+    auto klass = fldclass(head->fieldid);
+    if (klass == FIELD8) {
+      auto *field = reinterpret_cast<field8b *>(head);
+      next = ++field;
+    } else if (klass == FIELD16) {
+      auto *field = reinterpret_cast<field16b *>(head);
+      next = ++field;
+    } else if (klass == FIELDN) {
+      auto *field = reinterpret_cast<fieldn *>(head);
+      next = reinterpret_cast<fieldn *>(field->data + field->size());
+    }
+
+    auto *end = reinterpret_cast<fieldhead *>(data_ + len_);
+    if (next < end) {
+      return next;
+    }
+    return nullptr;
+  }
+
+  size_t flength(fieldhead *field) {
+    switch (Fldtype32(field->fieldid)) {
+      case FLD_SHORT:
+        return sizeof(short);
+      case FLD_CHAR:
+        return sizeof(char);
+      case FLD_FLOAT:
+        return sizeof(float);
+      case FLD_LONG:
+        return sizeof(long);
+      case FLD_DOUBLE:
+        return sizeof(double);
+      case FLD_STRING:
+      case FLD_CARRAY:
+      case FLD_FML32:
+        return reinterpret_cast<fieldn *>(field)->flen;
+      default:
+        return 0;
+    }
+  }
+
+  char *fvalue(fieldhead *field) {
+    auto klass = fldclass(field->fieldid);
+    if (klass == FIELD8) {
+      return reinterpret_cast<field8b *>(field)->data;
+    } else if (klass == FIELD16) {
+      return reinterpret_cast<field16b *>(field)->data;
+    } else if (klass == FIELDN) {
+      return reinterpret_cast<fieldn *>(field)->data;
+    }
+  }
+
+  fieldhead *end(int type) {
+    if (type == FLD_SHORT) {
+      return reinterpret_cast<fieldhead *>(data_ + offset_long_);
+    } else if (type == FLD_LONG) {
+      return reinterpret_cast<fieldhead *>(data_ + offset_char_);
+    } else if (type == FLD_CHAR) {
+      return reinterpret_cast<fieldhead *>(data_ + offset_float_);
+    } else if (type == FLD_FLOAT) {
+      return reinterpret_cast<fieldhead *>(data_ + offset_double_);
+    } else if (type == FLD_DOUBLE) {
+      return reinterpret_cast<fieldhead *>(data_ + offset_string_);
+    } else if (type == FLD_STRING) {
+      return reinterpret_cast<fieldhead *>(data_ + offset_carray_);
+    } else if (type == FLD_CARRAY) {
+      return reinterpret_cast<fieldhead *>(data_ + offset_fml32_);
+    } else if (type == FLD_FML32) {
+      return reinterpret_cast<fieldhead *>(data_ + len_);
+    }
+  }
+
+  fieldhead *where(FLDID32 fieldid, FLDOCC32 oc) {
+    switch (Fldtype32(fieldid)) {
+      case FLD_SHORT:
+        return where<field8b>(fieldid, oc, 0, offset_long_);
+      case FLD_LONG:
+        return where<field16b>(fieldid, oc, offset_long_, offset_char_);
+      case FLD_CHAR:
+        return where<field8b>(fieldid, oc, offset_char_, offset_float_);
+      case FLD_FLOAT:
+        return where<field8b>(fieldid, oc, offset_float_, offset_double_);
+      case FLD_DOUBLE:
+        return where<field16b>(fieldid, oc, offset_double_, offset_string_);
+      case FLD_STRING:
+        return wheren(fieldid, oc, offset_string_, offset_carray_);
+      case FLD_CARRAY:
+        return wheren(fieldid, oc, offset_carray_, offset_fml32_);
+      case FLD_FML32:
+        return wheren(fieldid, oc, offset_fml32_, len_);
+      default:
+        return nullptr;
+    }
+  }
+
+  template <class T>
+  fieldhead *where(FLDID32 fieldid, FLDOCC32 oc, uint32_t from, uint32_t to) {
+    auto *begin = reinterpret_cast<T *>(data_ + from);
+    auto *end = reinterpret_cast<T *>(data_ + to);
+    if (begin == end) {
+      return nullptr;
+    }
+    FLDOCC32 count = 0;
+    auto *it = std::lower_bound(begin, end, T(fieldid));
+    while (it < end) {
+      if (it->fieldid > fieldid) {
+        break;
+      } else if (it->fieldid == fieldid) {
+        if (count == oc) {
+          break;
         }
+        count++;
+      }
+      ++it;
+    }
+    if (it == end) {
+      return nullptr;
+    }
+    return it;
+  }
 
-        boost::uint32_t m_size;
-        boost::uint32_t m_len;
-        char m_buf[32];
-        char m_data[];
-
-        size_t min_size() {
-            return offsetof(fml32, m_data);
+  fieldhead *wheren(FLDID32 fieldid, FLDOCC32 oc, uint32_t from, uint32_t to) {
+    auto *it = reinterpret_cast<fieldn *>(data_ + from);
+    auto *end = reinterpret_cast<fieldn *>(data_ + to);
+    if (it == end) {
+      return nullptr;
+    }
+    FLDOCC32 count = 0;
+    while (it < end) {
+      if (it->fieldid > fieldid) {
+        break;
+      } else if (it->fieldid == fieldid) {
+        if (count == oc) {
+          break;
         }
+        count++;
+      }
+      it = reinterpret_cast<fieldn *>(it->data + it->size());
+    }
 
-        typedef struct {
-            FLDID32 fieldid;
-            union {
-                struct {
-                    boost::uint32_t len;
-                    char data[];
-                } vardata;
-                char data[];
-            } value;
-        } field_t;
+    if (it == end) {
+      return nullptr;
+    }
+    return it;
+  }
 
-        char *field_value(field_t *field) {
-            switch (Fldtype32(field->fieldid)) {
-                case FLD_SHORT:
-                case FLD_LONG:
-                case FLD_CHAR:
-                case FLD_FLOAT:
-                case FLD_DOUBLE:
-                case FLD_STRING:
-                    return field->value.data;
-                case FLD_CARRAY:
-                    return field->value.vardata.data;
-                default:
-                    return 0;
-            }
+  static int sort(FLDID32 *fieldid, FLDID32 **badfld = nullptr) {
+    auto *end = fieldid;
+    while (*end != BADFLDID) {
+      end++;
+    }
+    std::sort(fieldid, end);
+    if (badfld != nullptr) {
+      *badfld = end;
+    }
+    return 0;
+  }
 
-        }
+  enum storage_class { INVCLASS, FIELD8, FIELD16, FIELDN };
 
-        size_t value_len(FLDID32 fieldid, char *data, FLDLEN32 flen) {
-            switch (Fldtype32(fieldid)) {
-                case FLD_SHORT: return sizeof(short);
-                case FLD_LONG:  return sizeof(long);
-                case FLD_CHAR:  return sizeof(char);
-                case FLD_FLOAT: return sizeof(float);
-                case FLD_DOUBLE:  return sizeof(double);
-                case FLD_STRING:  return strlen(data) + 1;
-                case FLD_CARRAY:  return flen;
-                default:
-                    return 0;
-            }
-        }
-
-        size_t field_len(field_t *field) {
-            switch (Fldtype32(field->fieldid)) {
-                case FLD_SHORT: return sizeof(short);
-                case FLD_LONG:  return sizeof(long);
-                case FLD_CHAR:  return sizeof(char);
-                case FLD_FLOAT: return sizeof(float);
-                case FLD_DOUBLE:  return sizeof(double);
-                case FLD_STRING:  return strlen(field->value.data) + 1;
-                case FLD_CARRAY:  return field->value.vardata.len;
-                default:
-                    return 0;
-            }
-
-        }
-
-        field_t *where(FLDID32 fieldid, FLDOCC32 oc) {
-            field_t *field = first_field();
-            FLDOCC32 count = 0;
-            while (field != nullptr) {
-                if (field->fieldid == fieldid) {
-                    if (count == oc) {
-                        return field;
-                    }
-                    count++;
-                } else if (field->fieldid > fieldid) {
-                    return field;
-                }
-
-                field = next_field(field);
-            }
-            return nullptr;
-        }
-
-        field_t *first_field() {
-            if (m_len == 0) {
-                return nullptr;
-            }
-            return reinterpret_cast<field_t *>(m_data);
-        }
-
-        field_t *next_field(field_t *field) {
-            auto ptr = reinterpret_cast<char *>(field);
-            ptr += align(sizeof(FLDID32) + field_len(field));
-            if (ptr < m_data + m_len) {
-                return reinterpret_cast<field_t *>(ptr);
-            }
-            return nullptr;
-        }
-
-        size_t align(size_t flen) {
-            if (flen & 3) {
-                flen += 4 - (flen & 3);
-            }
-            return flen;
-        }
+  static constexpr storage_class fldclass(FLDID32 fieldid) {
+    switch (Fbfr32fields::Fldtype32(fieldid)) {
+      case FLD_SHORT:
+      case FLD_CHAR:
+      case FLD_FLOAT:
+        return FIELD8;
+      case FLD_LONG:
+      case FLD_DOUBLE:
+        return FIELD16;
+      case FLD_STRING:
+      case FLD_CARRAY:
+      case FLD_FML32:
+        return FIELDN;
+      default:
+        return INVCLASS;
+    }
+  }
 };
 
-////////////////////////////////////////////////////////////////////////////
-
-class fml32typeinfo : public typeinfo {
-public:
-    fml32typeinfo() : typeinfo("FML32", "*", 512) {
-        register_typeinfo(this);
-        read_fieldtbls32();
-    }
-    virtual void initbuf(char *buf, long size) {
-        reinterpret_cast<fml32 *>(buf)->init(size);
-    }
-    virtual void reinitbuf(char *buf, long size) {
-        reinterpret_cast<fml32 *>(buf)->init(size);
-    }
-    virtual void uninitbuf(char *buf, long size) {
-    }
-private:
-    static fml32typeinfo once;
-};
-fml32typeinfo fml32typeinfo::once;
-
-////////////////////////////////////////////////////////////////////////////
-
-int *_thread_specific_Ferror32() {
-    static boost::thread_specific_ptr<int> _Ferror32;
-    if (_Ferror32.get() == nullptr) {
-        _Ferror32.reset(new int);
-    }
-    return &(*_Ferror32);
+int *_Ferror32_tls() {
+  thread_local int Ferror32_ = 0;
+  return &Ferror32_;
 }
 
-char *Fstrerror32(int err) {
-    return nullptr;
+FUXCONST char *Fstrerror32(int err) {
+  switch (err) {
+    case FALIGN:
+      return "Fielded buffer not aligned";
+    case FNOTFLD:
+      return "Buffer not fielded";
+    case FNOSPACE:
+      return "No space in fielded buffer";
+    case FNOTPRES:
+      return "Field not present";
+    case FBADFLD:
+      return "Unknown field number or type";
+    case FTYPERR:
+      return "Illegal field type";
+    case FEUNIX:
+      return "case UNIX system call error";
+    case FBADNAME:
+      return "Unknown field name";
+    case FMALLOC:
+      return "malloc failed";
+    case FSYNTAX:
+      return "Bad syntax in Boolean expression";
+    case FFTOPEN:
+      return "Cannot find or open field table";
+    case FFTSYNTAX:
+      return "Syntax error in field table";
+    case FEINVAL:
+      return "Invalid argument to function";
+    case FBADTBL:
+      return "Destructive concurrent access to field table";
+    case FBADVIEW:
+      return "Cannot find or get view";
+    case FVFSYNTAX:
+      return "Syntax error in viewfile";
+    case FVFOPEN:
+      return "Cannot find or open viewfile";
+    case FBADACM:
+      return "ACM contains negative value";
+    case FNOCNAME:
+      return "cname not found";
+    case FEBADOP:
+      return "Invalid field type";
+    case FNOTRECORD:
+      return "Invalid record type";
+    case FRFSYNTAX:
+      return "Syntax error in recordfile";
+    case FRFOPEN:
+      return "Cannot find or open recordfile";
+    case FBADRECORD:
+      return "Cannot find or get record";
+    default:
+      return "?";
+  }
 }
 
 FLDID32 Fmkfldid32(int type, FLDID32 num) {
-    if (type != FLD_SHORT && type != FLD_LONG && type != FLD_CHAR
-            && type != FLD_FLOAT && type != FLD_DOUBLE && type != FLD_STRING
-            && type != FLD_CARRAY
-            && type != FLD_PTR && type != FLD_FML32 && type != FLD_VIEW32
-            && type != FLD_MBSTRING && type != FLD_FML) {
-        Ferror32 = FTYPERR;
-        return -1;
-    }
-    if (num < 1) {
-        Ferror32 = FBADFLD;
-        return -1;
-    }
+  if (type != FLD_SHORT && type != FLD_LONG && type != FLD_CHAR &&
+      type != FLD_FLOAT && type != FLD_DOUBLE && type != FLD_STRING &&
+      type != FLD_CARRAY && type != FLD_FML32) {
+    Ferror32 = FTYPERR;
+    return -1;
+  }
+  if (num < 1) {
+    Ferror32 = FBADFLD;
+    return -1;
+  }
 
-    // Tuxedo puts type in most significant byte
-    // We do it the other way so data is sorted by "num" not "type"
-    return (num << 8) | type;
+  return (type << 24) | num;
 }
-
-int Fldtype32(FLDID32 fieldid) {
-    return fieldid & 0xff;
-}
-
-long Fldno32(FLDID32 fieldid) {
-    return fieldid >> 8;
-}
-
-char *Fname32(FLDID32 fieldid) {
-    auto it = g_idnm_map.find(fieldid);
-    if (it == g_idnm_map.end()) {
-        Ferror32 = FBADFLD;
-        return nullptr;
-    }
-    return const_cast<char *>(it->second.c_str());
-}
-
-FLDID32 Fldid32(char *name) {
-    auto it = g_nmid_map.find(name);
-    if (it != g_nmid_map.end()) {
-        Ferror32 = FBADNAME;
-        return BADFLDID;
-    }
-    return it->second;
-}
-
-void Fidnm_unload32() {
-    // nop, memory is cheap
-}
-
-void Fnmid_unload() {
-    // nop, memory is cheap
-}
+long Fneeded32(FLDOCC32 F, FLDLEN32 V) { return Fbfr32::needed(F, V); }
 
 FBFR32 *Falloc32(FLDOCC32 F, FLDLEN32 V) {
-    return reinterpret_cast<FBFR32 *>(new fml32());
+  long buflen = Fneeded32(F, V);
+  FBFR32 *fbfr = (FBFR32 *)malloc(buflen);
+  Finit32(fbfr, buflen);
+  return fbfr;
 }
 
-//#define GOOD_ALIGNMENT 16
-#define GOOD_ALIGNMENT 2
-#define FBFR32_CHECK_INT(fbfr) \
-    do { \
-        if (fbfr == nullptr) { \
-            Ferror32 = FNOTFLD; \
-            return -1; \
-        } \
-        if ((reinterpret_cast<intptr_t>(fbfr) & GOOD_ALIGNMENT) != 0) { \
-            Ferror32 = FALIGNERR; \
-            return -1; \
-        } \
-    } while (false);
-
-#define FBFR32_CHECK_PTR(fbfr) \
-    do { \
-        if (fbfr == nullptr) { \
-            Ferror32 = FNOTFLD; \
-            return NULL; \
-        } \
-        if ((reinterpret_cast<intptr_t>(fbfr) & GOOD_ALIGNMENT) != 0) { \
-            Ferror32 = FALIGNERR; \
-            return NULL; \
-        } \
-    } while (false);
+#define FBFR32_CHECK(err, fbfr)                              \
+  do {                                                       \
+    if (fbfr == nullptr) {                                   \
+      Ferror32 = FNOTFLD;                                    \
+      return err;                                            \
+    }                                                        \
+    if ((reinterpret_cast<intptr_t>(fbfr) & (8 - 1)) != 0) { \
+      Ferror32 = FNOTFLD;                                    \
+      return err;                                            \
+    }                                                        \
+  } while (false);
 
 int Finit32(FBFR32 *fbfr, FLDLEN32 buflen) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->init(buflen);
+  FBFR32_CHECK(-1, fbfr);
+  if (buflen < Fneeded32(0, 0)) {
+    Ferror32 = FNOSPACE;
+  }
+  return fbfr->init(buflen);
+}
+
+FBFR32 *Frealloc32(FBFR32 *fbfr, FLDOCC32 F, FLDLEN32 V) {
+  FBFR32_CHECK(nullptr, fbfr);
+
+  long buflen = Fneeded32(F, V);
+  if (buflen < Fused32(fbfr)) {
+    Ferror32 = FMALLOC;
+    return nullptr;
+  }
+
+  fbfr = (FBFR32 *)realloc(fbfr, buflen);
+  fbfr->reinit(buflen);
+  return fbfr;
 }
 
 int Ffree32(FBFR32 *fbfr) {
-    FBFR32_CHECK_INT(fbfr);
-    delete reinterpret_cast<fml32 *>(fbfr);
-    return 0;
+  FBFR32_CHECK(-1, fbfr);
+  free(fbfr);
+  return 0;
 }
 
-long Fsizeof32(FBFR32 *fbfr) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->size();
+void fml32init(void *mem, size_t size) {
+  reinterpret_cast<Fbfr32 *>(mem)->init(size);
 }
 
-long Fused32(FBFR32 *fbfr) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->used();
+void fml32reinit(void *mem, size_t size) {
+  reinterpret_cast<Fbfr32 *>(mem)->reinit(size);
 }
 
-long Fidxused32(FBFR32 *fbfr) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->idxused();
+void fml32finit(void *mem) { reinterpret_cast<Fbfr32 *>(mem)->finit(); }
+
+long Fsizeof32(FUXCONST FBFR32 *fbfr) {
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->size();
 }
 
-int Findex32(FBFR32 *fbfr, FLDOCC32 intvl) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->index(intvl);
+long Fused32(FUXCONST FBFR32 *fbfr) {
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->used();
+}
+
+long Funused32(FUXCONST FBFR32 *fbfr) {
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->unused();
+}
+
+long Fidxused32(FUXCONST FBFR32 *fbfr) {
+  FBFR32_CHECK(-1, fbfr);
+  return 0;
+}
+
+int Findex32(FBFR32 *fbfr, FLDOCC32 intvl __attribute__((unused))) {
+  FBFR32_CHECK(-1, fbfr);
+  return 0;
 }
 
 int Funindex32(FBFR32 *fbfr) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->unindex();
+  FBFR32_CHECK(-1, fbfr);
+  return 0;
 }
 
-int Frstrindex32(FBFR32 *fbfr, FLDOCC32 numidx) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->rstrindex(numidx);
+int Frstrindex32(FBFR32 *fbfr, FLDOCC32 numidx __attribute__((unused))) {
+  FBFR32_CHECK(-1, fbfr);
+  return 0;
 }
 
-int Fchg32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *value, FLDLEN32 len) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->chg(fieldid, oc, value, len);
+int Fchg32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FUXCONST char *value,
+           FLDLEN32 len) {
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->chg(fieldid, oc, value, len);
+}
+
+int Fadd32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len) {
+  FBFR32_CHECK(-1, fbfr);
+  auto oc = fbfr->occur(fieldid);
+  return fbfr->chg(fieldid, oc, value, len);
 }
 
 char *Ffind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len) {
-    FBFR32_CHECK_PTR(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->find(fieldid, oc, len);
+  FBFR32_CHECK(nullptr, fbfr);
+  return fbfr->find(fieldid, oc, len);
+}
+char *CFfind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len,
+               int type) {
+  FBFR32_CHECK(nullptr, fbfr);
+  return fbfr->cfind(fieldid, oc, len, type);
 }
 
 int Fpres32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->pres(fieldid, oc);
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->pres(fieldid, oc);
 }
 
 FLDOCC32 Foccur32(FBFR32 *fbfr, FLDID32 fieldid) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->occur(fieldid);
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->occur(fieldid);
 }
 
 long Flen32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->len(fieldid, oc);
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->len(fieldid, oc);
 }
 
 int Fprint32(FBFR32 *fbfr) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->print();
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->print();
 }
 
 int Ffprint32(FBFR32 *fbfr, FILE *iop) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->fprint(iop);
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->fprint(iop);
 }
 
 int Fdel32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->del(fieldid, oc);
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->del(fieldid, oc);
 }
 
 int Fdelall32(FBFR32 *fbfr, FLDID32 fieldid) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->delall(fieldid);
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->delall(fieldid);
 }
 
-int Fget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *loc, FLDLEN32 *len) {
-    FBFR32_CHECK_INT(fbfr);
-    return reinterpret_cast<fml32 *>(fbfr)->get(fieldid, oc, loc, len);
+int Fget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *loc,
+           FLDLEN32 *maxlen) {
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->get(fieldid, oc, loc, maxlen);
+}
+
+int Fnext32(FBFR32 *fbfr, FLDID32 *fieldid, FLDOCC32 *oc, char *value,
+            FLDLEN32 *len) {
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->next(fieldid, oc, value, len);
+}
+int Fcpy32(FBFR32 *dest, FBFR32 *src) {
+  FBFR32_CHECK(-1, dest);
+  FBFR32_CHECK(-1, src);
+  return dest->cpy(src);
+}
+char *Fgetalloc32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc,
+                  FLDLEN32 *extralen) {
+  FBFR32_CHECK(nullptr, fbfr);
+  return fbfr->getalloc(fieldid, oc, extralen);
+}
+int Fdelete32(FBFR32 *fbfr, FLDID32 *fieldid) {
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->xdelete(fieldid);
+}
+int Fproj32(FBFR32 *fbfr, FLDID32 *fieldid) {
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->proj(fieldid);
+}
+int Fprojcpy32(FBFR32 *dest, FBFR32 *src, FLDID32 *fieldid) {
+  FBFR32_CHECK(-1, dest);
+  FBFR32_CHECK(-1, src);
+  return dest->projcpy(src, fieldid);
+}
+int Fupdate32(FBFR32 *dest, FBFR32 *src) {
+  FBFR32_CHECK(-1, dest);
+  FBFR32_CHECK(-1, src);
+  return dest->update(src);
+}
+int Fjoin32(FBFR32 *dest, FBFR32 *src) {
+  FBFR32_CHECK(-1, dest);
+  FBFR32_CHECK(-1, src);
+  return dest->join(src);
+}
+int Fojoin32(FBFR32 *dest, FBFR32 *src) {
+  FBFR32_CHECK(-1, dest);
+  FBFR32_CHECK(-1, src);
+  return dest->ojoin(src);
+}
+long Fchksum32(FBFR32 *fbfr) {
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->chksum();
+}
+
+char *Ftypcvt32(FLDLEN32 *tolen, int totype, char *fromval, int fromtype,
+                FLDLEN32 fromlen) {
+  return Fbfr32::typcvt(conv_val_, tolen, totype, fromval, fromtype, fromlen);
+}
+
+FLDOCC32 Ffindocc32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len) {
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->findocc(fieldid, value, len);
+}
+
+int Fconcat32(FBFR32 *dest, FBFR32 *src) {
+  FBFR32_CHECK(-1, dest);
+  FBFR32_CHECK(-1, src);
+  return dest->concat(src);
 }

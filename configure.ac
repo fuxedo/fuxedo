@@ -1,24 +1,18 @@
-AC_INIT([Fuxedo], [0.1], [aivars.kalvans@gmail.com], [fuxedo], [http://phi.lv/])
-AM_INIT_AUTOMAKE([foreign -Wall -Werror])
+AC_INIT([Fuxedo], [0.0.1], [aivars.kalvans@gmail.com])
+AC_CONFIG_MACRO_DIRS([m4])
 
-AC_CONFIG_MACRO_DIR([m4])
-m4_include([m4/ax_boost_base.m4])
-m4_include([m4/ax_boost_thread.m4])
-m4_include([m4/ax_boost_unit_test_framework.m4])
-m4_include([m4/ax_cxx_compile_stdcxx_11.m4])
+AM_INIT_AUTOMAKE([-Wall subdir-objects foreign nostdinc])
+AM_SILENT_RULES([yes])
 
 AC_PROG_CXX
-AC_PROG_LIBTOOL
 
-AC_LANG_PUSH([C++])
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
+LT_INIT([shared])
+AC_LANG([C++])
+AX_CXX_COMPILE_STDCXX_14(ext, mandatory)
 
-AX_BOOST_BASE([1.39.0])
-AX_BOOST_THREAD
-AX_BOOST_UNIT_TEST_FRAMEWORK
-AX_CXX_COMPILE_STDCXX_11([noext])
+AC_SUBST([AM_CXXFLAGS])
+AC_SUBST([AM_LDFLAGS])
 
-AC_LANG_POP([C++])
-
-AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile src/Makefile tests/Makefile])
+AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

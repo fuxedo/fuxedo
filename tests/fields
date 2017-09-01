@@ -1,0 +1,19 @@
+#
+$
+*base 10
+FCHAR 1  char
+*base 20
+FLONG 1  long  - Some comments
+*base 30
+FFML32 1  fml32
+#
+$
+EMPID 200 carray
+SEX 201 char
+AGE 202 short
+DEPT 203 long
+SALARY 204 float
+NAME 205 string
+
+ARGS 206 fml32
+VALUE 207 string

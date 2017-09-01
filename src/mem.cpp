@@ -1,88 +1,130 @@
-#include <cstdlib>
-#include <cstring>
+#include <xatmi.h>
 #include <algorithm>
+#include <cstddef>
+#include <cstring>
+
 #include <vector>
-#include <boost/cstdint.hpp>
+#include "misc.h"
 
-#include <atmi.h>
-#include "typeinfo.hpp"
-
-int tperrno;
-
-typedef struct {
-    size_t size;
-    char type[TYPELEN];
-    char subtype[SUBTYPELEN];
-    boost::uint8_t typeidx;
-    char data[];
-} meminfo_t;
-
-static auto carraytypeinfo = typeinfo("CARRAY", "*", 512);
-static auto stringtypeinfo = typeinfo("STRING", "*", 512);
-static std::vector<typeinfo *> g_typeinfo = {
-    &carraytypeinfo,
-    &stringtypeinfo
+struct tptype {
+  char type[8];
+  char subtype[16];
+  int default_size;
+  void (*init)(void *mem, size_t size);
+  void (*reinit)(void *mem, size_t size);
+  void (*finit)(void *mem);
 };
 
-void register_typeinfo(typeinfo *ti) {
-    g_typeinfo.push_back(ti);
+void fml32init(void *, size_t);
+void fml32reinit(void *, size_t);
+void fml32finit(void *);
+
+std::vector<tptype> _tptypes = {
+    tptype{"CARRAY", "*", 0, nullptr, nullptr, nullptr},
+    tptype{"STRING", "*", 512, nullptr, nullptr, nullptr},
+    tptype{"FML32", "*", 512, fml32init, fml32reinit, fml32finit}};
+
+struct tpmem {
+  char type[8];
+  char subtype[16];
+  long size;
+  char data[];
+};
+
+static tpmem *memptr(char *ptr) {
+  return (tpmem *)(ptr - offsetof(struct tpmem, data));
 }
 
-char *tpalloc(FUXCONST char *type, FUXCONST char *subtype, long size) {
-    if (type == nullptr || size < 0) {
-        //tperrno = TPEINVAL;
-        return nullptr;
-    }
-
-    auto found = false;
-
-    boost::uint8_t typeidx = 0;
-    for (auto ti : g_typeinfo) {
-        if (strcmp(ti->type, type) == 0
-                && (subtype == nullptr || strcmp(ti->subtype, subtype) == 0)) {
-            found = true;
-
-            if (size == 0) {
-                size = ti->defsize;
-            }
-            break;
-        }
-        typeidx++;
-    }
-
-    if (!found) {
-        //tperrno = TPNOENT;
-        return nullptr;
-    }
-
-    auto mem = reinterpret_cast<meminfo_t *>(malloc(offsetof(meminfo_t, data) + size));
-    mem->size = size;
-    mem->typeidx = typeidx;
-    std::copy_n(g_typeinfo[typeidx]->type, sizeof(mem->type), mem->type);
-    std::copy_n(g_typeinfo[typeidx]->subtype, sizeof(mem->subtype), mem->subtype);
-
-    g_typeinfo[typeidx]->initbuf(mem->data, mem->size);
-    return mem->data;
+static tptype *typeptr(const char *type, const char *subtype) {
+  const auto &tptype =
+      std::find_if(_tptypes.begin(), _tptypes.end(), [&](const auto &t) {
+        return (strncmp(t.type, type, sizeof(t.type)) == 0 &&
+                (subtype == nullptr ||
+                 strncmp(t.subtype, subtype, sizeof(t.subtype)) == 0));
+      });
+  if (tptype == _tptypes.end()) {
+    TPERROR(TPENOENT, "unknown type [%s] and subtype[%s]", type,
+            subtype == nullptr ? "" : subtype);
+    return nullptr;
+  }
+  return &(*tptype);
 }
 
-char *tprealloc(char *ptr, long size)  {
-    auto mem = reinterpret_cast<meminfo_t *>(ptr - offsetof(meminfo_t, data));
-    mem = reinterpret_cast<meminfo_t *>(realloc(mem, size));
-    mem->size = size;
-    g_typeinfo[mem->typeidx]->reinitbuf(mem->data, mem->size);
-    return mem->data;
+char *tpalloc(const char *type, const char *subtype, long size) {
+  if (type == nullptr) {
+    TPERROR(TPEINVAL, "type is nullptr");
+    return nullptr;
+  }
+
+  const auto *tptype = typeptr(type, subtype);
+  if (tptype == nullptr) {
+    return nullptr;
+  }
+
+  size = size >= tptype->default_size ? size : tptype->default_size;
+  auto *mem = (tpmem *)malloc(sizeof(tpmem) + size);
+  strncpy(mem->type, type, sizeof(mem->type));
+  if (subtype != nullptr) {
+    strncpy(mem->subtype, subtype, sizeof(mem->subtype));
+  } else {
+    mem->subtype[0] = '\0';
+  }
+  mem->size = size;
+  if (tptype->init != nullptr) {
+    tptype->init(mem->data, size);
+  }
+
+  return mem->data;
+}
+
+char *tprealloc(char *ptr, long size) {
+  if (ptr == nullptr) {
+    TPERROR(TPEINVAL, "ptr is nullptr");
+    return nullptr;
+  }
+
+  auto *mem = memptr(ptr);
+  const auto *tptype = typeptr(mem->type, mem->subtype);
+  if (tptype == nullptr) {
+    return nullptr;
+  }
+
+  size = size >= tptype->default_size ? size : tptype->default_size;
+  mem = (tpmem *)realloc(mem, sizeof(tpmem) + size);
+  if (tptype->reinit != nullptr) {
+    tptype->reinit(ptr, size);
+  }
+  return mem->data;
 }
 
 void tpfree(char *ptr) {
-    if (ptr != nullptr) {
-        auto mem = reinterpret_cast<meminfo_t *>(ptr - offsetof(meminfo_t, data));
-        g_typeinfo[mem->typeidx]->uninitbuf(mem->data, mem->size);
-        free(mem);
+  if (ptr != nullptr) {
+    // Inside service routines do not free buffer past into a service routine
+    auto *mem = memptr(ptr);
+    const auto *tptype = typeptr(mem->type, mem->subtype);
+    if (tptype == nullptr) {
+      return;
     }
+    if (tptype->finit != nullptr) {
+      tptype->finit(ptr);
+    }
+    free(mem);
+  }
 }
 
 long tptypes(char *ptr, char *type, char *subtype) {
-    auto mem = reinterpret_cast<meminfo_t *>(ptr - offsetof(meminfo_t, data));
+  if (ptr == nullptr) {
+    TPERROR(TPEINVAL, "ptr is nullptr");
+    return -1;
+  }
+
+  auto *mem = memptr(ptr);
+  if (type != nullptr) {
     std::copy_n(mem->type, sizeof(mem->type), type);
+  }
+  if (subtype != nullptr) {
     std::copy_n(mem->subtype, sizeof(mem->subtype), subtype);
+  }
+
+  return 0;
 }
