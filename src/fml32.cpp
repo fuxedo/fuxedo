@@ -177,7 +177,7 @@ struct field8b : fieldhead {
     char data[4];
   };
 };
-static_assert(sizeof(field8b) == 8);
+static_assert(sizeof(field8b) == 8, "Small fixed fields must be 8 bytes");
 
 struct field16b : fieldhead {
   field16b(FLDID32 fieldid) : fieldhead{fieldid} {}
@@ -190,7 +190,7 @@ struct field16b : fieldhead {
     char data[8];
   };
 };
-static_assert(sizeof(field16b) == 16);
+static_assert(sizeof(field16b) == 16, "Large fixed fields must be 16 bytes");
 
 struct fieldn : fieldhead {
   FLDLEN32 flen;
@@ -204,7 +204,7 @@ struct fieldn : fieldhead {
     return ilen;
   }
 };
-static_assert(sizeof(fieldn) == 8);
+static_assert(sizeof(fieldn) == 8, "Variable field header must be 8 bytes");
 
 class Fbfr32 {
   Fbfr32() = delete;
@@ -380,7 +380,8 @@ class Fbfr32 {
 
     if (klass == FIELD8) {
       auto f = reinterpret_cast<field8b *>(field);
-      // To avoid junk and terminating null helps FLD_CHAR -> FLD_STRING conversion
+      // To avoid junk and terminating null helps FLD_CHAR -> FLD_STRING
+      // conversion
       memset(f->data, 0x0, sizeof(f->data));
       std::copy_n(value, flen, reinterpret_cast<field8b *>(field)->data);
     } else if (klass == FIELD16) {

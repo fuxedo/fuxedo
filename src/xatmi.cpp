@@ -6,9 +6,7 @@
 static thread_local char tplasterr_[1024] = {0};
 static thread_local int tperrno_ = 0;
 
-int *_tperrno_tls() { 
-  return &tperrno_;
-}
+int *_tperrno_tls() { return &tperrno_; }
 
 void _tperror(int err, const char *fmt, ...) {
   tperrno_ = err;
