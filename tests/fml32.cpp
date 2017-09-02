@@ -1,9 +1,12 @@
 #define CATCH_CONFIG_MAIN
 #define CATCH_CONFIG_FAST_COMPILE
-#include "catch.hpp"
+#define CATCH_CONFIG_DEFAULT_REPORTER "automake"
+#include <catch.hpp>
+#include <catch_reporter_automake.hpp>
 
 #include <fml32.h>
 #include <xatmi.h>
+#include <fstream>
 
 #define DECONST(x) const_cast<char *>(x)
 
@@ -954,4 +957,17 @@ TEST_CASE("boolean eval", "[fml32]") {
   free(tree);
 
   Ffree32(fbfr);
+}
+
+TEST_CASE("Fboolpr32", "[fml32]") {
+  char *tree;
+
+  std::ifstream in("tests/Fboolpr32.in");
+  std::ifstream out("tests/Fboolpr32.in");
+  std::string input, output;
+  while (std::getline(in, input) && std::getline(out, output)) {
+  REQUIRE((tree = Fboolco32(DECONST(output.c_str()))) != nullptr);
+  Fboolpr32(tree, stdout);
+  free(tree);
+  }
 }
