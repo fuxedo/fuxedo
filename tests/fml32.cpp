@@ -6,9 +6,24 @@
 
 #include <fml32.h>
 #include <xatmi.h>
+#include <cstdio>
+#include <cstdlib>
+
 #include <fstream>
 
 #define DECONST(x) const_cast<char *>(x)
+
+struct tempfile {
+  tempfile(int line) {
+    name = __FILE__ + std::to_string(line) + ".tmp";
+    f = fopen(name.c_str(), "w");
+    REQUIRE(f != nullptr);
+  }
+
+  ~tempfile() { remove(name.c_str()); }
+  std::string name;
+  FILE *f;
+};
 
 static void fldid32_check(int type) {
   long num = 13;
@@ -858,6 +873,18 @@ TEST_CASE_METHOD(FieldSetFixture, "Fprojcpy32", "[fml32]") {
   Ffree32(dest);
 }
 
+static std::string read_file(const std::string &fname) {
+  std::ifstream file(fname, std::ios::binary | std::ios::ate);
+  std::streamsize size = file.tellg();
+  file.seekg(0, std::ios::beg);
+
+  std::string buffer(size, '\0');
+  if (file.read(&buffer[0], size)) {
+    return buffer;
+  }
+  return "";
+}
+
 TEST_CASE("nested fml32", "[fml32]") {
   auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
   auto args = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
@@ -888,7 +915,13 @@ TEST_CASE("nested fml32", "[fml32]") {
           std::string("000002"));
   REQUIRE((nested = (FBFR32 *)Ffind32(fbfr, ARGS, 2, nullptr)) == nullptr);
 
-  Fprint32(fbfr);
+  tempfile file(__LINE__);
+  REQUIRE(Ffprint32(fbfr, file.f) != -1);
+  fclose(file.f);
+  REQUIRE(read_file(file.name) ==
+          "ARGS\t\n\tNAME\tname1\n\tVALUE\t000001\n\n"
+          "ARGS\t\n\tNAME\tname2\n\tVALUE\t000002\n\n"
+          "\n");
 
   tpfree((char *)args);
   tpfree((char *)fbfr);
@@ -957,17 +990,4 @@ TEST_CASE("boolean eval", "[fml32]") {
   free(tree);
 
   Ffree32(fbfr);
-}
-
-TEST_CASE("Fboolpr32", "[fml32]") {
-  char *tree;
-
-  std::ifstream in("tests/Fboolpr32.in");
-  std::ifstream out("tests/Fboolpr32.in");
-  std::string input, output;
-  while (std::getline(in, input) && std::getline(out, output)) {
-  REQUIRE((tree = Fboolco32(DECONST(output.c_str()))) != nullptr);
-  Fboolpr32(tree, stdout);
-  free(tree);
-  }
 }

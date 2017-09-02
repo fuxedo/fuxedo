@@ -10,7 +10,7 @@ Fuxedo is a toy project I started in late 2011 to play with C++11 and Boost liba
 
 ## What is Fuxedo?
 
-Fuxedo is an implementation of X/Open XATMI specification and some Oracle Tuxedo extensions of the API, currenty:
+Fuxedo is an implementation of X/Open XATMI specification and some Oracle Tuxedo extensions of the API, currently:
 
 - Typed buffers API
   - STRING - C-style null-terminated strings.

@@ -603,7 +603,9 @@ class Fbfr32 {
       it = next_(it);
     }
 
-    fprintf(iop, "\n");
+    if (indent == 0) {
+      fputc('\n', iop);
+    }
     return 0;
   }
 
