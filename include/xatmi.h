@@ -26,6 +26,7 @@ extern "C" {
 
 int *_tperrno_tls();
 #define tperrno (*_tperrno_tls())
+FUXCONST char *tpstrerror(int err);
 
 char *tpalloc(FUXCONST char *type, FUXCONST char *subtype, long size);
 char *tprealloc(char *ptr, long size);
