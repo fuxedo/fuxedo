@@ -10,6 +10,7 @@ src_libfuxedo_la_LDFLAGS =
 
 TESTS = tests/xatmi tests/fml32
 check_PROGRAMS = $(TESTS)
+
 AM_TESTS_ENVIRONMENT = FLDTBLDIR32=.:src:tests FIELDTBLS32=dummy,fields
 
 tests_xatmi_SOURCES = tests/xatmi.cpp
