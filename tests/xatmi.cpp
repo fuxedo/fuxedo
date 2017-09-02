@@ -14,13 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#define CATCH_CONFIG_MAIN
-#define CATCH_CONFIG_FAST_COMPILE
-#define CATCH_CONFIG_DEFAULT_REPORTER "automake"
 #include <catch.hpp>
-#include <catch_reporter_automake.hpp>
 
 #include <xatmi.h>
+#include <cstring>
 
 TEST_CASE("tpalloc", "[tp-memory]") {
   GIVEN("NULL type") {

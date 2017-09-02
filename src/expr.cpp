@@ -44,6 +44,9 @@ enum tree_op {
   modulus,
   addition,
   substraction,
+  exclusive_or,
+  logical_and,
+  logical_or,
   less_than,
   greater_than,
   less_or_equal,
@@ -52,16 +55,13 @@ enum tree_op {
   not_equal,
   matches,
   not_matches,
-  exclusive_or,
-  logical_and,
-  logical_or,
   last_invalid,
 };
 
 const char *tree_ops[] = {
     "inv", "long", "double", "string", "field", "field_any", "+",  "-",  "!",
-    "~",   "*",    "/",      "%",      "+",     "-",         "<",  ">",  "<=",
-    ">=",  "==",   "!=",     "%%",     "!%",    "^",         "&&", "||", "inv"};
+    "~",   "*",    "/",      "%",      "+",     "-",         "^",  "&&", "||",
+    "<",   ">",    "<=",     ">=",     "==",    "!=",        "%%", "!%", "inv"};
 
 // AST tree as a flat data structure
 // Unlike Fbfr32 where users exprect some alignment of data this is optimized
@@ -216,7 +216,8 @@ class expression_parser : public basic_parser {
       char op = tok.opcode;
       if (op == matches || op == not_matches) {
         // LHS: field or string constant; RHS: string constant;
-        if (tree_.peek(lhs) != const_string && tree_.peek(lhs) != field) {
+        if (tree_.peek(lhs) != const_string && tree_.peek(lhs) != field &&
+            tree_.peek(lhs) != field_any) {
           throw basic_parser_error(
               "Right hand side of %% and !% must be a field or a string", row_,
               col_, "");
@@ -479,6 +480,86 @@ eval_value apply(char *tree, eval_value &lhs, eval_value &rhs) {
   }
 }
 
+static eval_value boolev_field(FBFR32 *fbfr, char *tree, FLDID32 fieldid,
+                               FLDOCC32 oc) {
+  switch (Fldtype32(fieldid)) {
+    case FLD_SHORT:
+    case FLD_LONG: {
+      auto *value = reinterpret_cast<long *>(
+          CFfind32(fbfr, fieldid, oc, nullptr, FLD_LONG));
+      if (value != nullptr) {
+        return eval_value(tree, *value);
+      } else {
+        return eval_value(tree, 0);
+      }
+    }
+    case FLD_FLOAT:
+    case FLD_DOUBLE: {
+      auto *value = reinterpret_cast<double *>(
+          CFfind32(fbfr, fieldid, oc, nullptr, FLD_DOUBLE));
+      if (value != nullptr) {
+        return eval_value(tree, *value);
+      } else {
+        return eval_value(tree, 0.0);
+      }
+    }
+    case FLD_CHAR:
+    case FLD_STRING:
+    case FLD_CARRAY: {
+      auto *value = reinterpret_cast<char *>(
+          CFfind32(fbfr, fieldid, oc, nullptr, FLD_STRING));
+      if (value != nullptr) {
+        return eval_value(tree, value);
+      } else {
+        return eval_value(tree, "");
+      }
+    }
+    default:
+      throw std::runtime_error("unsupported field type");
+  }
+}
+
+static eval_value boolev_cmp(char *tree, char op, eval_value lhs,
+                             eval_value rhs) {
+  char lbuf[64], rbuf[64];
+
+  auto lexical_compare = lhs.is_const_string() || rhs.is_const_string() ||
+                         (lhs.is_string() && rhs.is_string());
+  if (lexical_compare && op != matches && op != not_matches) {
+    lhs = eval_value(nullptr, strcmp(lhs.to_string(lbuf), rhs.to_string(rbuf)));
+    rhs = eval_value(nullptr, 0);
+  }
+
+  if (op == less_than) {
+    return apply<std::less>(tree, lhs, rhs);
+  } else if (op == greater_than) {
+    return apply<std::greater>(tree, lhs, rhs);
+  } else if (op == less_or_equal) {
+    return apply<std::less_equal>(tree, lhs, rhs);
+  } else if (op == greater_or_equal) {
+    return apply<std::greater_equal>(tree, lhs, rhs);
+  } else if (op == equal) {
+    return apply<std::equal_to>(tree, lhs, rhs);
+  } else if (op == not_equal) {
+    return apply<std::not_equal_to>(tree, lhs, rhs);
+  } else if (op == matches) {
+    regex_t regex;
+    if (regcomp(&regex, rhs.s, 0) == 0) {
+      auto r = regexec(&regex, lhs.s, 0, NULL, 0);
+      regfree(&regex);
+      return eval_value(tree, r == 0);
+    }
+  } else if (op == not_matches) {
+    regex_t regex;
+    if (regcomp(&regex, rhs.s, 0) == 0) {
+      auto r = regexec(&regex, lhs.s, 0, NULL, 0);
+      regfree(&regex);
+      return eval_value(tree, r == REG_NOMATCH);
+    }
+  }
+  throw std::runtime_error("unsupported comparison operator");
+}
+
 eval_value boolev(FBFR32 *fbfr, char *tree) {
   char op = *tree++;
   if (op == const_long) {
@@ -500,54 +581,19 @@ eval_value boolev(FBFR32 *fbfr, char *tree) {
     std::copy_n(tree, sizeof(oc), reinterpret_cast<char *>(&oc));
     tree += sizeof(oc);
 
-    switch (Fldtype32(fieldid)) {
-      case FLD_SHORT:
-      case FLD_LONG: {
-        auto *value = reinterpret_cast<long *>(
-            CFfind32(fbfr, fieldid, oc, nullptr, FLD_LONG));
-        if (value != nullptr) {
-          return eval_value(tree, *value);
-        } else {
-          return eval_value(tree, 0);
-        }
-      }
-      case FLD_FLOAT:
-      case FLD_DOUBLE: {
-        auto *value = reinterpret_cast<double *>(
-            CFfind32(fbfr, fieldid, oc, nullptr, FLD_DOUBLE));
-        if (value != nullptr) {
-          return eval_value(tree, *value);
-        } else {
-          return eval_value(tree, 0.0);
-        }
-      }
-      case FLD_CHAR:
-      case FLD_STRING:
-      case FLD_CARRAY: {
-        auto *value = reinterpret_cast<char *>(
-            CFfind32(fbfr, fieldid, oc, nullptr, FLD_STRING));
-        if (value != nullptr) {
-          return eval_value(tree, value);
-        } else {
-          return eval_value(tree, "");
-        }
-      }
-      default:
-        throw std::runtime_error("unsupported field type");
-    }
+    return boolev_field(fbfr, tree, fieldid, oc);
+  } else if (op == field_any) {
+    throw std::runtime_error("unsupported use of '?' field subscript");
   } else if (op == unary_plus || op == unary_minus || op == logical_negation ||
              op == bitwise_negation) {
     auto val = boolev(fbfr, tree);
     tree = val.tree;
-  } else if (op > first_invalid && op < last_invalid) {
+  } else if (op >= multiplication && op < less_than) {
     auto lhs = boolev(fbfr, tree);
     tree = lhs.tree;
     auto rhs = boolev(fbfr, tree);
     tree = rhs.tree;
 
-    auto lexical_compare = lhs.is_const_string() || rhs.is_const_string() ||
-                           (lhs.is_string() && rhs.is_string());
-    printf("%f %s %f \n", lhs.to_double(), tree_ops[op], rhs.to_double());
     if (op == multiplication) {
       return apply<std::multiplies>(tree, lhs, rhs);
     } else if (op == division) {
@@ -560,62 +606,6 @@ eval_value boolev(FBFR32 *fbfr, char *tree) {
     } else if (op == substraction) {
       return apply<std::minus>(tree, lhs, rhs);
 
-    } else if (op == greater_than) {
-      if (lexical_compare) {
-        char lbuf[64], rbuf[64];
-        return eval_value(tree,
-                          strcmp(lhs.to_string(lbuf), rhs.to_string(rbuf)) > 0);
-      }
-      return apply<std::greater>(tree, lhs, rhs);
-    } else if (op == less_than) {
-      if (lexical_compare) {
-        char lbuf[64], rbuf[64];
-        return eval_value(tree,
-                          strcmp(lhs.to_string(lbuf), rhs.to_string(rbuf)) < 0);
-      }
-      return apply<std::less>(tree, lhs, rhs);
-    } else if (op == less_or_equal) {
-      if (lexical_compare) {
-        char lbuf[64], rbuf[64];
-        return eval_value(
-            tree, strcmp(lhs.to_string(lbuf), rhs.to_string(rbuf)) <= 0);
-      }
-      return apply<std::less_equal>(tree, lhs, rhs);
-    } else if (op == greater_or_equal) {
-      if (lexical_compare) {
-        char lbuf[64], rbuf[64];
-        return eval_value(
-            tree, strcmp(lhs.to_string(lbuf), rhs.to_string(rbuf)) >= 0);
-      }
-      return apply<std::greater_equal>(tree, lhs, rhs);
-    } else if (op == equal) {
-      if (lexical_compare) {
-        char lbuf[64], rbuf[64];
-        return eval_value(
-            tree, strcmp(lhs.to_string(lbuf), rhs.to_string(rbuf)) == 0);
-      }
-      return apply<std::equal_to>(tree, lhs, rhs);
-    } else if (op == not_equal) {
-      if (lexical_compare) {
-        char lbuf[64], rbuf[64];
-        return eval_value(
-            tree, strcmp(lhs.to_string(lbuf), rhs.to_string(rbuf)) != 0);
-      }
-      return apply<std::not_equal_to>(tree, lhs, rhs);
-    } else if (op == matches) {
-      regex_t regex;
-      if (regcomp(&regex, rhs.s, 0)) {
-        auto r = regexec(&regex, lhs.s, 0, NULL, 0);
-        regfree(&regex);
-        return eval_value(tree, r == 0);
-      }
-    } else if (op == not_matches) {
-      regex_t regex;
-      if (regcomp(&regex, rhs.s, 0)) {
-        auto r = regexec(&regex, lhs.s, 0, NULL, 0);
-        regfree(&regex);
-        return eval_value(tree, r == REG_NOMATCH);
-      }
     } else if (op == exclusive_or) {
       // Fail on double?
       return eval_value(tree, lhs.to_long() ^ rhs.to_long());
@@ -623,6 +613,33 @@ eval_value boolev(FBFR32 *fbfr, char *tree) {
       return apply<std::logical_and>(tree, lhs, rhs);
     } else if (op == logical_or) {
       return apply<std::logical_or>(tree, lhs, rhs);
+    }
+  } else if (op >= less_than && op < last_invalid) {
+    // Try many LHS values until TRUE
+    if (*tree == field_any) {
+      tree++;
+      FLDID32 fieldid;
+      std::copy_n(tree, sizeof(fieldid), reinterpret_cast<char *>(&fieldid));
+      tree += sizeof(fieldid);
+      auto rhs = boolev(fbfr, tree);
+      tree = rhs.tree;
+
+      FLDOCC32 count = Foccur32(fbfr, fieldid);
+      for (FLDOCC32 oc = 0; oc < count; oc++) {
+        auto lhs = boolev_field(fbfr, nullptr, fieldid, oc);
+        auto ret = boolev_cmp(tree, op, lhs, rhs);
+        if (ret.to_long() != 0) {
+          return ret;
+        }
+      }
+      return eval_value(tree, 0);
+    } else {
+      auto lhs = boolev(fbfr, tree);
+      tree = lhs.tree;
+      auto rhs = boolev(fbfr, tree);
+      tree = rhs.tree;
+
+      return boolev_cmp(tree, op, lhs, rhs);
     }
   }
   throw std::runtime_error("Unsupported opcode");

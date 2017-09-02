@@ -13,10 +13,10 @@ check_PROGRAMS = $(TESTS)
 
 AM_TESTS_ENVIRONMENT = FLDTBLDIR32=.:src:tests FIELDTBLS32=dummy,fields
 
-tests_xatmi_SOURCES = tests/xatmi.cpp
+tests_xatmi_SOURCES = tests/xatmi.cpp tests/tests-main.cpp
 tests_xatmi_LDADD = src/libfuxedo.la -lpthread
 
-tests_fml32_SOURCES = tests/fml32.cpp
+tests_fml32_SOURCES = tests/fml32.cpp tests/tests-main.cpp
 tests_fml32_LDADD = src/libfuxedo.la -lpthread
 
 clang-format:

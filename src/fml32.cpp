@@ -232,82 +232,6 @@ class Fbfr32 {
     return F * (sizeof(FLDID32) + sizeof(uint32_t) + V) + sizeof(Fbfr32);
   }
 
-  static char *typcvt(char *toval, FLDLEN32 *tolen, int totype, char *fromval,
-                      int fromtype, FLDLEN32 fromlen) {
-    FLDLEN32 dummy;
-    if (tolen == nullptr) {
-      tolen = &dummy;
-    }
-
-#define COPY_N(what)                   \
-  auto to = what;                      \
-  std::copy_n(&to, sizeof(to), toval); \
-  *tolen = sizeof(to)
-
-#define TYPCVT(what)                                         \
-  auto from = what;                                          \
-  if (totype == FLD_SHORT) {                                 \
-    COPY_N(static_cast<short>(from));                        \
-  } else if (totype == FLD_CHAR) {                           \
-    COPY_N(static_cast<char>(from));                         \
-  } else if (totype == FLD_FLOAT) {                          \
-    COPY_N(static_cast<float>(from));                        \
-  } else if (totype == FLD_LONG) {                           \
-    COPY_N(static_cast<long>(from));                         \
-  } else if (totype == FLD_DOUBLE) {                         \
-    COPY_N(static_cast<double>(from));                       \
-  } else if (totype == FLD_STRING || totype == FLD_CARRAY) { \
-    auto s = std::to_string(from);                           \
-    strcpy(toval, s.c_str());                                \
-    *tolen = s.size() + 1;                                   \
-  } else {                                                   \
-    Ferror32 = FEBADOP;                                      \
-    return nullptr;                                          \
-  }
-
-#define TYPCVTS                                              \
-  if (totype == FLD_SHORT) {                                 \
-    COPY_N(static_cast<short>(atol(from.c_str())));          \
-  } else if (totype == FLD_CHAR) {                           \
-    COPY_N(static_cast<char>(atol(from.c_str())));           \
-  } else if (totype == FLD_FLOAT) {                          \
-    COPY_N(static_cast<float>(atof(from.c_str())));          \
-  } else if (totype == FLD_LONG) {                           \
-    COPY_N(static_cast<long>(atol(from.c_str())));           \
-  } else if (totype == FLD_DOUBLE) {                         \
-    COPY_N(static_cast<double>(atof(from.c_str())));         \
-  } else if (totype == FLD_STRING || totype == FLD_CARRAY) { \
-    auto s = from;                                           \
-    strcpy(toval, s.c_str());                                \
-    *tolen = from.size() + 1;                                \
-  } else {                                                   \
-    Ferror32 = FEBADOP;                                      \
-    return nullptr;                                          \
-  }
-
-    if (fromtype == FLD_SHORT) {
-      TYPCVT(*reinterpret_cast<short *>(fromval));
-    } else if (fromtype == FLD_CHAR) {
-      TYPCVT(*reinterpret_cast<char *>(fromval));
-    } else if (fromtype == FLD_FLOAT) {
-      TYPCVT(*reinterpret_cast<float *>(fromval));
-    } else if (fromtype == FLD_LONG) {
-      TYPCVT(*reinterpret_cast<long *>(fromval));
-    } else if (fromtype == FLD_DOUBLE) {
-      TYPCVT(*reinterpret_cast<double *>(fromval));
-    } else if (fromtype == FLD_STRING) {
-      auto from = std::string(fromval);
-      TYPCVTS;
-    } else if (fromtype == FLD_CARRAY) {
-      auto from = std::string(fromval, fromlen);
-      TYPCVTS;
-    } else {
-      Ferror32 = FEBADOP;
-      return nullptr;
-    }
-    return toval;
-  }
-
   int init(FLDLEN32 buflen) {
     if (buflen < min_size()) {
       Ferror32 = FNOSPACE;
@@ -504,8 +428,7 @@ class Fbfr32 {
       return nullptr;
     }
     if (Fldtype32(fieldid) != type) {
-      return Fbfr32::typcvt(conv_val_, flen, type, res, Fldtype32(fieldid),
-                            *flen);
+      return Ftypcvt32(flen, type, res, Fldtype32(fieldid), *flen);
     }
     return res;
   }
@@ -1406,7 +1329,85 @@ long Fchksum32(FBFR32 *fbfr) {
 
 char *Ftypcvt32(FLDLEN32 *tolen, int totype, char *fromval, int fromtype,
                 FLDLEN32 fromlen) {
-  return Fbfr32::typcvt(conv_val_, tolen, totype, fromval, fromtype, fromlen);
+  thread_local std::string toval;
+
+  FLDLEN32 dummy;
+  if (tolen == nullptr) {
+    tolen = &dummy;
+  }
+
+#define COPY_N(what)                                                 \
+  auto to = what;                                                    \
+  toval.resize(sizeof(to));                                          \
+  std::copy_n(reinterpret_cast<char *>(&to), sizeof(to), &toval[0]); \
+  *tolen = sizeof(to)
+
+#define TYPCVT(what)                                         \
+  auto from = what;                                          \
+  if (totype == FLD_SHORT) {                                 \
+    COPY_N(static_cast<short>(from));                        \
+  } else if (totype == FLD_CHAR) {                           \
+    COPY_N(static_cast<char>(from));                         \
+  } else if (totype == FLD_FLOAT) {                          \
+    COPY_N(static_cast<float>(from));                        \
+  } else if (totype == FLD_LONG) {                           \
+    COPY_N(static_cast<long>(from));                         \
+  } else if (totype == FLD_DOUBLE) {                         \
+    COPY_N(static_cast<double>(from));                       \
+  } else if (totype == FLD_STRING || totype == FLD_CARRAY) { \
+    toval = std::to_string(from);                            \
+    *tolen = toval.size() + 1;                               \
+  } else {                                                   \
+    Ferror32 = FEBADOP;                                      \
+    return nullptr;                                          \
+  }
+
+#define TYPCVTS                                              \
+  if (totype == FLD_SHORT) {                                 \
+    COPY_N(static_cast<short>(atol(from.c_str())));          \
+  } else if (totype == FLD_CHAR) {                           \
+    COPY_N(static_cast<char>(atol(from.c_str())));           \
+  } else if (totype == FLD_FLOAT) {                          \
+    COPY_N(static_cast<float>(atof(from.c_str())));          \
+  } else if (totype == FLD_LONG) {                           \
+    COPY_N(static_cast<long>(atol(from.c_str())));           \
+  } else if (totype == FLD_DOUBLE) {                         \
+    COPY_N(static_cast<double>(atof(from.c_str())));         \
+  } else if (totype == FLD_STRING || totype == FLD_CARRAY) { \
+    toval = from;                                            \
+    *tolen = from.size() + 1;                                \
+  } else {                                                   \
+    Ferror32 = FEBADOP;                                      \
+    return nullptr;                                          \
+  }
+
+  if (fromtype == FLD_SHORT) {
+    TYPCVT(*reinterpret_cast<short *>(fromval));
+  } else if (fromtype == FLD_CHAR) {
+    if (totype == FLD_STRING || totype == FLD_CARRAY) {
+      toval.resize(1);
+      toval[0] = *fromval;
+      *tolen = toval.size() + 1;
+    } else {
+      TYPCVT(*reinterpret_cast<char *>(fromval));
+    }
+  } else if (fromtype == FLD_FLOAT) {
+    TYPCVT(*reinterpret_cast<float *>(fromval));
+  } else if (fromtype == FLD_LONG) {
+    TYPCVT(*reinterpret_cast<long *>(fromval));
+  } else if (fromtype == FLD_DOUBLE) {
+    TYPCVT(*reinterpret_cast<double *>(fromval));
+  } else if (fromtype == FLD_STRING) {
+    auto from = std::string(fromval);
+    TYPCVTS;
+  } else if (fromtype == FLD_CARRAY) {
+    auto from = std::string(fromval, fromlen);
+    TYPCVTS;
+  } else {
+    Ferror32 = FEBADOP;
+    return nullptr;
+  }
+  return &toval[0];
 }
 
 FLDOCC32 Ffindocc32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len) {

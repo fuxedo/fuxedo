@@ -14,11 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#define CATCH_CONFIG_MAIN
-#define CATCH_CONFIG_FAST_COMPILE
-#define CATCH_CONFIG_DEFAULT_REPORTER "automake"
 #include <catch.hpp>
-#include <catch_reporter_automake.hpp>
 
 #include <fml32.h>
 #include <xatmi.h>
@@ -124,7 +120,7 @@ struct FieldFixture {
   char c = 13;
   float f = 13;
   double d = 13;
-  std::string str = "13131313131313131313131313";
+  std::string str = "13";
   std::string bytes = "1\003";
 
   FLDID32 fld_short = Fmkfldid32(FLD_SHORT, 10);
@@ -205,6 +201,72 @@ TEST_CASE("Ffindocc32", "[fml32]") {
   REQUIRE(Ffindocc32(fbfr, fld_string, DECONST("22|21"), 1) == 1);
   REQUIRE(Ffindocc32(fbfr, fld_string, DECONST("a|22|b"), 1) == 2);
   REQUIRE(Ffindocc32(fbfr, fld_string, DECONST("[abc2][0efg]"), 1) == 0);
+
+  Ffree32(fbfr);
+}
+
+TEST_CASE("Ftypcvt32", "[fml32]") {
+  char c;
+  double d;
+  long l;
+  std::string s;
+  char *p;
+
+  c = 1;
+  REQUIRE((p = Ftypcvt32(nullptr, FLD_DOUBLE, reinterpret_cast<char *>(&c),
+                         FLD_CHAR, 0)) != nullptr);
+  REQUIRE(*reinterpret_cast<double *>(p) == 1);
+
+  l = 2;
+  REQUIRE((p = Ftypcvt32(nullptr, FLD_DOUBLE, reinterpret_cast<char *>(&l),
+                         FLD_LONG, 0)) != nullptr);
+  REQUIRE(*reinterpret_cast<double *>(p) == 2);
+
+  d = 3;
+  REQUIRE((p = Ftypcvt32(nullptr, FLD_CHAR, reinterpret_cast<char *>(&d),
+                         FLD_DOUBLE, 0)) != nullptr);
+  REQUIRE(*reinterpret_cast<char *>(p) == 3);
+
+  l = 4;
+  REQUIRE((p = Ftypcvt32(nullptr, FLD_CHAR, reinterpret_cast<char *>(&l),
+                         FLD_LONG, 0)) != nullptr);
+  REQUIRE(*reinterpret_cast<char *>(p) == 4);
+
+  c = 5;
+  REQUIRE((p = Ftypcvt32(nullptr, FLD_STRING, reinterpret_cast<char *>(&c),
+                         FLD_CHAR, 0)) != nullptr);
+  REQUIRE(reinterpret_cast<char *>(p) == std::string("\x05"));
+
+  s = "6";
+  REQUIRE((p = Ftypcvt32(nullptr, FLD_CHAR, reinterpret_cast<char *>(&s[0]),
+                         FLD_STRING, 0)) != nullptr);
+  REQUIRE(*reinterpret_cast<char *>(p) == 6);
+
+  s = "7.8";
+  REQUIRE((p = Ftypcvt32(nullptr, FLD_DOUBLE, reinterpret_cast<char *>(&s[0]),
+                         FLD_STRING, 0)) != nullptr);
+  REQUIRE(*reinterpret_cast<double *>(p) == 7.8);
+}
+
+TEST_CASE_METHOD(FieldFixture, "CFfind32", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  REQUIRE(fbfr != nullptr);
+
+  set_fields(fbfr);
+
+  REQUIRE(*reinterpret_cast<float *>(
+              CFfind32(fbfr, fld_short, 0, nullptr, FLD_FLOAT)) == f);
+  REQUIRE(*reinterpret_cast<double *>(
+              CFfind32(fbfr, fld_long, 0, nullptr, FLD_DOUBLE)) == d);
+  REQUIRE(reinterpret_cast<char *>(CFfind32(
+              fbfr, fld_char, 0, nullptr, FLD_STRING)) == std::string("\x0d"));
+  REQUIRE(*reinterpret_cast<long *>(
+              CFfind32(fbfr, fld_float, 0, nullptr, FLD_LONG)) == l);
+  REQUIRE(reinterpret_cast<char *>(CFfind32(fbfr, fld_double, 0, nullptr,
+                                            FLD_STRING)) == str + ".000000");
+
+  REQUIRE(*reinterpret_cast<char *>(
+              CFfind32(fbfr, fld_string, 0, nullptr, FLD_CHAR)) == 13);
 
   Ffree32(fbfr);
 }
@@ -981,17 +1043,153 @@ TEST_CASE("invalid boolean expr", "[fml32]") {
       (Fboolco32(DECONST("1 %% 'John'")) == nullptr && Ferror32 == FSYNTAX));
 }
 
-TEST_CASE("boolean expr", "[fml32]") {
+TEST_CASE("boolean expression conversions", "[fml32]") {
   char *tree;
+  auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
 
-  REQUIRE((tree = Fboolco32(DECONST("EMPID[2] %% '123.*' && AGE < 32"))) !=
-          nullptr);
-  Fboolpr32(tree, stdout);
+  auto VALUE = Fldid32(DECONST("VALUE"));
+
+  REQUIRE(Fchg32(fbfr, VALUE, 0, DECONST("000001"), 0) != -1);
+
+  // if one side is string field it is converted to number
+  REQUIRE((tree = Fboolco32(DECONST("VALUE == '000001'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
   free(tree);
 
-  REQUIRE((tree = Fboolco32(DECONST("NAME[?] == 'dog'"))) != nullptr);
-  Fboolpr32(tree, stdout);
+  REQUIRE((tree = Fboolco32(DECONST("VALUE == 1"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
   free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("VALUE == 1.0"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  // if one side is string constant second is converted to string
+  REQUIRE((tree = Fboolco32(DECONST("'001' == 1"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 0);
+  free(tree);
+
+  tpfree((char *)fbfr);
+}
+
+TEST_CASE("boolean expression occurances", "[fml32]") {
+  char *tree;
+  auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
+
+  auto NAME = Fldid32(DECONST("NAME"));
+  auto VALUE = Fldid32(DECONST("VALUE"));
+
+  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("name1"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, VALUE, 0, DECONST("000001"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, NAME, 1, DECONST("name2"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, VALUE, 2, DECONST("000002"), 0) != -1);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME == 'name1'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME[0] == 'name1'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME[1] == 'name1'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 0);
+  free(tree);
+  REQUIRE((tree = Fboolco32(DECONST("NAME[1] != 'name1'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME[1] == 'name2'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  tpfree((char *)fbfr);
+}
+
+TEST_CASE("boolean expression '?' subscript", "[fml32]") {
+  char *tree;
+  auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
+
+  auto NAME = Fldid32(DECONST("NAME"));
+  auto SALARY = Fldid32(DECONST("SALARY"));
+
+  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("name1"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, NAME, 1, DECONST("name2"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, NAME, 2, DECONST("name3"), 0) != -1);
+
+  float salary;
+  salary = 100.0;
+  REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) != -1);
+  salary = 200.0;
+  REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) != -1);
+  salary = 300.0;
+  REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) != -1);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME[?] == 'name1'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME[?] == 'name3'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME[?] == 'name4'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 0);
+  free(tree);
+  REQUIRE((tree = Fboolco32(DECONST("NAME[?] != 'name4'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("SALARY[?] < 100"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 0);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("SALARY[?] > 400"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 0);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("SALARY[?] > 222"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("SALARY[?] >= 300"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  tpfree((char *)fbfr);
+}
+
+TEST_CASE("boolean expression regex", "[fml32]") {
+  char *tree;
+  auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
+
+  auto NAME = Fldid32(DECONST("NAME"));
+
+  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("foo"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, NAME, 1, DECONST("bar"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, NAME, 2, DECONST("foobar"), 0) != -1);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME[0] %% 'foo'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME[0] %% 'fooBAR'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 0);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME[1] %% '.a.'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME[0] !% '.*r$'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME[?] %% '......'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  tpfree((char *)fbfr);
 }
 
 TEST_CASE("boolean eval", "[fml32]") {
