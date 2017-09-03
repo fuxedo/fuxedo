@@ -72,13 +72,13 @@ char *tpalloc(const char *type, const char *subtype, long size) {
     return nullptr;
   }
 
-  const auto *tptype = typeptr(type, subtype);
+  const auto tptype = typeptr(type, subtype);
   if (tptype == nullptr) {
     return nullptr;
   }
 
   size = size >= tptype->default_size ? size : tptype->default_size;
-  auto *mem = (tpmem *)malloc(sizeof(tpmem) + size);
+  auto mem = (tpmem *)malloc(sizeof(tpmem) + size);
   strncpy(mem->type, type, sizeof(mem->type));
   if (subtype != nullptr) {
     strncpy(mem->subtype, subtype, sizeof(mem->subtype));
@@ -99,8 +99,8 @@ char *tprealloc(char *ptr, long size) {
     return nullptr;
   }
 
-  auto *mem = memptr(ptr);
-  const auto *tptype = typeptr(mem->type, mem->subtype);
+  auto mem = memptr(ptr);
+  const auto tptype = typeptr(mem->type, mem->subtype);
   if (tptype == nullptr) {
     return nullptr;
   }
@@ -116,8 +116,8 @@ char *tprealloc(char *ptr, long size) {
 void tpfree(char *ptr) {
   if (ptr != nullptr) {
     // Inside service routines do not free buffer past into a service routine
-    auto *mem = memptr(ptr);
-    const auto *tptype = typeptr(mem->type, mem->subtype);
+    auto mem = memptr(ptr);
+    const auto tptype = typeptr(mem->type, mem->subtype);
     if (tptype == nullptr) {
       return;
     }
@@ -134,7 +134,7 @@ long tptypes(char *ptr, char *type, char *subtype) {
     return -1;
   }
 
-  auto *mem = memptr(ptr);
+  auto mem = memptr(ptr);
   if (type != nullptr) {
     std::copy_n(mem->type, sizeof(mem->type), type);
   }

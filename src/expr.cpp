@@ -485,7 +485,7 @@ static eval_value boolev_field(FBFR32 *fbfr, char *tree, FLDID32 fieldid,
   switch (Fldtype32(fieldid)) {
     case FLD_SHORT:
     case FLD_LONG: {
-      auto *value = reinterpret_cast<long *>(
+      auto value = reinterpret_cast<long *>(
           CFfind32(fbfr, fieldid, oc, nullptr, FLD_LONG));
       if (value != nullptr) {
         return eval_value(tree, *value);
@@ -495,7 +495,7 @@ static eval_value boolev_field(FBFR32 *fbfr, char *tree, FLDID32 fieldid,
     }
     case FLD_FLOAT:
     case FLD_DOUBLE: {
-      auto *value = reinterpret_cast<double *>(
+      auto value = reinterpret_cast<double *>(
           CFfind32(fbfr, fieldid, oc, nullptr, FLD_DOUBLE));
       if (value != nullptr) {
         return eval_value(tree, *value);
@@ -506,7 +506,7 @@ static eval_value boolev_field(FBFR32 *fbfr, char *tree, FLDID32 fieldid,
     case FLD_CHAR:
     case FLD_STRING:
     case FLD_CARRAY: {
-      auto *value = reinterpret_cast<char *>(
+      auto value = reinterpret_cast<char *>(
           CFfind32(fbfr, fieldid, oc, nullptr, FLD_STRING));
       if (value != nullptr) {
         return eval_value(tree, value);
@@ -521,11 +521,10 @@ static eval_value boolev_field(FBFR32 *fbfr, char *tree, FLDID32 fieldid,
 
 static eval_value boolev_cmp(char *tree, char op, eval_value lhs,
                              eval_value rhs) {
-  char lbuf[64], rbuf[64];
-
   auto lexical_compare = lhs.is_const_string() || rhs.is_const_string() ||
                          (lhs.is_string() && rhs.is_string());
   if (lexical_compare && op != matches && op != not_matches) {
+    char lbuf[64], rbuf[64];
     lhs = eval_value(nullptr, strcmp(lhs.to_string(lbuf), rhs.to_string(rbuf)));
     rhs = eval_value(nullptr, 0);
   }

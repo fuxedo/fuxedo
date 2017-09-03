@@ -293,7 +293,7 @@ class Fbfr32 {
       need = sizeof(fieldn) + fieldn::size(flen);
     }
 
-    auto *field = where(fieldid, oc);
+    auto field = where(fieldid, oc);
     if (field == nullptr) {
       field = end(type);
     } else if (field->fieldid == fieldid) {
@@ -310,7 +310,7 @@ class Fbfr32 {
         return -1;
       }
 
-      char *ptr = reinterpret_cast<char *>(field);
+      auto ptr = reinterpret_cast<char *>(field);
       // std::copy(ptr, data_ + len_, ptr + need);
       // copy does not work for overlaps?
       memmove(ptr + need, ptr, (data_ + len_) - ptr);
@@ -340,7 +340,7 @@ class Fbfr32 {
   }
 
   FLDOCC32 findocc(FLDID32 fieldid, char *value, FLDLEN32 len) {
-    auto *it = where(fieldid, 0);
+    auto it = where(fieldid, 0);
     FLDOCC32 oc = 0;
     auto type = Fldtype32(fieldid);
 
@@ -382,7 +382,7 @@ class Fbfr32 {
           return oc;
         }
       } else if (type == FLD_STRING) {
-        auto *field = reinterpret_cast<fieldn *>(it);
+        auto field = reinterpret_cast<fieldn *>(it);
         if (len == 0) {
           if (strcmp(field->data, value) == 0) {
             return oc;
@@ -394,7 +394,7 @@ class Fbfr32 {
         }
 
       } else if (type == FLD_CARRAY) {
-        auto *field = reinterpret_cast<fieldn *>(it);
+        auto field = reinterpret_cast<fieldn *>(it);
         if (field->flen == len && memcmp(field->data, value, len) == 0) {
           return oc;
         }
@@ -407,7 +407,7 @@ class Fbfr32 {
   }
 
   char *find(FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *flen) {
-    auto *field = where(fieldid, oc);
+    auto field = where(fieldid, oc);
     if (field == nullptr || field->fieldid != fieldid) {
       Ferror32 = FNOTPRES;
       return nullptr;
@@ -434,7 +434,7 @@ class Fbfr32 {
   }
 
   int pres(FLDID32 fieldid, FLDOCC32 oc) {
-    auto *field = where(fieldid, oc);
+    auto field = where(fieldid, oc);
     if (field == nullptr || field->fieldid != fieldid) {
       return 0;
     }
@@ -442,7 +442,7 @@ class Fbfr32 {
   }
 
   FLDOCC32 occur(FLDID32 fieldid) {
-    auto *field = where(fieldid, 0);
+    auto field = where(fieldid, 0);
     FLDOCC32 oc = 0;
     while (field != nullptr && field->fieldid == fieldid) {
       oc++;
@@ -457,8 +457,8 @@ class Fbfr32 {
       return -1;
     }
 
-    auto *it = reinterpret_cast<fieldhead *>(data_);
-    auto *end = reinterpret_cast<fieldhead *>(data_ + len_);
+    auto it = reinterpret_cast<fieldhead *>(data_);
+    auto end = reinterpret_cast<fieldhead *>(data_ + len_);
 
     if (*fieldid != BADFLDID) {
       it = where(*fieldid, *oc);
@@ -488,7 +488,7 @@ class Fbfr32 {
   }
 
   long len(FLDID32 fieldid, FLDOCC32 oc) {
-    auto *field = where(fieldid, oc);
+    auto field = where(fieldid, oc);
     if (field == nullptr || field->fieldid != fieldid) {
       Ferror32 = FNOTPRES;
       return -1;
@@ -498,11 +498,11 @@ class Fbfr32 {
   }
 
   int fprint(FILE *iop, int indent = 0) {
-    auto *it = reinterpret_cast<fieldhead *>(data_);
-    auto *end = reinterpret_cast<fieldhead *>(data_ + len_);
+    auto it = reinterpret_cast<fieldhead *>(data_);
+    auto end = reinterpret_cast<fieldhead *>(data_ + len_);
 
     while (it != nullptr && it < end) {
-      auto *name = Fname32(it->fieldid);
+      auto name = Fname32(it->fieldid);
       for (int i = 0; i < indent; i++) {
         fputc('\t', iop);
       }
@@ -524,14 +524,14 @@ class Fbfr32 {
       } else if (type == FLD_DOUBLE) {
         fprintf(iop, "%f", reinterpret_cast<field16b *>(it)->d);
       } else if (type == FLD_STRING) {
-        auto *field = reinterpret_cast<fieldn *>(it);
+        auto field = reinterpret_cast<fieldn *>(it);
         print_bytes(iop, field->data, field->flen - 1);
       } else if (type == FLD_CARRAY) {
-        auto *field = reinterpret_cast<fieldn *>(it);
+        auto field = reinterpret_cast<fieldn *>(it);
         print_bytes(iop, field->data, field->flen);
       } else if (type == FLD_FML32) {
-        auto *field = reinterpret_cast<fieldn *>(it);
-        auto *fbfr = reinterpret_cast<FBFR32 *>(field->data);
+        auto field = reinterpret_cast<fieldn *>(it);
+        auto fbfr = reinterpret_cast<FBFR32 *>(field->data);
         fputc('\n', iop);
         fbfr->fprint(iop, indent + 1);
       }
@@ -548,27 +548,27 @@ class Fbfr32 {
   }
 
   int del(FLDID32 fieldid, FLDOCC32 oc) {
-    auto *field = where(fieldid, oc);
+    auto field = where(fieldid, oc);
 
     while (field == nullptr || field->fieldid != fieldid) {
       Ferror32 = FNOTPRES;
       return -1;
     }
 
-    auto *next = next_(field);
+    auto next = next_(field);
     erase(field, next);
     return 0;
   }
 
   int delall(FLDID32 fieldid) {
-    auto *field = where(fieldid, 0);
+    auto field = where(fieldid, 0);
 
     while (field == nullptr || field->fieldid != fieldid) {
       Ferror32 = FNOTPRES;
       return -1;
     }
 
-    auto *next = field;
+    auto next = field;
     while (next != nullptr && next->fieldid == fieldid) {
       next = next_(next);
     }
@@ -577,7 +577,7 @@ class Fbfr32 {
   }
 
   int get(FLDID32 fieldid, FLDOCC32 oc, char *loc, FLDLEN32 *maxlen) {
-    auto *field = where(fieldid, oc);
+    auto field = where(fieldid, oc);
 
     while (field == nullptr || field->fieldid != fieldid) {
       Ferror32 = FNOTPRES;
@@ -605,11 +605,11 @@ class Fbfr32 {
       return -1;
     }
 
-    auto *it = reinterpret_cast<fieldhead *>(data_);
-    auto *end = reinterpret_cast<fieldhead *>(data_ + len_);
+    auto it = reinterpret_cast<fieldhead *>(data_);
+    auto end = reinterpret_cast<fieldhead *>(data_ + len_);
 
     while (it != nullptr && it < end) {
-      auto *f = std::find(fieldid, badfld, it->fieldid);
+      auto f = std::find(fieldid, badfld, it->fieldid);
       if (f == badfld) {
         it = next_(it);
       } else {
@@ -627,11 +627,11 @@ class Fbfr32 {
     }
     init(size());
 
-    auto *it = reinterpret_cast<fieldhead *>(src->data_);
-    auto *end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
+    auto it = reinterpret_cast<fieldhead *>(src->data_);
+    auto end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
 
     while (it != nullptr && it < end) {
-      auto *f = std::find(fieldid, badfld, it->fieldid);
+      auto f = std::find(fieldid, badfld, it->fieldid);
       if (f != badfld) {
         auto oc = occur(it->fieldid);
 
@@ -650,11 +650,11 @@ class Fbfr32 {
       return -1;
     }
 
-    auto *it = reinterpret_cast<fieldhead *>(data_);
-    auto *end = reinterpret_cast<fieldhead *>(data_ + len_);
+    auto it = reinterpret_cast<fieldhead *>(data_);
+    auto end = reinterpret_cast<fieldhead *>(data_ + len_);
 
     while (it != nullptr && it < end) {
-      auto *f = std::find(fieldid, badfld, it->fieldid);
+      auto f = std::find(fieldid, badfld, it->fieldid);
       if (f == badfld) {
         delall(it->fieldid);
         end = reinterpret_cast<fieldhead *>(data_ + len_);
@@ -666,8 +666,8 @@ class Fbfr32 {
   }
 
   int update(FBFR32 *src) {
-    auto *it = reinterpret_cast<fieldhead *>(src->data_);
-    auto *end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
+    auto it = reinterpret_cast<fieldhead *>(src->data_);
+    auto end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
 
     FLDOCC32 oc = 0;
     FLDID32 prev = BADFLDID;
@@ -689,8 +689,8 @@ class Fbfr32 {
 
   int join(FBFR32 *src) {
     {
-      auto *it = reinterpret_cast<fieldhead *>(data_);
-      auto *end = reinterpret_cast<fieldhead *>(data_ + len_);
+      auto it = reinterpret_cast<fieldhead *>(data_);
+      auto end = reinterpret_cast<fieldhead *>(data_ + len_);
 
       while (it != nullptr && it < end) {
         if (src->pres(it->fieldid, 0)) {
@@ -703,8 +703,8 @@ class Fbfr32 {
     }
 
     {
-      auto *it = reinterpret_cast<fieldhead *>(src->data_);
-      auto *end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
+      auto it = reinterpret_cast<fieldhead *>(src->data_);
+      auto end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
 
       FLDOCC32 oc = 0;
       FLDID32 prev = BADFLDID;
@@ -732,8 +732,8 @@ class Fbfr32 {
       return -1;
     }
 
-    auto *it = reinterpret_cast<fieldhead *>(src->data_);
-    auto *end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
+    auto it = reinterpret_cast<fieldhead *>(src->data_);
+    auto end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
 
     while (it != nullptr && it < end) {
       auto oc = occur(it->fieldid);
@@ -747,8 +747,8 @@ class Fbfr32 {
   }
 
   int ojoin(FBFR32 *src) {
-    auto *it = reinterpret_cast<fieldhead *>(src->data_);
-    auto *end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
+    auto it = reinterpret_cast<fieldhead *>(src->data_);
+    auto end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
 
     FLDOCC32 oc = 0;
     FLDID32 prev = BADFLDID;
@@ -770,7 +770,7 @@ class Fbfr32 {
   }
 
   char *getalloc(FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *extralen) {
-    auto *field = where(fieldid, oc);
+    auto field = where(fieldid, oc);
 
     while (field == nullptr || field->fieldid != fieldid) {
       Ferror32 = FNOTPRES;
@@ -872,17 +872,17 @@ class Fbfr32 {
     fieldhead *next;
     auto klass = fldclass(head->fieldid);
     if (klass == FIELD8) {
-      auto *field = reinterpret_cast<field8b *>(head);
+      auto field = reinterpret_cast<field8b *>(head);
       next = ++field;
     } else if (klass == FIELD16) {
-      auto *field = reinterpret_cast<field16b *>(head);
+      auto field = reinterpret_cast<field16b *>(head);
       next = ++field;
     } else if (klass == FIELDN) {
-      auto *field = reinterpret_cast<fieldn *>(head);
+      auto field = reinterpret_cast<fieldn *>(head);
       next = reinterpret_cast<fieldn *>(field->data + field->size());
     }
 
-    auto *end = reinterpret_cast<fieldhead *>(data_ + len_);
+    auto end = reinterpret_cast<fieldhead *>(data_ + len_);
     if (next < end) {
       return next;
     }
@@ -966,13 +966,13 @@ class Fbfr32 {
 
   template <class T>
   fieldhead *where(FLDID32 fieldid, FLDOCC32 oc, uint32_t from, uint32_t to) {
-    auto *begin = reinterpret_cast<T *>(data_ + from);
-    auto *end = reinterpret_cast<T *>(data_ + to);
+    auto begin = reinterpret_cast<T *>(data_ + from);
+    auto end = reinterpret_cast<T *>(data_ + to);
     if (begin == end) {
       return nullptr;
     }
     FLDOCC32 count = 0;
-    auto *it = std::lower_bound(begin, end, T(fieldid));
+    auto it = std::lower_bound(begin, end, T(fieldid));
     while (it < end) {
       if (it->fieldid > fieldid) {
         break;
@@ -991,8 +991,8 @@ class Fbfr32 {
   }
 
   fieldhead *wheren(FLDID32 fieldid, FLDOCC32 oc, uint32_t from, uint32_t to) {
-    auto *it = reinterpret_cast<fieldn *>(data_ + from);
-    auto *end = reinterpret_cast<fieldn *>(data_ + to);
+    auto it = reinterpret_cast<fieldn *>(data_ + from);
+    auto end = reinterpret_cast<fieldn *>(data_ + to);
     if (it == end) {
       return nullptr;
     }
@@ -1016,7 +1016,7 @@ class Fbfr32 {
   }
 
   static int sort(FLDID32 *fieldid, FLDID32 **badfld = nullptr) {
-    auto *end = fieldid;
+    auto end = fieldid;
     while (*end != BADFLDID) {
       end++;
     }

@@ -981,7 +981,7 @@ TEST_CASE("nested fml32", "[fml32]") {
 
   FBFR32 *nested;
   REQUIRE((nested = (FBFR32 *)Ffind32(fbfr, ARGS, 0, nullptr)) != nullptr);
-  auto *c = reinterpret_cast<char *>(Ffind32(nested, NAME, 0, nullptr));
+  auto c = reinterpret_cast<char *>(Ffind32(nested, NAME, 0, nullptr));
   REQUIRE(reinterpret_cast<char *>(Ffind32(nested, NAME, 0, nullptr)) ==
           std::string("name1"));
   REQUIRE(reinterpret_cast<char *>(Ffind32(nested, VALUE, 0, nullptr)) ==
