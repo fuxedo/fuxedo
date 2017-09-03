@@ -277,6 +277,36 @@ class Fbfr32 {
     return 0;
   }
 
+  int write(FILE *iop) {
+    // Writes out everything starting with len
+    auto n = used() - sizeof(size_);
+    if (fwrite(&len_, 1, n, iop) != n) {
+      Ferror32 = FEUNIX;
+      return -1;
+    }
+    return 0;
+  }
+
+  int read(FILE *iop) {
+    uint32_t len;
+    if (fread(&len, 1, sizeof(len), iop) != sizeof(len)) {
+      Ferror32 = FEUNIX;
+      return -1;
+    }
+    if (len > size_) {
+      Ferror32 = FNOSPACE;
+      return -1;
+    }
+
+    len_ = len;
+    auto n = used() - sizeof(size_) - sizeof(len_);
+    if (fread(reinterpret_cast<char *>(&len_) + sizeof(len_), 1, n, iop) != n) {
+      Ferror32 = FEUNIX;
+      return -1;
+    }
+    return 0;
+  }
+
   int chg(FLDID32 fieldid, FLDOCC32 oc, const char *value, FLDLEN32 flen) {
     auto type = Fldtype32(fieldid);
     auto klass = fldclass(fieldid);
@@ -417,20 +447,6 @@ class Fbfr32 {
       *flen = flength(field);
     }
     return fvalue(field);
-  }
-  char *cfind(FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *flen, int type) {
-    FLDLEN32 local_flen;
-    if (flen == nullptr) {
-      flen = &local_flen;
-    }
-    auto res = find(fieldid, oc, flen);
-    if (res == nullptr) {
-      return nullptr;
-    }
-    if (Fldtype32(fieldid) != type) {
-      return Ftypcvt32(flen, type, res, Fldtype32(fieldid), *flen);
-    }
-    return res;
   }
 
   int pres(FLDID32 fieldid, FLDOCC32 oc) {
@@ -1232,12 +1248,6 @@ char *Ffind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len) {
   FBFR32_CHECK(nullptr, fbfr);
   return fbfr->find(fieldid, oc, len);
 }
-char *CFfind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len,
-               int type) {
-  FBFR32_CHECK(nullptr, fbfr);
-  return fbfr->cfind(fieldid, oc, len, type);
-}
-
 int Fpres32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc) {
   FBFR32_CHECK(-1, fbfr);
   return fbfr->pres(fieldid, oc);
@@ -1419,4 +1429,94 @@ int Fconcat32(FBFR32 *dest, FBFR32 *src) {
   FBFR32_CHECK(-1, dest);
   FBFR32_CHECK(-1, src);
   return dest->concat(src);
+}
+
+int CFadd32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len,
+            int type) {
+  FBFR32_CHECK(-1, fbfr);
+
+  FLDLEN32 flen;
+  auto cvtvalue = Ftypcvt32(&flen, Fldtype32(fieldid), value, type, len);
+  if (cvtvalue == nullptr) {
+    return -1;
+  }
+  auto oc = fbfr->occur(fieldid);
+  return fbfr->chg(fieldid, oc, cvtvalue, flen);
+}
+
+int CFchg32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *value,
+            FLDLEN32 len, int type) {
+  FBFR32_CHECK(-1, fbfr);
+
+  FLDLEN32 flen;
+  auto cvtvalue = Ftypcvt32(&flen, Fldtype32(fieldid), value, type, len);
+  if (cvtvalue == nullptr) {
+    return -1;
+  }
+  return fbfr->chg(fieldid, oc, cvtvalue, flen);
+}
+FLDOCC32
+CFfindocc32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len,
+            int type) {
+  FBFR32_CHECK(-1, fbfr);
+  FLDLEN32 flen;
+  auto cvtvalue = Ftypcvt32(&flen, Fldtype32(fieldid), value, type, len);
+  if (cvtvalue == nullptr) {
+    return -1;
+  }
+  return fbfr->findocc(fieldid, cvtvalue, flen);
+}
+
+char *CFfind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len,
+               int type) {
+  FBFR32_CHECK(nullptr, fbfr);
+
+  FLDLEN32 local_flen;
+  if (len == nullptr) {
+    len = &local_flen;
+  }
+  auto res = fbfr->find(fieldid, oc, len);
+  if (res == nullptr) {
+    return nullptr;
+  }
+  return Ftypcvt32(len, type, res, Fldtype32(fieldid), *len);
+}
+
+int CFget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf,
+            FLDLEN32 *len, int type) {
+  FLDLEN32 rlen = -1;
+  FLDLEN32 local_flen;
+  if (len == nullptr) {
+    len = &local_flen;
+  } else {
+    rlen = *len;
+  }
+  auto res = CFfind32(fbfr, fieldid, oc, len, type);
+  if (res == nullptr) {
+    return -1;
+  }
+  if (rlen != -1 && *len > rlen) {
+    Ferror32 = FNOSPACE;
+    return -1;
+  }
+  std::copy_n(res, *len, buf);
+  return 0;
+}
+
+char *Ffinds32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc) {
+  return CFfind32(fbfr, fieldid, oc, nullptr, FLD_STRING);
+}
+
+int Fgets32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf) {
+  return CFget32(fbfr, fieldid, oc, buf, nullptr, FLD_STRING);
+}
+
+int Fwrite32(FBFR32 *fbfr, FILE *iop) {
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->write(iop);
+}
+
+int Fread32(FBFR32 *fbfr, FILE *iop) {
+  FBFR32_CHECK(-1, fbfr);
+  return fbfr->read(iop);
 }

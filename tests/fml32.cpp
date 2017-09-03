@@ -248,6 +248,38 @@ TEST_CASE("Ftypcvt32", "[fml32]") {
   REQUIRE(*reinterpret_cast<double *>(p) == 7.8);
 }
 
+TEST_CASE_METHOD(FieldFixture, "Fwrite32 and Fread32", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  REQUIRE(fbfr != nullptr);
+
+  auto fbfr2 = Falloc32(1, 10);
+  REQUIRE(fbfr2 != nullptr);
+
+  auto fbfr3 = Falloc32(100, 100);
+  REQUIRE(fbfr3 != nullptr);
+
+  set_fields(fbfr);
+
+  tempfile file(__LINE__);
+  REQUIRE(Fwrite32(fbfr, file.f) != -1);
+
+  fclose(file.f);
+  REQUIRE((file.f = fopen(file.name.c_str(), "r")) != nullptr);
+
+  REQUIRE((Fread32(fbfr2, file.f) == -1 && Ferror32 == FNOSPACE));
+
+  fclose(file.f);
+  REQUIRE((file.f = fopen(file.name.c_str(), "r")) != nullptr);
+
+  REQUIRE(Fread32(fbfr3, file.f) != -1);
+
+  get_fields(fbfr3);
+
+  Ffree32(fbfr);
+  Ffree32(fbfr2);
+  Ffree32(fbfr3);
+}
+
 TEST_CASE_METHOD(FieldFixture, "CFfind32", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   REQUIRE(fbfr != nullptr);

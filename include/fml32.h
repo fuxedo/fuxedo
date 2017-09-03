@@ -113,7 +113,19 @@ double Ffloatev32(FBFR32 *fbfr, char *tree);
 
 char *CFfind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len,
                int type);
+int CFadd32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len, int type);
+int CFchg32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *value,
+            FLDLEN32 len, int type);
+FLDOCC32
+CFfindocc32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len, int type);
+int CFget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf,
+            FLDLEN32 *len, int type);
 
+char *Ffinds32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc);
+int Fgets32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf);
+
+int Fwrite32(FBFR32 *fbfr, FILE *iop);
+int Fread32(FBFR32 *fbfr, FILE *iop);
 #ifdef __cplusplus
 }
 #endif
