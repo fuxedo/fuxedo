@@ -1161,6 +1161,16 @@ TEST_CASE("boolean expression '?' subscript", "[fml32]") {
   REQUIRE(Fboolev32(fbfr, tree) == 1);
   free(tree);
 
+  REQUIRE((tree = Fboolco32(DECONST("NAME[?] == '\\6Ea\\6de\\31'"))) !=
+          nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME[?] == '\\6E\\61\\6d\\65\\31'"))) !=
+          nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
   REQUIRE((tree = Fboolco32(DECONST("NAME[?] == 'name3'"))) != nullptr);
   REQUIRE(Fboolev32(fbfr, tree) == 1);
   free(tree);

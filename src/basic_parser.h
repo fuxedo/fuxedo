@@ -52,6 +52,25 @@ class basic_parser {
     return accept([ch](int c) { return c == ch; }, s);
   }
 
+  bool hex(std::string *s = nullptr) {
+    if (strchr("0123456789abcdefABCDEF", sym_) != nullptr) {
+      char high = sym_;
+      next();
+      if (strchr("0123456789abcdefABCDEF", sym_) != nullptr) {
+        char low = sym_;
+        next();
+        if (s != nullptr) {
+          s->push_back(base16(high) << 4 | base16(low));
+        }
+        return true;
+      }
+      throw basic_parser_error(
+          "Invalid hex character", row_, col_,
+          "'" + std::string(1, sym_) + "' is not a valid hex character");
+    }
+    return false;
+  }
+
   bool unsigned_number(std::string *s = nullptr) {
     if (accept(::isdigit, s)) {
       while (accept(::isdigit, s))
@@ -108,4 +127,11 @@ class basic_parser {
   int row_;
   int col_;
   int sym_;
+
+ private:
+  static constexpr int base16(int c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'A' && c <= 'F') return 10 + c - 'A';
+    if (c >= 'a' && c <= 'f') return 10 + c - 'a';
+  }
 };
