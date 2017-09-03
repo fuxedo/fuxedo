@@ -1192,6 +1192,57 @@ TEST_CASE("boolean expression regex", "[fml32]") {
   tpfree((char *)fbfr);
 }
 
+TEST_CASE("boolean expression unary", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  char *tree;
+
+  REQUIRE((tree = Fboolco32(DECONST("!(!NAME)"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 0);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("!!NAME"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 0);
+  free(tree);
+
+  auto NAME = Fldid32(DECONST("NAME"));
+  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("13"), 0) != -1);
+
+  REQUIRE((tree = Fboolco32(DECONST("!(!NAME)"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  Ffree32(fbfr);
+}
+
+TEST_CASE("boolean expression Ffloatev32", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  char *tree;
+
+  REQUIRE((tree = Fboolco32(DECONST("1+2"))) != nullptr);
+  REQUIRE(Ffloatev32(fbfr, tree) == 3);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("1+-2"))) != nullptr);
+  REQUIRE(Ffloatev32(fbfr, tree) == -1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("-1+-2"))) != nullptr);
+  REQUIRE(Ffloatev32(fbfr, tree) == -3);
+  free(tree);
+
+  auto SALARY = Fldid32(DECONST("SALARY"));
+
+  float salary;
+  salary = 100.0;
+  REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) != -1);
+
+  REQUIRE((tree = Fboolco32(DECONST("1+SALARY"))) != nullptr);
+  REQUIRE(Ffloatev32(fbfr, tree) == 101);
+  free(tree);
+
+  Ffree32(fbfr);
+}
+
 TEST_CASE("boolean eval", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   char *tree;

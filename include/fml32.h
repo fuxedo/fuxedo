@@ -109,6 +109,7 @@ int Fprojcpy32(FBFR32 *dest, FBFR32 *src, FLDID32 *fieldid);
 char *Fboolco32(char *expression);
 void Fboolpr32(char *tree, FILE *iop);
 int Fboolev32(FBFR32 *fbfr, char *tree);
+double Ffloatev32(FBFR32 *fbfr, char *tree);
 
 char *CFfind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len,
                int type);

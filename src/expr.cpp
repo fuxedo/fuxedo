@@ -28,6 +28,7 @@
 
 #include <iostream>
 
+// unary plus is recognized and ignored
 enum tree_op {
   first_invalid = 0,
   const_long,
@@ -35,7 +36,6 @@ enum tree_op {
   const_string,
   field,
   field_any,
-  unary_plus,
   unary_minus,
   logical_negation,
   bitwise_negation,
@@ -59,9 +59,9 @@ enum tree_op {
 };
 
 const char *tree_ops[] = {
-    "inv", "long", "double", "string", "field", "field_any", "+",  "-",  "!",
-    "~",   "*",    "/",      "%",      "+",     "-",         "^",  "&&", "||",
-    "<",   ">",    "<=",     ">=",     "==",    "!=",        "%%", "!%", "inv"};
+    "inv", "long", "double", "string", "field", "field_any", "-",  "!",  "~",
+    "*",   "/",    "%",      "+",      "-",     "^",         "&&", "||", "<",
+    ">",   "<=",   ">=",     "==",     "!=",    "%%",        "!%", "inv"};
 
 // AST tree as a flat data structure
 // Unlike Fbfr32 where users exprect some alignment of data this is optimized
@@ -98,6 +98,11 @@ class ast_tree {
 
   char peek(uint32_t where) { return tree_[where]; }
 
+  uint32_t append(char op) {
+    auto ret = len_;
+    insert(len_, &op, sizeof(op));
+    return ret;
+  }
   uint32_t append(char op, const char *data, uint32_t len) {
     auto ret = len_;
     insert(len_, &op, sizeof(op));
@@ -182,6 +187,7 @@ class expression_parser : public basic_parser {
   uint32_t parse_binop(int expr_prec, uint32_t lhs) {
     while (true) {
       space();
+
       std::string ops;
       if (!op(&ops)) {
         return lhs;
@@ -234,10 +240,22 @@ class expression_parser : public basic_parser {
   uint32_t parse_primary() {
     space();
 
-    std::string fld, num, str;
+    std::string tok;
 
     uint32_t e;
-    if (field_name(&fld)) {
+    if (unary(&tok)) {
+      if (tok == "-") {
+        e = tree_.append(unary_minus);
+      } else if (tok == "!") {
+        e = tree_.append(logical_negation);
+      } else if (tok == "~") {
+        e = tree_.append(bitwise_negation);
+      }
+      parse_primary();
+      return e;
+    }
+
+    if (field_name(&tok)) {
       std::string oc;
       if (accept('[')) {
         if (unsigned_number(&oc)) {
@@ -251,10 +269,10 @@ class expression_parser : public basic_parser {
       } else {
         oc = "0";
       }
-      auto fieldid = Fldid32(fld.c_str());
+      auto fieldid = Fldid32(tok.c_str());
       if (fieldid == BADFLDID) {
         throw unknown_field_name("Unknown field name", row_, col_,
-                                 "field name '" + fld + "'");
+                                 "field name '" + tok + "'");
       }
       switch (Fldtype32(fieldid)) {
         case FLD_SHORT:
@@ -267,7 +285,7 @@ class expression_parser : public basic_parser {
           break;
         default:
           throw invalid_field_type("Invalid field type", row_, col_,
-                                   "field name '" + fld + "'");
+                                   "field name '" + tok + "'");
       }
       if (oc == "?") {
         e = tree_.append(field_any, reinterpret_cast<char *>(&fieldid),
@@ -275,18 +293,18 @@ class expression_parser : public basic_parser {
       } else {
         e = tree_.append(fieldid, std::stol(oc));
       }
-    } else if (unsigned_number(&num)) {
-      if (num.find('.') != std::string::npos) {
-        double value = std::stof(num);
+    } else if (unsigned_number(&tok)) {
+      if (tok.find('.') != std::string::npos) {
+        double value = std::stof(tok);
         e = tree_.append(const_double, reinterpret_cast<char *>(&value),
                          sizeof(value));
       } else {
-        long value = std::stol(num);
+        long value = std::stol(tok);
         e = tree_.append(const_long, reinterpret_cast<char *>(&value),
                          sizeof(value));
       }
-    } else if (string(&str)) {
-      e = tree_.append(const_string, str.c_str(), str.size() + 1);
+    } else if (string(&tok)) {
+      e = tree_.append(const_string, tok.c_str(), tok.size() + 1);
     } else if (accept('(')) {
       e = parse_expr();
       if (!accept(')')) {
@@ -333,6 +351,13 @@ class expression_parser : public basic_parser {
     if (accept([](int c) { return strchr("+-!~*/%<>=^&|", c) != nullptr; },
                s)) {
       accept([](int c) { return strchr("=%&|", c) != nullptr; }, s);
+      return true;
+    }
+    return false;
+  }
+
+  bool unary(std::string *s = nullptr) {
+    if (accept([](int c) { return strchr("+-!~", c) != nullptr; }, s)) {
       return true;
     }
     return false;
@@ -393,7 +418,7 @@ static char *boolpr(char *tree, FILE *iop) {
     std::copy_n(tree, sizeof(fieldid), reinterpret_cast<char *>(&fieldid));
     tree += sizeof(fieldid);
     fprintf(iop, "( %s[?] ) ", Fname32(fieldid));
-  } else if (op == unary_plus || op == unary_minus || op == logical_negation ||
+  } else if (op == unary_minus || op == logical_negation ||
              op == bitwise_negation) {
     fprintf(iop, "( %s", tree_ops[op]);
     tree = boolpr(tree, iop);
@@ -583,10 +608,16 @@ eval_value boolev(FBFR32 *fbfr, char *tree) {
     return boolev_field(fbfr, tree, fieldid, oc);
   } else if (op == field_any) {
     throw std::runtime_error("unsupported use of '?' field subscript");
-  } else if (op == unary_plus || op == unary_minus || op == logical_negation ||
-             op == bitwise_negation) {
+  } else if (op >= unary_minus && op <= bitwise_negation) {
     auto val = boolev(fbfr, tree);
     tree = val.tree;
+    if (op == unary_minus) {
+      return eval_value(tree, -val.to_long());
+    } else if (op == logical_negation) {
+      return eval_value(tree, !val.to_long());
+    } else if (op == bitwise_negation) {
+      return eval_value(tree, ~val.to_long());
+    }
   } else if (op >= multiplication && op < less_than) {
     auto lhs = boolev(fbfr, tree);
     tree = lhs.tree;
@@ -651,4 +682,13 @@ int Fboolev32(FBFR32 *fbfr, char *tree) {
   }
   auto v = boolev(fbfr, tree + 4);
   return v.to_long() != 0;
+}
+
+double Ffloatev32(FBFR32 *fbfr, char *tree) {
+  if (tree == nullptr) {
+    Ferror32 = FEINVAL;
+    return -1;
+  }
+  auto v = boolev(fbfr, tree + 4);
+  return v.to_double();
 }
