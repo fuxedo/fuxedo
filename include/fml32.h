@@ -126,6 +126,7 @@ int Fgets32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf);
 
 int Fwrite32(FBFR32 *fbfr, FILE *iop);
 int Fread32(FBFR32 *fbfr, FILE *iop);
+
 #ifdef __cplusplus
 }
 #endif

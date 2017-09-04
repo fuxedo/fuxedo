@@ -144,3 +144,6 @@ long tptypes(char *ptr, char *type, char *subtype) {
 
   return 0;
 }
+
+int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags);
+int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags);

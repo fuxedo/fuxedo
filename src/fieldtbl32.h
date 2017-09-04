@@ -17,6 +17,7 @@
 
 #include <fml32.h>
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "basic_parser.h"
@@ -26,9 +27,9 @@ static const std::map<std::string, int> field_types = {
     {"long", FLD_LONG},     {"double", FLD_DOUBLE}, {"string", FLD_STRING},
     {"carray", FLD_CARRAY}, {"fml32", FLD_FML32}};
 
-class parser : public basic_parser {
+class field_table_parser : public basic_parser {
  public:
-  parser(std::istream &f) : basic_parser(f), base_(0) {}
+  field_table_parser(std::istream &f) : basic_parser(f), base_(0) {}
 
   void parse() {
     while (parse_line())
@@ -41,17 +42,33 @@ class parser : public basic_parser {
   struct field {
     std::string name;
     FLDID32 fieldid;
+    std::string comment;
+  };
+
+  // todo C++17 std::variant
+  struct entry {
+    // comment
+    std::unique_ptr<std::string> c;
+    // raw
+    std::unique_ptr<std::string> r;
+    // field
+    std::unique_ptr<field> f;
   };
 
   const std::vector<field> &fields() const { return fields_; }
+  const std::vector<entry> &entries() const { return entries_; }
 
  private:
   bool parse_line() {
     if (accept('#')) {
-      comment();
+      std::string s;
+      comment(&s);
+      entries_.push_back({std::make_unique<std::string>(s), nullptr, nullptr});
     } else if (accept('$')) {
       std::string raw;
       comment(&raw);
+      entries_.push_back(
+          {nullptr, std::make_unique<std::string>(raw), nullptr});
     } else if (accept('*')) {
       std::string base, num;
       bool read = name(&base) && delim() && unsigned_number(&num);
@@ -62,11 +79,11 @@ class parser : public basic_parser {
     } else {
       std::string fname;
       if (field_name(&fname)) {
-        std::string num, type;
+        std::string num, type, c;
 
         // short, long, float, double, char, string, carray
         auto read = delim() && unsigned_number(&num) && delim() &&
-                    name(&type) && comment();
+                    name(&type) && comment(&c);
         // flags are optional as well
         if (!read) {
           throw basic_parser_error("unrecognized input", row_,
@@ -81,7 +98,9 @@ class parser : public basic_parser {
         }
 
         fields_.push_back(
-            {fname, Fmkfldid32(t->second, base_ + std::stol(num))});
+            {fname, Fmkfldid32(t->second, base_ + std::stol(num)), c});
+        entries_.push_back(
+            {nullptr, nullptr, std::make_unique<field>(fields_.back())});
       } else {
         accept([](int c) { return ::isspace(c) && c != '\n'; });
       }
@@ -112,4 +131,5 @@ class parser : public basic_parser {
 
   long base_;
   std::vector<field> fields_;
+  std::vector<entry> entries_;
 };

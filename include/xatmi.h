@@ -33,6 +33,8 @@ char *tprealloc(char *ptr, long size);
 void tpfree(char *ptr);
 long tptypes(char *ptr, char *type, char *subtype);
 
+int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags);
+int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags);
 #ifdef __cplusplus
 }
 #endif

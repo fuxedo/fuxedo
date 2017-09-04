@@ -123,7 +123,7 @@ struct Fbfr32fields {
       return false;
     }
 
-    parser p(fields);
+    field_table_parser p(fields);
     p.parse();
     for (auto field : p.fields()) {
       id_to_name.insert(make_pair(field.fieldid, field.name));

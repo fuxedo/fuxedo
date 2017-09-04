@@ -1,5 +1,5 @@
 ACLOCAL_AMFLAGS = -I m4
-AM_CXXFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/third_party/catch
+AM_CXXFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/third_party/catch -I$(top_srcdir)/third_party/clara
 
 include_HEADERS = include/xatmi.h include/fml32.h
 
@@ -7,6 +7,11 @@ lib_LTLIBRARIES = src/libfuxedo.la
 
 src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp src/fml32.cpp src/expr.cpp
 src_libfuxedo_la_LDFLAGS = 
+
+bin_PROGRAMS = src/mkfldhdr32
+
+src_mkfldhdr32_SOURCES = src/mkfldhdr32.cpp
+src_mkfldhdr32_LDADD = src/libfuxedo.la -lpthread
 
 TESTS = tests/xatmi tests/fml32
 check_PROGRAMS = $(TESTS)
