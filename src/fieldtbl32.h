@@ -76,6 +76,11 @@ class field_table_parser : public basic_parser {
         throw basic_parser_error("unrecognized input", row_, "*base\toffset");
       }
       base_ = std::stol(num);
+
+      delim();
+      if (accept('#')) {
+        comment();
+      }
     } else {
       std::string fname;
       if (field_name(&fname)) {

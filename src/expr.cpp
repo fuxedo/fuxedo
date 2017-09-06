@@ -324,7 +324,7 @@ class expression_parser : public basic_parser {
       while (true) {
         if (accept('\\')) {
           hex(s);
-        } else if (!accept([](int c) { return c != EOF && c != '\''; }, s)) {
+        } else if (!accept([](int c) { return c != '\''; }, s)) {
           break;
         }
       }

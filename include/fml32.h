@@ -124,6 +124,7 @@ int CFget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf,
 char *Ffinds32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc);
 int Fgets32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf);
 
+int Fextread32(FBFR32 *fbfr, FILE *iop);
 int Fwrite32(FBFR32 *fbfr, FILE *iop);
 int Fread32(FBFR32 *fbfr, FILE *iop);
 

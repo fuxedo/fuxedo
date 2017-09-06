@@ -240,7 +240,7 @@ TEST_CASE("Ftypcvt32", "[fml32]") {
   s = "6";
   REQUIRE((p = Ftypcvt32(nullptr, FLD_CHAR, reinterpret_cast<char *>(&s[0]),
                          FLD_STRING, 0)) != nullptr);
-  REQUIRE(*reinterpret_cast<char *>(p) == 6);
+  REQUIRE(*reinterpret_cast<char *>(p) == '6');
 
   s = "7.8";
   REQUIRE((p = Ftypcvt32(nullptr, FLD_DOUBLE, reinterpret_cast<char *>(&s[0]),
@@ -298,7 +298,7 @@ TEST_CASE_METHOD(FieldFixture, "CFfind32", "[fml32]") {
                                             FLD_STRING)) == str + ".000000");
 
   REQUIRE(*reinterpret_cast<char *>(
-              CFfind32(fbfr, fld_string, 0, nullptr, FLD_CHAR)) == 13);
+              CFfind32(fbfr, fld_string, 0, nullptr, FLD_CHAR)) == '1');
 
   Ffree32(fbfr);
 }
@@ -1034,6 +1034,49 @@ TEST_CASE("nested fml32", "[fml32]") {
           "\n");
 
   tpfree((char *)args);
+  tpfree((char *)fbfr);
+}
+
+TEST_CASE("Fextread32", "[fml32]") {
+  auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
+
+  tempfile file(__LINE__);
+  fprintf(file.f,
+          "ARGS\t\n"
+          "\tVALUE\t000001\n"
+          "\tNAME\tname1\n"
+          "\n"
+          "ARGS\t\n"
+          "\tARGS\t\n"
+          "\t\tVALUE\tNESTED^2\n\n"
+          "\tNAME\tname2\n"
+          "\tVALUE\t000002\n"
+          "\n"
+          "NAME\tLevel\\31\n"
+          "\n");
+  fclose(file.f);
+
+  REQUIRE((file.f = fopen(file.name.c_str(), "r")) != nullptr);
+  REQUIRE(Fextread32(fbfr, file.f) != -1);
+
+  REQUIRE((file.f = fopen(file.name.c_str(), "w")) != nullptr);
+  Ffprint32(fbfr, file.f);
+  fclose(file.f);
+  // Reordered according to field types and IDs
+  REQUIRE(read_file(file.name) ==
+          "NAME\tLevel1\n"
+          "ARGS\t\n"
+          "\tNAME\tname1\n"
+          "\tVALUE\t000001\n"
+          "\n"
+          "ARGS\t\n"
+          "\tNAME\tname2\n"
+          "\tVALUE\t000002\n"
+          "\tARGS\t\n"
+          "\t\tVALUE\tNESTED^2\n\n"
+          "\n"
+          "\n");
+
   tpfree((char *)fbfr);
 }
 

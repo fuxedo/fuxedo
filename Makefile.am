@@ -8,10 +8,14 @@ lib_LTLIBRARIES = src/libfuxedo.la
 src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp src/fml32.cpp src/expr.cpp
 src_libfuxedo_la_LDFLAGS = 
 
-bin_PROGRAMS = src/mkfldhdr32
+bin_PROGRAMS = src/mkfldhdr32 src/ud32
 
 src_mkfldhdr32_SOURCES = src/mkfldhdr32.cpp
 src_mkfldhdr32_LDADD = src/libfuxedo.la -lpthread
+
+src_ud32_SOURCES = src/ud32.cpp
+src_ud32_LDADD = src/libfuxedo.la -lpthread
+
 
 TESTS = tests/xatmi tests/fml32
 check_PROGRAMS = $(TESTS)

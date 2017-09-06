@@ -31,6 +31,7 @@
 
 #include <fml32.h>
 #include <regex.h>
+#include "extreader.h"
 #include "fieldtbl32.h"
 
 #include <iostream>
@@ -1376,7 +1377,7 @@ char *Ftypcvt32(FLDLEN32 *tolen, int totype, char *fromval, int fromtype,
   if (totype == FLD_SHORT) {                                 \
     COPY_N(static_cast<short>(atol(from.c_str())));          \
   } else if (totype == FLD_CHAR) {                           \
-    COPY_N(static_cast<char>(atol(from.c_str())));           \
+    COPY_N(static_cast<char>(from[0]));                      \
   } else if (totype == FLD_FLOAT) {                          \
     COPY_N(static_cast<float>(atof(from.c_str())));          \
   } else if (totype == FLD_LONG) {                           \
@@ -1509,6 +1510,16 @@ char *Ffinds32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc) {
 
 int Fgets32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf) {
   return CFget32(fbfr, fieldid, oc, buf, nullptr, FLD_STRING);
+}
+
+int Fextread32(FBFR32 *fbfr, FILE *iop) {
+  FBFR32_CHECK(-1, fbfr);
+  auto p = extreader(iop);
+  auto f = p.parse();
+  if (!f) {
+    return -1;
+  }
+  return fbfr->cpy(f.get());
 }
 
 int Fwrite32(FBFR32 *fbfr, FILE *iop) {

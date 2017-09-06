@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+#include <cstdio>
 #include <cstring>
 #include <functional>
 #include <istream>
@@ -36,11 +37,18 @@ class basic_parser_error : public std::runtime_error {
 class basic_parser {
  public:
   basic_parser(std::istream &f)
-      : in_(f.rdbuf()), count_(0), row_(1), col_(1), sym_(in_->sbumpc()) {}
+      : in_(f.rdbuf()),
+        fin_(nullptr),
+        count_(0),
+        row_(1),
+        col_(1),
+        sym_(in_->sbumpc()) {}
+  basic_parser(FILE *f)
+      : in_(nullptr), fin_(f), count_(0), row_(1), col_(1), sym_(fgetc(f)) {}
 
  protected:
   bool accept(std::function<bool(int)> f, std::string *s = nullptr) {
-    if (!f(sym_)) {
+    if (sym_ == EOF || !f(sym_)) {
       return false;
     }
     if (s != nullptr) {
@@ -112,8 +120,12 @@ class basic_parser {
   }
 
   void next() {
-    sym_ = in_->sgetc();
-    in_->snextc();
+    if (fin_ != nullptr) {
+      sym_ = fgetc(fin_);
+    } else {
+      sym_ = in_->sgetc();
+      in_->snextc();
+    }
     ++count_;
     if (sym_ == '\n') {
       ++row_;
@@ -124,6 +136,7 @@ class basic_parser {
   }
 
   std::streambuf *in_;
+  FILE *fin_;
   int count_;
   int row_;
   int col_;
