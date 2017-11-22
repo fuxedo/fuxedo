@@ -15,38 +15,30 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <clara.hpp>
-#include <fstream>
+#include <cstdlib>
 #include <iostream>
 #include <string>
-#include <system_error>
-#include <vector>
 
-#include "extreader.h"
+#include "mib.h"
 
 int main(int argc, char *argv[]) {
-  /*
   bool show_help = false;
+  std::string file;
 
-  std::vector<std::string> files;
-
-
-  auto parser =
-      clara::Help(show_help) +
-      clara::Arg(files, "field_table")("field tables to process");
+  auto parser = clara::Help(show_help) |
+                clara::Arg(file, "tuxconfig")("configuration file to load");
 
   auto result = parser.parse(clara::Args(argc, argv));
   if (!result || result.value().type() != clara::ParseResultType::Matched) {
     std::cerr << parser;
     return -1;
   }
-  */
 
   try {
-    extreader r(stdin);
-    r.parse();
-  } catch (const std::system_error &e) {
-    std::cerr << e.code().message() << std::endl;
-    return -1;
+    auto cfg = getconfig();
+
+    mib m(cfg);
+    m.connect();
   } catch (const std::exception &e) {
     std::cerr << e.what() << std::endl;
     return -1;

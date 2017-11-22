@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
   std::vector<std::string> files;
 
   auto parser =
-      clara::Help(show_help) +
+      clara::Help(show_help) |
       clara::Arg(files, "field_table")("field tables to process").required();
 
   auto result = parser.parse(clara::Args(argc, argv));

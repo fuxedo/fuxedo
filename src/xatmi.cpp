@@ -19,12 +19,23 @@
 #include <cstdarg>
 #include <cstdio>
 
-static thread_local char tplasterr_[1024] = {0};
 static thread_local int tperrno_ = 0;
+static thread_local long tpurcode_ = 0;
 
-int *_tperrno_tls() { return &tperrno_; }
+int *_tls_tperrno() { return &tperrno_; }
+long *_tls_tpurcode() { return &tpurcode_; }
 
-FUXCONST char *tpstrerror(int err) {
+static thread_local char tplasterr_[1024] = {0};
+
+void _tperror(int err, const char *fmt, ...) {
+  tperrno_ = err;
+  va_list ap;
+  va_start(ap, fmt);
+  vsnprintf(tplasterr_, sizeof(tplasterr_), fmt, ap);
+  va_end(ap);
+}
+
+char *tpstrerror(int err) {
   switch (err) {
     case TPEBADDESC:
     case TPEBLOCK:
@@ -44,14 +55,6 @@ FUXCONST char *tpstrerror(int err) {
     case TPEEVENT:
     case TPEMATCH:
     default:
-      return "?";
+      return const_cast<char *>("?");
   }
-}
-
-void _tperror(int err, const char *fmt, ...) {
-  tperrno_ = err;
-  va_list ap;
-  va_start(ap, fmt);
-  vsnprintf(tplasterr_, sizeof(tplasterr_), fmt, ap);
-  va_end(ap);
 }

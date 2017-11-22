@@ -52,9 +52,9 @@ typedef struct Fbfr32 FBFR32;
 extern "C" {
 #endif
 
-int *_Ferror32_tls();
-#define Ferror32 (*_Ferror32_tls())
-FUXCONST char *Fstrerror32(int err);
+int *_tls_Ferror32();
+#define Ferror32 (*_tls_Ferror32())
+char *Fstrerror32(int err);
 
 long Fneeded32(FLDOCC32, FLDLEN32);
 FLDID32 Fmkfldid32(int type, FLDID32 num);

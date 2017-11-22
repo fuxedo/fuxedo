@@ -447,42 +447,49 @@ class eval_value {
   double d;
   const char *s;
 
-  eval_value(char *tree, int value) : tree(tree), l(value), type_(bool_long) {}
-  eval_value(char *tree, long value) : tree(tree), l(value), type_(bool_long) {}
+  eval_value(char *tree, int value)
+      : tree(tree), l(value), type_(eval_type::is_long) {}
+  eval_value(char *tree, long value)
+      : tree(tree), l(value), type_(eval_type::is_long) {}
   eval_value(char *tree, double value)
-      : tree(tree), d(value), type_(bool_double) {}
+      : tree(tree), d(value), type_(eval_type::is_double) {}
   eval_value(char *tree, const char *value, bool is_const = false)
-      : tree(tree), s(value), type_(bool_string), is_const_(is_const) {}
+      : tree(tree),
+        s(value),
+        type_(eval_type::is_string),
+        is_const_(is_const) {}
 
-  bool is_long() const { return type_ == bool_long; }
-  bool is_double() const { return type_ == bool_double; }
-  bool is_string() const { return type_ == bool_string; }
-  bool is_const_string() const { return type_ == bool_string && is_const_; }
+  bool is_long() const { return type_ == eval_type::is_long; }
+  bool is_double() const { return type_ == eval_type::is_double; }
+  bool is_string() const { return type_ == eval_type::is_string; }
+  bool is_const_string() const {
+    return type_ == eval_type::is_string && is_const_;
+  }
 
   double to_double() const {
-    if (type_ == bool_long) {
+    if (type_ == eval_type::is_long) {
       return l;
-    } else if (type_ == bool_double) {
+    } else if (type_ == eval_type::is_double) {
       return d;
-    } else if (type_ == bool_string) {
+    } else if (type_ == eval_type::is_string) {
       return atof(s);
     }
   }
   long to_long() const {
-    if (type_ == bool_long) {
+    if (type_ == eval_type::is_long) {
       return l;
-    } else if (type_ == bool_double) {
+    } else if (type_ == eval_type::is_double) {
       return d;
-    } else if (type_ == bool_string) {
+    } else if (type_ == eval_type::is_string) {
       return atol(s);
     }
   }
 
   const char *to_string(char *buf) const {
-    if (type_ == bool_long) {
+    if (type_ == eval_type::is_long) {
       sprintf(buf, "%ld", l);
       return buf;
-    } else if (type_ == bool_double) {
+    } else if (type_ == eval_type::is_double) {
       sprintf(buf, "%f", d);
       return buf;
     }
@@ -490,7 +497,7 @@ class eval_value {
   }
 
  private:
-  enum { bool_long, bool_double, bool_string } type_;
+  enum class eval_type { is_long, is_double, is_string } type_;
   bool is_const_;
 };
 

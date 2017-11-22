@@ -114,7 +114,7 @@ class extreader : public basic_parser {
   }
 
   bool flag(std::string *s = nullptr) {
-    if (accept([](int c) { return strchr("+-=", c) != nullptr; })) {
+    if (accept([](int c) { return strchr("+-=", c) != nullptr; }, s)) {
       return true;
     }
     return false;

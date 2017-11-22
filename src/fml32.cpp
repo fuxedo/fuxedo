@@ -49,7 +49,7 @@ unsigned int crc32b(unsigned char *data, size_t len) {
   return ~crc;
 }
 
-std::vector<std::string> split(const std::string &s, const std::string &delim) {
+static std::vector<std::string> split(const std::string &s, const std::string &delim) {
   std::vector<std::string> tokens;
   std::string token;
 
@@ -164,7 +164,6 @@ struct Fbfr32fields {
 };
 
 static Fbfr32fields Fbfr32fields_;
-static thread_local char conv_val_[32] __attribute__((aligned(8)));
 
 int Fldtype32(FLDID32 fieldid) { return Fbfr32fields::Fldtype32(fieldid); }
 
@@ -322,6 +321,8 @@ class Fbfr32 {
       need = sizeof(field16b);
     } else if (klass == FIELDN) {
       need = sizeof(fieldn) + fieldn::size(flen);
+    } else {
+      __builtin_unreachable();
     }
 
     auto field = where(fieldid, oc);
@@ -332,6 +333,8 @@ class Fbfr32 {
         need = 0;
       } else if (klass == FIELDN) {
         need -= sizeof(fieldn) + reinterpret_cast<fieldn *>(field)->size();
+      } else {
+        __builtin_unreachable();
       }
     }
 
@@ -364,6 +367,8 @@ class Fbfr32 {
         FBFR32 *fbfr = reinterpret_cast<FBFR32 *>(f->data);
         fbfr->size_ = fbfr->len_;
       }
+    } else {
+      __builtin_unreachable();
     }
 
     shift(type, need);
@@ -830,20 +835,28 @@ class Fbfr32 {
     switch (type) {
       case FLD_SHORT:
         offset_long_ += delta;
+        __attribute__((fallthrough));
       case FLD_LONG:
         offset_char_ += delta;
+        __attribute__((fallthrough));
       case FLD_CHAR:
         offset_float_ += delta;
+        __attribute__((fallthrough));
       case FLD_FLOAT:
         offset_double_ += delta;
+        __attribute__((fallthrough));
       case FLD_DOUBLE:
         offset_string_ += delta;
+        __attribute__((fallthrough));
       case FLD_STRING:
         offset_carray_ += delta;
+        __attribute__((fallthrough));
       case FLD_CARRAY:
         offset_fml32_ += delta;
+        __attribute__((fallthrough));
       case FLD_FML32:
         len_ += delta;
+        __attribute__((fallthrough));
       default:
         break;
     }
@@ -897,6 +910,8 @@ class Fbfr32 {
     } else if (klass == FIELDN) {
       auto field = reinterpret_cast<fieldn *>(head);
       next = reinterpret_cast<fieldn *>(field->data + field->size());
+    } else {
+      __builtin_unreachable();
     }
 
     auto end = reinterpret_cast<fieldhead *>(data_ + len_);
@@ -935,7 +950,10 @@ class Fbfr32 {
       return reinterpret_cast<field16b *>(field)->data;
     } else if (klass == FIELDN) {
       return reinterpret_cast<fieldn *>(field)->data;
+    } else {
+      __builtin_unreachable();
     }
+    __builtin_unreachable();
   }
 
   fieldhead *end(int type) {
@@ -956,6 +974,7 @@ class Fbfr32 {
     } else if (type == FLD_FML32) {
       return reinterpret_cast<fieldhead *>(data_ + len_);
     }
+    __builtin_unreachable();
   }
 
   fieldhead *where(FLDID32 fieldid, FLDOCC32 oc) {
@@ -1065,12 +1084,10 @@ class Fbfr32 {
   }
 };
 
-int *_Ferror32_tls() {
-  thread_local int Ferror32_ = 0;
-  return &Ferror32_;
-}
+static thread_local int Ferror32_ = 0;
+int *_tls_Ferror32() { return &Ferror32_; }
 
-FUXCONST char *Fstrerror32(int err) {
+const char *Fstrerror32_(int err) {
   switch (err) {
     case FALIGN:
       return "Fielded buffer not aligned";
@@ -1124,6 +1141,8 @@ FUXCONST char *Fstrerror32(int err) {
       return "?";
   }
 }
+
+char *Fstrerror32(int err) { return const_cast<char *>(Fstrerror32_(err)); }
 
 FLDID32 Fmkfldid32(int type, FLDID32 num) {
   if (type != FLD_SHORT && type != FLD_LONG && type != FLD_CHAR &&
@@ -1197,6 +1216,8 @@ void fml32reinit(void *mem, size_t size) {
 }
 
 void fml32finit(void *mem) { reinterpret_cast<Fbfr32 *>(mem)->finit(); }
+
+size_t fml32used(void *mem) { return reinterpret_cast<Fbfr32 *>(mem)->used(); }
 
 long Fsizeof32(FUXCONST FBFR32 *fbfr) {
   FBFR32_CHECK(-1, fbfr);
@@ -1485,7 +1506,7 @@ char *CFfind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len,
 
 int CFget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf,
             FLDLEN32 *len, int type) {
-  FLDLEN32 rlen = -1;
+  FLDLEN32 rlen = 0;
   FLDLEN32 local_flen;
   if (len == nullptr) {
     len = &local_flen;
@@ -1496,7 +1517,7 @@ int CFget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf,
   if (res == nullptr) {
     return -1;
   }
-  if (rlen != -1 && *len > rlen) {
+  if (rlen != 0 && *len > rlen) {
     Ferror32 = FNOSPACE;
     return -1;
   }
