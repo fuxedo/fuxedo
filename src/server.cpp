@@ -184,11 +184,12 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
       clara::Opt(srvid, "SRVID")["-i"]("server's SRVID in TUXCONFIG") |
       clara::Opt(grpno, "GRPNO")["-g"]("server's GRPNO in TUXCONFIG") |
       clara::Opt(services, "SERVICES")["-s"]("services to advertise") |
-      clara::Opt(all)["-a"]("advertise all services") |
+      clara::Opt(all)["-A"]("advertise all services") |
       clara::Opt(verbose)["-v"]("display built-in services");
 
   int sep = 0;
   for (; sep < argc; sep++) {
+    std::cout << argv[sep] << std::endl;
     if (strcmp(argv[sep], "--") == 0) {
       break;
     }
