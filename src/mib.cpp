@@ -16,6 +16,7 @@
 
 #include <clara.hpp>
 #include <cstdlib>
+#include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <memory>
