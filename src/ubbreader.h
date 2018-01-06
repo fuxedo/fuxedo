@@ -57,6 +57,8 @@ class ubbreader : public basic_parser {
             config.servers.push_back(std::make_pair(object, ubbparams));
           } else if (section == "GROUPS") {
             config.groups.push_back(std::make_pair(object, ubbparams));
+          } else if (section == "MACHINES") {
+            config.machines.push_back(std::make_pair(object, ubbparams));
           }
         }
         object.clear();

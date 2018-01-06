@@ -58,16 +58,14 @@ class service_repository {
 
     auto &entry = it->second;
     if (entry.cached_revision != *(entry.revision)) {
+      entry.msqids.clear();
       auto lock = m_.data_lock();
       auto adv = m_.advertisements();
       for (size_t i = 0; i < adv.len(); i++) {
         auto &a = adv.at(i);
         if (a.service == entry.service) {
           auto msqid = m_.queues().at(a.queue).msqid;
-          if (std::find(std::begin(entry.msqids), std::end(entry.msqids),
-                        msqid) == std::end(entry.msqids)) {
-            entry.msqids.push_back(msqid);
-          }
+          entry.msqids.push_back(msqid);
         }
       }
       entry.cached_revision = *(entry.revision);

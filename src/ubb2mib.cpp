@@ -46,8 +46,22 @@ static long checked_get(T &dict, const std::string &key, long min, long max,
 }
 
 void ubb2mib(ubbconfig &u, mib &m) {
-  std::map<std::string, uint16_t> group_ids;
+  if (u.machines.size() != 1) {
+    throw std::logic_error("Excatly one MACHINE entry supported");
+  }
+  auto &mach = u.machines[0];
+  if (mach.second.at("TUXCONFIG") != std::getenv("TUXCONFIG")) {
+    throw std::logic_error(
+        "TUXCONFIG in configuration file and environment do not match");
+  }
+  checked_copy(mach.first, m.mach().address);
+  checked_copy(mach.second.at("LMID"), m.mach().lmid);
+  checked_copy(mach.second.at("TUXCONFIG"), m.mach().tuxconfig);
+  checked_copy(mach.second.at("TUXDIR"), m.mach().tuxdir);
+  checked_copy(mach.second.at("APPDIR"), m.mach().appdir);
+  checked_copy(mach.second["ULOGPFX"], m.mach().ulogpfx);
 
+  std::map<std::string, uint16_t> group_ids;
   for (auto &grpconf : u.groups) {
     group_ids[grpconf.first] = checked_get(grpconf.second, "GRPNO", 1, 30000);
   }

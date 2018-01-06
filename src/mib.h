@@ -29,6 +29,15 @@
 size_t filesize(const std::string &filename);
 tuxconfig getconfig(ubbconfig *ubb = nullptr);
 
+struct machine {
+  char address[30];
+  char lmid[30];
+  char tuxconfig[256];
+  char tuxdir[256];
+  char appdir[256];
+  char ulogpfx[256];
+};
+
 struct group {
   uint16_t grpno;
   char srvgrp[32];
@@ -103,6 +112,8 @@ struct mibmem {
   std::atomic<int> state;
   int mainsem;
 
+  machine mach;
+
   mibdata<group> groups;
   mibdata<server> servers;
   mibdata<queue> queues;
@@ -145,6 +156,7 @@ class mib {
 
   void remove();
 
+  auto &mach() { return mem_->mach; }
   auto servers() { return mibdptr<server>(&mem_->servers); }
   auto queues() { return mibdptr<queue>(&mem_->queues); }
   auto services() { return mibdptr<service>(&mem_->services); }
