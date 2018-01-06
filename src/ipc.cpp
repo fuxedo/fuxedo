@@ -144,7 +144,7 @@ int qcreate() {
 static const size_t MAX_QUEUE_MSG_SIZE = 4000;
 
 void qsend(int msqid, msg &data, int flags) {
-  data.transport() = fux::ipc::queue;
+  data->ttype = fux::ipc::queue;
 
   if (data.size() > MAX_QUEUE_MSG_SIZE) {
     char tmpname[] = "/tmp/msgbase-XXXXXX";
@@ -156,7 +156,7 @@ void qsend(int msqid, msg &data, int flags) {
     fail_if(close(fd) == -1);
 
     filemsg fmsg;
-    fmsg.mtype = data.mtype();
+    fmsg.mtype = data->mtype;
     fmsg.ttype = fux::ipc::file;
     std::copy_n(tmpname, sizeof(tmpname), fmsg.filename);
     auto len = sizeof(msgbase) + sizeof(tmpname);
@@ -183,7 +183,7 @@ void qrecv(int msqid, msg &data, long msgtype, int flags) {
     throw std::system_error(errno, std::system_category());
   }
   data.resize(n + sizeof(long));
-  if (data.transport() == fux::ipc::file) {
+  if (data->ttype == fux::ipc::file) {
     char filename[n];
     strcpy(filename, data.as_filemsg().filename);
     struct stat st;
@@ -202,12 +202,12 @@ void qdelete(int msqid) { msgctl(msqid, IPC_RMID, NULL); }
 void msg::set_data(char *data, long len) {
   auto needed = fux::mem::bufsize(data, len);
   resize_data(needed);
-  if (tpexport(data, len, as_memmsg().data, &needed, 0) == -1) {
+  if (tpexport(data, len, (*this)->data, &needed, 0) == -1) {
     throw std::runtime_error("tpexport failed");
   }
 }
 void msg::get_data(char **data) {
-  if (tpimport(as_memmsg().data, size_data(), data, 0, 0) == -1) {
+  if (tpimport((*this)->data, size_data(), data, 0, 0) == -1) {
     throw std::runtime_error("tpimport failed");
   }
 }

@@ -77,13 +77,8 @@ struct memmsg : msgbase {
 
 class msg {
  public:
-  long &mtype() { return reinterpret_cast<msgbase *>(buf())->mtype; }
-  enum transport &transport() {
-    return reinterpret_cast<msgbase *>(buf())->ttype;
-  }
-
   auto &as_filemsg() { return *reinterpret_cast<filemsg *>(buf()); }
-  auto &as_memmsg() { return *reinterpret_cast<memmsg *>(buf()); }
+  memmsg *operator->() { return reinterpret_cast<memmsg *>(buf()); }
   char *buf() { return &bytes_[0]; }
   size_t size() { return bytes_.size(); }
   void resize(size_t n) { bytes_.resize(n); }

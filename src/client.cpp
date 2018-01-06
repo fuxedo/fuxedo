@@ -157,11 +157,10 @@ class client_context {
 
     rq.set_data(data, len);
 
-    auto &msg = rq.as_memmsg();
-    checked_copy(svc, msg.servicename);
-    msg.mtype = cd;
-    msg.cd = cd;
-    msg.replyq = rpid;
+    checked_copy(svc, rq->servicename);
+    rq->mtype = cd;
+    rq->cd = cd;
+    rq->replyq = rpid;
 
     fux::ipc::qsend(msqid, rq, 0);
     return cd;
@@ -170,6 +169,7 @@ class client_context {
   int tpgetrply(int *cd, char **data, long *len, long flags) {
     fux::ipc::qrecv(rpid, res, *cd, 0);
     res.get_data(data);
+    tpurcode = res->rcode;
     if (len != nullptr) {
       *len = res.size_data();
     }

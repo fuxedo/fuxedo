@@ -31,20 +31,20 @@ struct queue_fixture {
 TEST_CASE_METHOD(queue_fixture, "send and receive ipc message", "[ipc]") {
   rq.resize(1024);
 
-  rq.mtype() = 1;
-  std::copy_n("ServiceName", sizeof("ServiceName"), rq.as_memmsg().servicename);
-  rq.as_memmsg().flags = 1;
-  rq.as_memmsg().cd = 2;
+  rq->mtype = 1;
+  std::copy_n("ServiceName", sizeof("ServiceName"), rq->servicename);
+  rq->flags = 1;
+  rq->cd = 2;
 
   fux::ipc::qsend(msqid, rq, 0);
 
   fux::ipc::qrecv(msqid, rs, 0, 0);
 
   REQUIRE(rs.size() == rq.size());
-  REQUIRE(rs.mtype() == 1);
-  REQUIRE(rs.transport() == fux::ipc::queue);
-  REQUIRE(rs.as_memmsg().flags == 1);
-  REQUIRE(rs.as_memmsg().cd == 2);
+  REQUIRE(rs->mtype == 1);
+  REQUIRE(rs->ttype == fux::ipc::queue);
+  REQUIRE(rs->flags == 1);
+  REQUIRE(rs->cd == 2);
 }
 
 TEST_CASE_METHOD(queue_fixture, "send multiple and receive by id", "[ipc]") {
@@ -52,7 +52,7 @@ TEST_CASE_METHOD(queue_fixture, "send multiple and receive by id", "[ipc]") {
 
   int i = 1;
   while (true) {
-    rq.mtype() = i;
+    rq->mtype = i;
     try {
       fux::ipc::qsend(msqid, rq, IPC_NOWAIT);
     } catch (...) {
@@ -66,25 +66,25 @@ TEST_CASE_METHOD(queue_fixture, "send multiple and receive by id", "[ipc]") {
 
   while (i > 0) {
     fux::ipc::qrecv(msqid, rs, i, 0);
-    REQUIRE(rs.mtype() == i);
+    REQUIRE(rs->mtype == i);
     i--;
   }
 }
 
 TEST_CASE_METHOD(queue_fixture, "send and receive file message", "[ipc]") {
   rq.resize(10240);
-  rq.mtype() = 1;
-  std::copy_n("ServiceName", sizeof("ServiceName"), rq.as_memmsg().servicename);
-  rq.as_memmsg().flags = 1;
-  rq.as_memmsg().cd = 2;
+  rq->mtype = 1;
+  std::copy_n("ServiceName", sizeof("ServiceName"), rq->servicename);
+  rq->flags = 1;
+  rq->cd = 2;
 
   fux::ipc::qsend(msqid, rq, 0);
 
   fux::ipc::qrecv(msqid, rs, 0, 0);
 
   REQUIRE(rs.size() == rq.size());
-  REQUIRE(rs.mtype() == 1);
-  REQUIRE(rs.transport() == fux::ipc::file);
-  REQUIRE(rs.as_memmsg().flags == 1);
-  REQUIRE(rs.as_memmsg().cd == 2);
+  REQUIRE(rs->mtype == 1);
+  REQUIRE(rs->ttype == fux::ipc::file);
+  REQUIRE(rs->flags == 1);
+  REQUIRE(rs->cd == 2);
 }

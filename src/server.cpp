@@ -58,6 +58,64 @@ struct server_context {
   size_t srv;
   size_t queue;
   int rqaddr;
+  std::map<const char *, void (*)(TPSVCINFO *), cmp_cstr> advertisements;
+
+  int tpadvertise(const char *svcname, void (*func)(TPSVCINFO *)) {
+    if (svcname == nullptr || strlen(svcname) == 0) {
+      TPERROR(TPEINVAL, "invalid svcname");
+      return -1;
+    }
+    if (func == nullptr) {
+      TPERROR(TPEINVAL, "invalid func");
+      return -1;
+    }
+    /*
+       [TPEPROTO]
+       tpadvertise() was called in an improper context (for example, by a
+       client).
+       [TPESYSTEM]
+       An Oracle Tuxedo system error has occurred. The exact nature of the error
+       is written to a log file.
+       [TPEOS]
+       An operating system error has occurred.o
+       */
+    auto it = advertisements.find(svcname);
+
+    if (it != advertisements.end()) {
+      if (it->second != func) {
+        TPERROR(TPEMATCH, "svcname advertised with a different func");
+        return -1;
+      }
+    } else {
+      try {
+        auto m = getmib();
+        auto lock = m.data_lock();
+        m.advertise(svcname, queue);
+      } catch (const std::out_of_range &e) {
+        TPERROR(TPELIMIT, "%s", e.what());
+        return -1;
+      }
+      advertisements.insert(std::make_pair(strdup(svcname), func));
+    }
+    return 0;
+  }
+
+  int tpunadvertise(const char *svcname) {
+    if (svcname == nullptr || strlen(svcname) == 0) {
+      TPERROR(TPEINVAL, "invalid svcname");
+      return -1;
+    }
+    auto it = advertisements.find(svcname);
+
+    if (it != advertisements.end()) {
+      auto freeme = it->first;
+      advertisements.erase(it);
+      free(const_cast<char *>(freeme));
+    } else {
+      TPERROR(TPENOENT, "svcname not advertised");
+    }
+    return 0;
+  }
 };
 
 static server_context ctxt;
@@ -67,35 +125,44 @@ struct server_thread_context {
   fux::ipc::msg res;
   char *atmibuf;
   jmp_buf tpreturn_env;
+
+  void tpreturn(int rval, long rcode, char *data, long len, long flags) {
+    res.set_data(data, len);
+
+    if (flags != 0) {
+      userlog("tpreturn with flags!=0");
+      res->rval = TPESVCERR;
+    } else {
+      res->rval = rval;
+    }
+    res->rcode = rcode;
+    res->flags = flags;
+    res->mtype = req->cd;
+
+    fux::ipc::qsend(req->replyq, res, 0);
+
+    longjmp(tpreturn_env, 1);
+  }
 };
 
 static server_thread_context tctxt;
-
-static std::map<const char *, void (*)(TPSVCINFO *), cmp_cstr> advertisements;
 
 static void run_dispatcher() {
   tctxt.atmibuf = tpalloc(const_cast<char *>("STRING"), nullptr, 1024);
   fux::mem::setowner(tctxt.atmibuf, &tctxt.atmibuf);
   while (true) {
-    std::cout << "Listen: " << ctxt.rqaddr << std::endl;
     fux::ipc::qrecv(ctxt.rqaddr, tctxt.req, 0, 0);
-    std::cout << "Requested service: " << tctxt.req.as_memmsg().servicename
-              << std::endl;
-    std::cout << "Data len: " << tctxt.req.size_data() << std::endl;
-    std::cout << "Data: " << tctxt.req.as_memmsg().data << std::endl;
 
     tctxt.req.get_data(&tctxt.atmibuf);
-    auto &msg = tctxt.req.as_memmsg();
-    std::cout << "Data: " << tctxt.atmibuf << std::endl;
 
     TPSVCINFO tpsvcinfo;
-    checked_copy(msg.servicename, tpsvcinfo.name);
-    tpsvcinfo.flags = msg.flags;
+    checked_copy(tctxt.req->servicename, tpsvcinfo.name);
+    tpsvcinfo.flags = tctxt.req->flags;
     tpsvcinfo.data = tctxt.atmibuf;
     tpsvcinfo.len = tctxt.req.size_data();
-    tpsvcinfo.cd = msg.cd;
+    tpsvcinfo.cd = tctxt.req->cd;
 
-    auto it = advertisements.find(tpsvcinfo.name);
+    auto it = ctxt.advertisements.find(tpsvcinfo.name);
     if (setjmp(tctxt.tpreturn_env) == 0) {
       it->second(&tpsvcinfo);
     } else {
@@ -181,78 +248,15 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
 }
 
 int tpadvertise(FUXCONST char *svcname, void (*func)(TPSVCINFO *)) {
-  if (svcname == nullptr || strlen(svcname) == 0) {
-    TPERROR(TPEINVAL, "invalid svcname");
-    return -1;
-  }
-  if (func == nullptr) {
-    TPERROR(TPEINVAL, "invalid func");
-    return -1;
-  }
-  /*
-     [TPEPROTO]
-     tpadvertise() was called in an improper context (for example, by a client).
-     [TPESYSTEM]
-     An Oracle Tuxedo system error has occurred. The exact nature of the error
-     is written to a log file.
-     [TPEOS]
-     An operating system error has occurred.o
-     */
-  auto it = advertisements.find(svcname);
-
-  if (it != advertisements.end()) {
-    if (it->second != func) {
-      TPERROR(TPEMATCH, "svcname advertised with a different func");
-      return -1;
-    }
-  } else {
-    try {
-      auto m = getmib();
-      auto lock = m.data_lock();
-      m.advertise(svcname, ctxt.queue);
-    } catch (const std::out_of_range &e) {
-      TPERROR(TPELIMIT, "%s", e.what());
-      return -1;
-    }
-    advertisements.insert(std::make_pair(strdup(svcname), func));
-  }
-  return 0;
+  return ctxt.tpadvertise(svcname, func);
 }
 
 int tpunadvertise(FUXCONST char *svcname) {
-  if (svcname == nullptr || strlen(svcname) == 0) {
-    TPERROR(TPEINVAL, "invalid svcname");
-    return -1;
-  }
-  auto it = advertisements.find(svcname);
-
-  if (it != advertisements.end()) {
-    auto freeme = it->first;
-    advertisements.erase(it);
-    free(const_cast<char *>(freeme));
-  } else {
-    TPERROR(TPENOENT, "svcname not advertised");
-  }
-  return 0;
+  return ctxt.tpunadvertise(svcname);
 }
 
 void tpreturn(int rval, long rcode, char *data, long len, long flags) try {
-  tctxt.res.set_data(data, len);
-
-  auto &msg = tctxt.res.as_memmsg();
-  if (flags != 0) {
-    userlog("tpreturn with flags!=0");
-    msg.rval = TPESVCERR;
-  } else {
-    msg.rval = rval;
-  }
-  msg.rcode = rcode;
-  msg.flags = flags;
-  msg.mtype = tctxt.req.as_memmsg().cd;
-
-  fux::ipc::qsend(tctxt.req.as_memmsg().replyq, tctxt.res, 0);
-
-  longjmp(tctxt.tpreturn_env, 1);
+  return tctxt.tpreturn(rval, rcode, data, len, flags);
 } catch (...) {
   longjmp(tctxt.tpreturn_env, -1);
 }

@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 
@@ -79,4 +80,30 @@ namespace mem {
 void setowner(char *ptr, char **owner);
 long bufsize(char *ptr, long used = -1);
 }
+}
+
+namespace fux {
+extern bool threaded;
+
+class scoped_fuxlock {
+ public:
+  scoped_fuxlock(std::mutex &m) : m_(m) {
+    if (threaded) {
+      m_.lock();
+    }
+  }
+  ~scoped_fuxlock() {
+    if (threaded) {
+      m_.unlock();
+    }
+  }
+
+  scoped_fuxlock(scoped_fuxlock &&) = default;
+  scoped_fuxlock &operator=(scoped_fuxlock &&) = default;
+
+ private:
+  std::mutex &m_;
+  scoped_fuxlock(const scoped_fuxlock &) = delete;
+  scoped_fuxlock &operator=(const scoped_fuxlock &) = delete;
+};
 }

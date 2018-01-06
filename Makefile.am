@@ -6,7 +6,7 @@ include_HEADERS = include/atmi.h include/xatmi.h include/fml32.h include/userlog
 
 lib_LTLIBRARIES = src/libfuxedo.la
 
-src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp src/fml32.cpp src/expr.cpp src/mib.cpp src/server.cpp src/ubb2mib.cpp src/userlog.cpp src/ipc.cpp src/base64.cpp src/client.cpp src/todo.cpp
+src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp src/fml32.cpp src/expr.cpp src/mib.cpp src/server.cpp src/ubb2mib.cpp src/userlog.cpp src/ipc.cpp src/base64.cpp src/client.cpp src/todo.cpp src/misc.cpp
 src_libfuxedo_la_LDFLAGS = 
 
 bin_PROGRAMS = src/mkfldhdr32 src/ud32 src/tmloadcf src/fux src/tmipcrm src/buildserver src/buildclient
