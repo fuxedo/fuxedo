@@ -34,7 +34,7 @@ static long checked_get(T &dict, const std::string &key, long min, long max) {
 
 template <typename T>
 static long checked_get(T &dict, const std::string &key, long min, long max,
-             long defvalue) {
+                        long defvalue) {
   if (dict.find(key) == dict.end()) {
     return defvalue;
   }
