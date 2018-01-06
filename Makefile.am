@@ -2,7 +2,7 @@ ACLOCAL_AMFLAGS = -I m4
 AM_CXXFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/third_party/catch -I$(top_srcdir)/third_party/clara -g -Wall -Wextra
 AM_CFLAGS = -I$(top_srcdir)/include
 
-include_HEADERS = include/atmi.h include/xatmi.h include/fml32.h include/userlog.h include/atmidefs.h include/xa.h
+include_HEADERS = include/atmi.h include/xatmi.h include/fml32.h include/userlog.h include/atmidefs.h include/xa.h include/tpadm.h
 
 lib_LTLIBRARIES = src/libfuxedo.la
 

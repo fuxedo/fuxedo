@@ -835,28 +835,28 @@ class Fbfr32 {
     switch (type) {
       case FLD_SHORT:
         offset_long_ += delta;
-        __attribute__((fallthrough));
+        // fall through
       case FLD_LONG:
         offset_char_ += delta;
-        __attribute__((fallthrough));
+        // fall through
       case FLD_CHAR:
         offset_float_ += delta;
-        __attribute__((fallthrough));
+        // fall through
       case FLD_FLOAT:
         offset_double_ += delta;
-        __attribute__((fallthrough));
+        // fall through
       case FLD_DOUBLE:
         offset_string_ += delta;
-        __attribute__((fallthrough));
+        // fall through
       case FLD_STRING:
         offset_carray_ += delta;
-        __attribute__((fallthrough));
+        // fall through
       case FLD_CARRAY:
         offset_fml32_ += delta;
-        __attribute__((fallthrough));
+        // fall through
       case FLD_FML32:
         len_ += delta;
-        __attribute__((fallthrough));
+        // fall through
       default:
         break;
     }
