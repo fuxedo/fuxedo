@@ -185,7 +185,7 @@ int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags) try {
   if (flags & TPEX_STRING) {
     ilen = strlen(istr);
     if (ilen % 4) {
-      TPERROR(TPEINVAL, "Invalid base64 string");
+      TPERROR(TPEPROTO, "Invalid base64 string");
       return -1;
     }
     needed += ilen / 4 * 3;
@@ -200,9 +200,9 @@ int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags) try {
   }
 
   if (flags & TPEX_STRING) {
-    auto n = base64decode(
-        istr, ilen, reinterpret_cast<char *>(omem) + offsetof(tpmem, type),
-        ilen);
+    (void)base64decode(istr, ilen,
+                       reinterpret_cast<char *>(omem) + offsetof(tpmem, type),
+                       ilen);
   } else {
     std::copy_n(istr, ilen,
                 reinterpret_cast<char *>(omem) + offsetof(tpmem, type));
@@ -221,6 +221,7 @@ int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags) try {
   }
   return 0;
 } catch (...) {
+  TPERROR(TPEPROTO, "Invalid base64 string");
   return -1;
 }
 
