@@ -23,13 +23,11 @@
 
 int main(int argc, char *argv[]) {
   bool show_help = false;
-  std::string file;
 
-  auto parser = clara::Help(show_help) |
-                clara::Arg(file, "tuxconfig")("configuration file to load");
+  auto parser = clara::Parser() | clara::Help(show_help);
 
   auto result = parser.parse(clara::Args(argc, argv));
-  if (!result || result.value().type() != clara::ParseResultType::Matched) {
+  if (!result) {
     std::cerr << parser;
     return -1;
   }
