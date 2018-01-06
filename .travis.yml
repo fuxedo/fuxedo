@@ -9,7 +9,7 @@ matrix:
       compiler: clang
       addons:
         apt:
-          sources: ['llvm-toolchain-trusty' 'libstdc++-6-dev']
+          sources: ['llvm-toolchain-trusty', 'libstdc++-6-dev']
           packages: ['clang-3.9']
       env: COMPILER='clang++-3.9'
 
