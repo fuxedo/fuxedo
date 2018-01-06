@@ -16,7 +16,7 @@ size_t base64encode(const void *ibuf, size_t ilen, char *obuf, size_t olen) {
   auto *bytes = reinterpret_cast<const uint8_t *>(ibuf);
   size_t ipos = 0, opos = 0;
 
-  for (auto i = 0; i < blocks; i++) {
+  for (size_t i = 0; i < blocks; i++) {
     auto n = ((uint32_t)bytes[ipos++]) << 16;
     n += ((uint32_t)bytes[ipos++]) << 8;
     n += bytes[ipos++];
@@ -76,43 +76,44 @@ size_t base64decode(const char *ibuf, size_t ilen, void *obuf, size_t olen) {
     throw std::logic_error("Invalid input length or no padding");
   }
 
-  auto *bytes = reinterpret_cast<uint8_t *>(obuf);
+  const auto *ibytes = reinterpret_cast<const uint8_t *>(ibuf);
+  auto *obytes = reinterpret_cast<uint8_t *>(obuf);
   size_t ipos = 0, opos = 0;
   uint8_t c0, c1, c2, c3, err = 0;
 
   // All blocks except the last one
-  for (auto i = 1; i < blocks; i++) {
-    err |= c0 = decoding[ibuf[ipos++]];
-    err |= c1 = decoding[ibuf[ipos++]];
-    err |= c2 = decoding[ibuf[ipos++]];
-    err |= c3 = decoding[ibuf[ipos++]];
+  for (size_t i = 1; i < blocks; i++) {
+    err |= c0 = decoding[ibytes[ipos++]];
+    err |= c1 = decoding[ibytes[ipos++]];
+    err |= c2 = decoding[ibytes[ipos++]];
+    err |= c3 = decoding[ibytes[ipos++]];
 
     uint32_t n = (c0 << 18 | c1 << 12 | c2 << 6 | c3);
-    bytes[opos++] = (n >> 16) & 255;
-    bytes[opos++] = (n >> 8) & 255;
-    bytes[opos++] = n & 255;
+    obytes[opos++] = (n >> 16) & 255;
+    obytes[opos++] = (n >> 8) & 255;
+    obytes[opos++] = n & 255;
   }
 
   if (ipos < ilen) {
     auto outc = 1;
-    err |= c0 = decoding[ibuf[ipos++]];
-    err |= c1 = decoding[ibuf[ipos++]];
+    err |= c0 = decoding[ibytes[ipos++]];
+    err |= c1 = decoding[ibytes[ipos++]];
     c2 = c3 = 0;
-    if (ibuf[ipos] != '=') {
+    if (ibytes[ipos] != '=') {
       outc++;
-      err |= c2 = decoding[ibuf[ipos++]];
-      if (ibuf[ipos] != '=') {
+      err |= c2 = decoding[ibytes[ipos++]];
+      if (ibytes[ipos] != '=') {
         outc++;
-        err |= c3 = decoding[ibuf[ipos++]];
+        err |= c3 = decoding[ibytes[ipos++]];
       }
     }
 
     uint32_t n = (c0 << 18 | c1 << 12 | c2 << 6 | c3);
-    bytes[opos++] = (n >> 16) & 255;
+    obytes[opos++] = (n >> 16) & 255;
     if (outc > 1) {
-      bytes[opos++] = (n >> 8) & 255;
+      obytes[opos++] = (n >> 8) & 255;
       if (outc > 2) {
-        bytes[opos++] = n & 255;
+        obytes[opos++] = n & 255;
       }
     }
   }

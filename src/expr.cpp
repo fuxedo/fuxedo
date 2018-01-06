@@ -119,6 +119,8 @@ class ast_tree {
     return ret;
   }
 
+  auto len() const { return len_; }
+
  private:
   uint32_t size_;
   uint32_t len_;
@@ -250,6 +252,9 @@ class expression_parser : public basic_parser {
         e = tree_.append(logical_negation);
       } else if (tok == "~") {
         e = tree_.append(bitwise_negation);
+      } else {
+        // unary + is ignored
+        e = tree_.len();
       }
       parse_primary();
       return e;
@@ -389,7 +394,7 @@ char *Fboolco32(char *expression) {
 }
 
 static char *boolpr(char *tree, FILE *iop) {
-  char op = *tree++;
+  uint8_t op = static_cast<uint8_t>(*tree++);
   if (op == const_long) {
     long value;
     std::copy_n(tree, sizeof(value), reinterpret_cast<char *>(&value));
@@ -474,6 +479,7 @@ class eval_value {
     } else if (type_ == eval_type::is_string) {
       return atof(s);
     }
+    __builtin_unreachable();
   }
   long to_long() const {
     if (type_ == eval_type::is_long) {
@@ -483,6 +489,7 @@ class eval_value {
     } else if (type_ == eval_type::is_string) {
       return atol(s);
     }
+    __builtin_unreachable();
   }
 
   const char *to_string(char *buf) const {
