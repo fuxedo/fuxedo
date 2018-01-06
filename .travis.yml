@@ -9,7 +9,8 @@ matrix:
       compiler: clang
       addons:
         apt:
-          sources: ['llvm-toolchain-trusty', 'ubuntu-toolchain-r-test']
+#sources: ['llvm-toolchain-trusty', 'ubuntu-toolchain-r-test']
+          sources: ['llvm-toolchain-trusty']
           packages: ['clang-3.9']
       env: COMPILER='clang++-3.9'
 
