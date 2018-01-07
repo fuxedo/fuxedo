@@ -32,8 +32,11 @@ extern const char *__progname;
 char *proc_name = const_cast<char *>(__progname);
 
 static std::string getname() {
-  if (std::getenv("TUXCONFIG") != nullptr) {
-    return getmib().mach().address;
+  try {
+    if (std::getenv("TUXCONFIG") != nullptr) {
+      return getmib().mach().address;
+    }
+  } catch (...) {
   }
   return "<unknown>";
 }
