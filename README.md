@@ -40,7 +40,7 @@ Currently implemented:
   - tprealloc
   - tpfree
   - tptypes
-- Service routing functions
+- Service routine functions
   - tpservice
   - tpreturn
 - Advertising functions
