@@ -25,11 +25,22 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "mib.h"
+
 // FIXME: Linux only
 extern const char *__progname;
 char *proc_name = const_cast<char *>(__progname);
 
+static std::string getname() {
+  if (std::getenv("TUXCONFIG") != nullptr) {
+    return getmib().mach().address;
+  }
+  return "<unknown>";
+}
+
 int userlog(const char *fmt, ...) {
+  static std::string uname = getname();
+
   const char *ULOGPFX = std::getenv("ULOGPFX");
   if (ULOGPFX == nullptr) {
     ULOGPFX = "ULOG";
@@ -58,11 +69,12 @@ int userlog(const char *fmt, ...) {
   if (millisec) {
     n = snprintf(buf, sizeof(buf),
                  "%02d%02d%02d.%03d.%s:%s.%d: ", timeinfo.tm_hour,
-                 timeinfo.tm_min, timeinfo.tm_sec, int(tv.tv_usec / 1000), "a",
-                 proc_name, getpid());
+                 timeinfo.tm_min, timeinfo.tm_sec, int(tv.tv_usec / 1000),
+                 uname.c_str(), proc_name, getpid());
   } else {
     n = snprintf(buf, sizeof(buf), "%02d%02d%02d.%s:%s.%d: ", timeinfo.tm_hour,
-                 timeinfo.tm_min, timeinfo.tm_sec, "a", proc_name, getpid());
+                 timeinfo.tm_min, timeinfo.tm_sec, uname.c_str(), proc_name,
+                 getpid());
   }
 
   va_list ap;
