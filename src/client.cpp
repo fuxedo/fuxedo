@@ -32,7 +32,7 @@
 struct service_entry {
   std::vector<int> msqids;
   size_t idx;
-  size_t service;
+  size_t service_id;
   uint64_t cached_revision;
   uint64_t *revision;
 
@@ -47,11 +47,11 @@ class service_repository {
     if (it == services_.end()) {
       auto lock = m_.data_lock();
       service_entry entry;
-      entry.service = m_.find_service(svc);
-      if (entry.service == m_.badoff) {
+      entry.service_id = m_.find_service(svc);
+      if (entry.service_id == m_.badoff) {
         throw std::out_of_range(svc);
       }
-      entry.revision = &(m_.services().at(entry.service).revision);
+      entry.revision = &(m_.services().at(entry.service_id).revision);
       entry.cached_revision = 0;
       it = services_.insert(std::make_pair(strdup(svc), entry)).first;
     }
@@ -63,7 +63,7 @@ class service_repository {
       auto adv = m_.advertisements();
       for (size_t i = 0; i < adv.len(); i++) {
         auto &a = adv.at(i);
-        if (a.service == entry.service) {
+        if (a.service == entry.service_id) {
           auto msqid = m_.queues().at(a.queue).msqid;
           entry.msqids.push_back(msqid);
         }

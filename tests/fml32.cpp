@@ -816,7 +816,8 @@ TEST_CASE("Fchg32-string-overwrite-shrink", "[fml32]") {
 
   for (long i = 0; i < 3; i++) {
     long dummy = 13;
-    REQUIRE(Fchg32(fbfr, fld_string, i, DECONST(std::to_string(dummy).c_str()),
+    REQUIRE(Fchg32(fbfr, fld_string, i,
+                   DECONST(("foobar-" + std::to_string(dummy)).c_str()),
                    0) != -1);
   }
   for (long i = 0; i < 3; i++) {
@@ -846,13 +847,13 @@ TEST_CASE("Fchg32-string-overwrite-grow", "[fml32]") {
   }
   for (long i = 0; i < 3; i++) {
     REQUIRE(Fchg32(fbfr, fld_string, i,
-                   DECONST(std::to_string(100 + i).c_str()), 0) != -1);
+                   DECONST(("foobar-" + std::to_string(i)).c_str()), 0) != -1);
   }
 
   for (long i = 0; i < 3; i++) {
     auto ptr = Ffind32(fbfr, fld_string, i, nullptr);
     REQUIRE(ptr != nullptr);
-    REQUIRE(ptr == std::to_string(100 + i));
+    REQUIRE(ptr == ("foobar-" + std::to_string(i)));
   }
 
   Ffree32(fbfr);
@@ -1018,9 +1019,10 @@ TEST_CASE("nested fml32", "[fml32]") {
 
   FBFR32 *nested;
   REQUIRE((nested = (FBFR32 *)Ffind32(fbfr, ARGS, 0, nullptr)) != nullptr);
-  auto c = reinterpret_cast<char *>(Ffind32(nested, NAME, 0, nullptr));
+
   REQUIRE(reinterpret_cast<char *>(Ffind32(nested, NAME, 0, nullptr)) ==
           std::string("name1"));
+
   REQUIRE(reinterpret_cast<char *>(Ffind32(nested, VALUE, 0, nullptr)) ==
           std::string("000001"));
   REQUIRE((nested = (FBFR32 *)Ffind32(fbfr, ARGS, 1, nullptr)) != nullptr);
@@ -1030,6 +1032,7 @@ TEST_CASE("nested fml32", "[fml32]") {
           std::string("000002"));
   REQUIRE((nested = (FBFR32 *)Ffind32(fbfr, ARGS, 2, nullptr)) == nullptr);
 
+  REQUIRE(Ffprint32(fbfr, stdout) != -1);
   tempfile file(__LINE__);
   REQUIRE(Ffprint32(fbfr, file.f) != -1);
   fclose(file.f);
@@ -1447,6 +1450,7 @@ TEST_CASE("tpexport & tpimport STRING binary", "[mem]") {
   REQUIRE(copy != nullptr);
 
   memset(str, 'x', 4 * 1024);
+  str[4 * 1024 - 1] = '\0';
 
   char ostr[8 * 1024];
   long olen = sizeof(ostr);

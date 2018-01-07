@@ -82,6 +82,7 @@ struct mibdata {
   size_t len;
   size_t size;
   size_t off;
+  uint64_t revision;
 
   typedef T value_type;
 };

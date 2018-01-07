@@ -211,12 +211,12 @@ static_assert(sizeof(field16b) == 16, "Large fixed fields must be 16 bytes");
 
 struct fieldn : fieldhead {
   FLDLEN32 flen;
-  char data[];
+  char data[] __attribute__((aligned(8)));
 
   FLDLEN32 size() { return size(flen); }
   static constexpr FLDLEN32 size(FLDLEN32 ilen) {
-    if (ilen & 3) {
-      ilen += 4 - (ilen & 3);
+    if (ilen & 7) {
+      ilen += 8 - (ilen & 7);
     }
     return ilen;
   }
@@ -328,13 +328,15 @@ struct Fbfr32 {
     }
 
     auto field = where(fieldid, oc);
+    size_t used = 0;
     if (field == nullptr) {
       field = end(type);
     } else if (field->fieldid == fieldid) {
       if (klass == FIELD8 || klass == FIELD16) {
         need = 0;
       } else if (klass == FIELDN) {
-        need -= sizeof(fieldn) + reinterpret_cast<fieldn *>(field)->size();
+        used = sizeof(fieldn) + reinterpret_cast<fieldn *>(field)->size();
+        need -= used;
       } else {
         __builtin_unreachable();
       }
@@ -349,7 +351,11 @@ struct Fbfr32 {
       auto ptr = reinterpret_cast<char *>(field);
       // std::copy(ptr, data_ + len_, ptr + need);
       // copy does not work for overlaps?
-      memmove(ptr + need, ptr, (data_ + len_) - ptr);
+      if (need < 0) {
+        memmove(ptr + need + used, ptr + used, (data_ + len_) - (ptr + used));
+      } else {
+        memmove(ptr + need, ptr, (data_ + len_) - ptr);
+      }
     }
 
     field->fieldid = fieldid;

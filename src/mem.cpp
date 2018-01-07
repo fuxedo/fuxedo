@@ -118,7 +118,7 @@ char *tprealloc(char *ptr, long size) try {
   size = size >= tptype->default_size ? size : tptype->default_size;
   mem = (tpmem *)realloc(mem, sizeof(tpmem) + size);
   if (tptype->reinit != nullptr) {
-    tptype->reinit(ptr, size);
+    tptype->reinit(mem, size);
   }
 
   if (mem->owner != nullptr && *(mem->owner) == ptr) {
