@@ -352,6 +352,22 @@ TEST_CASE_METHOD(FieldFixture, "Fcpy32", "[fml32]") {
   Ffree32(fbfr3);
 }
 
+TEST_CASE_METHOD(FieldFixture, "tprealloc", "[fml32]") {
+  auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 128);
+  REQUIRE(fbfr != nullptr);
+
+  double d = 13.13;
+  for (auto i = 0; i < 100; i++) {
+    int rc = Fchg32(fbfr, fld_double, i, reinterpret_cast<char *>(&d), 0);
+    if (rc == -1) {
+      REQUIRE(Ferror32 == FNOSPACE);
+      fbfr = (FBFR32 *)tprealloc((char *)fbfr, Fsizeof32(fbfr) * 2);
+      REQUIRE(Fchg32(fbfr, fld_double, i, reinterpret_cast<char *>(&d), 0) !=
+              -1);
+    }
+  }
+}
+
 TEST_CASE_METHOD(FieldFixture, "Fcpy32-tpalloc", "[fml32]") {
   auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 2 * 1024);
   REQUIRE(fbfr != nullptr);
@@ -1032,7 +1048,6 @@ TEST_CASE("nested fml32", "[fml32]") {
           std::string("000002"));
   REQUIRE((nested = (FBFR32 *)Ffind32(fbfr, ARGS, 2, nullptr)) == nullptr);
 
-  REQUIRE(Ffprint32(fbfr, stdout) != -1);
   tempfile file(__LINE__);
   REQUIRE(Ffprint32(fbfr, file.f) != -1);
   fclose(file.f);

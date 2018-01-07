@@ -205,7 +205,7 @@ struct field16b : fieldhead {
     long l;
     double d;
     char data[8];
-  };
+  } __attribute__((aligned(8)));
 };
 static_assert(sizeof(field16b) == 16, "Large fixed fields must be 16 bytes");
 
