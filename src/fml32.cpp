@@ -627,7 +627,7 @@ struct Fbfr32 {
       if (Fldtype32(fieldid) != FLD_FML32) {
         std::copy_n(fvalue(field), len, loc);
       } else {
-        std::copy_n(fvalue(field) + offsetof(Fbfr32, len_), len,
+        std::copy_n(fvalue(field) + offsetof(Fbfr32, len_), len - sizeof(size_),
                     loc + offsetof(Fbfr32, len_));
       }
     }
