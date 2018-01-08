@@ -582,16 +582,18 @@ static eval_value boolev_cmp(char *tree, char op, eval_value lhs,
   } else if (op == matches) {
     regex_t regex;
     if (regcomp(&regex, rhs.s, 0) == 0) {
-      auto r = regexec(&regex, lhs.s, 0, NULL, 0);
+      regmatch_t m[1];
+      auto r = regexec(&regex, lhs.s, 1, m, 0);
       regfree(&regex);
-      return eval_value(tree, r == 0);
+      return eval_value(tree, r == 0 && m[0].rm_so == 0);
     }
   } else if (op == not_matches) {
     regex_t regex;
     if (regcomp(&regex, rhs.s, 0) == 0) {
-      auto r = regexec(&regex, lhs.s, 0, NULL, 0);
+      regmatch_t m[1];
+      auto r = regexec(&regex, lhs.s, 1, m, 0);
       regfree(&regex);
-      return eval_value(tree, r == REG_NOMATCH);
+      return eval_value(tree, r == REG_NOMATCH || m[0].rm_so != 0);
     }
   }
   throw std::runtime_error("unsupported comparison operator");

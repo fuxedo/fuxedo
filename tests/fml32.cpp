@@ -1324,6 +1324,33 @@ TEST_CASE("boolean expression regex", "[fml32]") {
   tpfree((char *)fbfr);
 }
 
+TEST_CASE("boolean expression regex full string matching", "[fml32]") {
+  char *tree;
+  auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
+
+  auto NAME = Fldid32(DECONST("NAME"));
+
+  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("1234567890"), 0) != -1);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME %% '[0-1].*'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME !% '[0-1].*'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 0);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME %% '[2-3].*'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 0);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("NAME !% '[2-3].*'"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  tpfree((char *)fbfr);
+}
+
 TEST_CASE("boolean expression unary", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   char *tree;
