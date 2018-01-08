@@ -18,6 +18,7 @@
 
 #include <stdarg.h>
 #include <sys/time.h>
+#include <sys/utsname.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -25,24 +26,22 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "mib.h"
+#include <string>
 
 // FIXME: Linux only
 extern const char *__progname;
 char *proc_name = const_cast<char *>(__progname);
 
 static std::string getname() {
-  try {
-    if (std::getenv("TUXCONFIG") != nullptr) {
-      return getmib().mach().address;
-    }
-  } catch (...) {
+  struct utsname buf;
+  if (uname(&buf) == -1) {
+    return "<unknown>";
   }
-  return "<unknown>";
+  return buf.nodename;
 }
 
 int userlog(const char *fmt, ...) {
-  static std::string uname = getname();
+  static std::string nodename = getname();
 
   const char *ULOGPFX = std::getenv("ULOGPFX");
   if (ULOGPFX == nullptr) {
@@ -73,10 +72,10 @@ int userlog(const char *fmt, ...) {
     n = snprintf(buf, sizeof(buf),
                  "%02d%02d%02d.%03d.%s:%s.%d: ", timeinfo.tm_hour,
                  timeinfo.tm_min, timeinfo.tm_sec, int(tv.tv_usec / 1000),
-                 uname.c_str(), proc_name, getpid());
+                 nodename.c_str(), proc_name, getpid());
   } else {
     n = snprintf(buf, sizeof(buf), "%02d%02d%02d.%s:%s.%d: ", timeinfo.tm_hour,
-                 timeinfo.tm_min, timeinfo.tm_sec, uname.c_str(), proc_name,
+                 timeinfo.tm_min, timeinfo.tm_sec, nodename.c_str(), proc_name,
                  getpid());
   }
 
