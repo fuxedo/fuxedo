@@ -1060,6 +1060,30 @@ TEST_CASE("nested fml32", "[fml32]") {
   tpfree((char *)fbfr);
 }
 
+TEST_CASE("Fget32 for nested fml32 does not change param size", "[fml32]") {
+  auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
+  auto args = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
+  auto loc = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024 * 10);
+
+  auto orig_size = Fsizeof32(loc);
+
+  auto ARGS = Fldid32(DECONST("ARGS"));
+  auto NAME = Fldid32(DECONST("NAME"));
+  auto VALUE = Fldid32(DECONST("VALUE"));
+
+  REQUIRE(Fchg32(args, NAME, 0, DECONST("name1"), 0) != -1);
+  REQUIRE(Fchg32(args, VALUE, 0, DECONST("000001"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, ARGS, 0, (char *)args, 0) != -1);
+
+  REQUIRE(Fget32(fbfr, ARGS, 0, (char *)loc, 0) != -1);
+
+  REQUIRE(Fsizeof32(loc) == orig_size);
+
+  tpfree((char *)loc);
+  tpfree((char *)args);
+  tpfree((char *)fbfr);
+}
+
 TEST_CASE("Fextread32", "[fml32]") {
   auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
 

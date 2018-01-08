@@ -624,7 +624,12 @@ struct Fbfr32 {
       *maxlen = len;
     }
     if (loc != nullptr) {
-      std::copy_n(fvalue(field), len, loc);
+      if (Fldtype32(fieldid) != FLD_FML32) {
+        std::copy_n(fvalue(field), len, loc);
+      } else {
+        std::copy_n(fvalue(field) + offsetof(Fbfr32, len_), len,
+                    loc + offsetof(Fbfr32, len_));
+      }
     }
     return 0;
   }
