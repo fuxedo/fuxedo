@@ -27,7 +27,7 @@ Currently implemented:
 - Programs
   - mkfldhdr32
   - ud32
-  - tmloadcf
+  - tmloadcf/tmunloadcf
   - tmipcrm
   - buildserver
   - buildclient
