@@ -55,10 +55,12 @@ class scoped_semlock {
 };
 
 enum transport : char { queue, file };
+enum category : char { application, system };
 
 struct msgbase {
   long mtype;
   enum transport ttype;
+  enum category cat;
 };
 
 struct filemsg : msgbase {

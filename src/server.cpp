@@ -19,20 +19,24 @@
 #include <xa.h>
 #include <xatmi.h>
 
+#include <atomic>
 #include <clara.hpp>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <map>
+#include <memory>
+#include <thread>
+#include <vector>
 
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
+//#include "fux.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
 int _tmrunserver(int);
 // struct xa_switch_t tmnull_switch;
 int _tmbuilt_with_thread_option = 0;
@@ -42,9 +46,23 @@ xa_switch_t tmnull_switch;
 }
 #endif
 
-static void run_dispatcher();
+static void dispatch();
 
-int _tmrunserver(int) { run_dispatcher(); }
+int _tmrunserver(int) {
+  if (_tmbuilt_with_thread_option) {
+    std::vector<std::thread> threads;
+    for (int i = 0; i < 3; i++) {
+      threads.emplace_back(std::thread(dispatch));
+    }
+
+    for (auto &t : threads) {
+      t.join();
+    }
+  } else {
+    dispatch();
+  }
+  return 0;
+}
 
 int tprminit(char *, void *) { return 0; }
 int tpsvrinit(int, char **) { return 0; }
@@ -58,9 +76,21 @@ struct server_context {
   size_t srv;
   size_t queue;
   int rqaddr;
+  int argc;
+  char **argv;
+  struct tmsvrargs_t *tmsvrargs;
+
+  std::mutex mutex;
   std::map<const char *, void (*)(TPSVCINFO *), cmp_cstr> advertisements;
 
+  mib &m_;
+  std::atomic<bool> stop;
+
+  server_context(mib &m) : m_(m), stop(false) {}
+
   int tpadvertise(const char *svcname, void (*func)(TPSVCINFO *)) {
+    fux::scoped_fuxlock lock(mutex);
+
     if (svcname == nullptr || strlen(svcname) == 0) {
       TPERROR(TPEINVAL, "invalid svcname");
       return -1;
@@ -88,9 +118,8 @@ struct server_context {
       }
     } else {
       try {
-        auto m = getmib();
-        auto lock = m.data_lock();
-        m.advertise(svcname, queue);
+        auto lock = m_.data_lock();
+        m_.advertise(svcname, queue);
       } catch (const std::out_of_range &e) {
         TPERROR(TPELIMIT, "%s", e.what());
         return -1;
@@ -101,6 +130,7 @@ struct server_context {
   }
 
   int tpunadvertise(const char *svcname) {
+    fux::scoped_fuxlock lock(mutex);
     if (svcname == nullptr || strlen(svcname) == 0) {
       TPERROR(TPEINVAL, "invalid svcname");
       return -1;
@@ -118,9 +148,22 @@ struct server_context {
   }
 };
 
-static server_context ctxt;
+static std::unique_ptr<server_context> ctxt;
 
 struct server_thread_context {
+  server_thread_context() : atmibuf(nullptr) {
+    ctxt->tmsvrargs->svrthrinit(ctxt->argc, ctxt->argv);
+  }
+
+  ~server_thread_context() { ctxt->tmsvrargs->svrthrdone(); }
+
+  void prepare() {
+    if (atmibuf == nullptr) {
+      atmibuf = tpalloc(const_cast<char *>("STRING"), nullptr, 4 * 1024);
+      fux::mem::setowner(atmibuf, &atmibuf);
+    }
+  }
+
   fux::ipc::msg req;
   fux::ipc::msg res;
   char *atmibuf;
@@ -129,6 +172,11 @@ struct server_thread_context {
   void tpreturn(int rval, long rcode, char *data, long len, long flags) {
     if (req->replyq != -1) {
       res.set_data(data, len);
+
+      if (data != nullptr && data != atmibuf) {
+        tpfree(data);
+      }
+
       if (flags != 0) {
         userlog("tpreturn with flags!=0");
         res->rval = TPESVCERR;
@@ -146,29 +194,50 @@ struct server_thread_context {
   }
 };
 
-static server_thread_context tctxt;
+static thread_local std::unique_ptr<server_thread_context> tctxt;
 
-static void run_dispatcher() {
-  tctxt.atmibuf = tpalloc(const_cast<char *>("STRING"), nullptr, 1024);
-  fux::mem::setowner(tctxt.atmibuf, &tctxt.atmibuf);
+static void dispatch() {
+  tctxt = std::make_unique<server_thread_context>();
+
   while (true) {
-    fux::ipc::qrecv(ctxt.rqaddr, tctxt.req, 0, 0);
+    if (ctxt->stop) {
+      break;
+    }
 
-    tctxt.req.get_data(&tctxt.atmibuf);
+    do {
+      fux::scoped_fuxlock lock(ctxt->mutex);
+      if (ctxt->stop) {
+        break;
+      }
+
+      fux::ipc::qrecv(ctxt->rqaddr, tctxt->req, 0, 0);
+
+      tctxt->prepare();
+      tctxt->req.get_data(&tctxt->atmibuf);
+      if (tctxt->req->cat == fux::ipc::system) {
+        // handle system message under global lock
+        ctxt->stop = true;
+        continue;
+      } else {
+        // else continue processing without global lock
+      }
+    } while (false);
 
     TPSVCINFO tpsvcinfo;
-    checked_copy(tctxt.req->servicename, tpsvcinfo.name);
-    tpsvcinfo.flags = tctxt.req->flags;
-    tpsvcinfo.data = tctxt.atmibuf;
-    tpsvcinfo.len = tctxt.req.size_data();
-    tpsvcinfo.cd = tctxt.req->cd;
+    checked_copy(tctxt->req->servicename, tpsvcinfo.name);
+    tpsvcinfo.flags = tctxt->req->flags;
+    tpsvcinfo.data = tctxt->atmibuf;
+    tpsvcinfo.len = tctxt->req.size_data();
+    tpsvcinfo.cd = tctxt->req->cd;
 
-    auto it = ctxt.advertisements.find(tpsvcinfo.name);
-    if (setjmp(tctxt.tpreturn_env) == 0) {
+    auto it = ctxt->advertisements.find(tpsvcinfo.name);
+    if (setjmp(tctxt->tpreturn_env) == 0) {
       it->second(&tpsvcinfo);
     } else {
     }
   }
+
+  tctxt.reset();
 }
 
 int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
@@ -216,15 +285,23 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
     return 0;
   }
 
-  mib &m = getmib();
+  if (_tmbuilt_with_thread_option) {
+    fux::threaded = true;
+  }
 
-  ctxt.srv = m.find_server(srvid, grpno);
-  if (ctxt.srv == m.badoff) {
+  mib &m = getmib();
+  ctxt = std::make_unique<server_context>(m);
+
+  ctxt->srv = m.find_server(srvid, grpno);
+  if (ctxt->srv == m.badoff) {
     return -1;
   }
 
-  ctxt.rqaddr = m.make_service_rqaddr(ctxt.srv);
-  ctxt.queue = m.servers().at(ctxt.srv).rqaddr;
+  ctxt->rqaddr = m.make_service_rqaddr(ctxt->srv);
+  ctxt->queue = m.servers().at(ctxt->srv).rqaddr;
+  ctxt->argc = argc;
+  ctxt->argv = argv;
+  ctxt->tmsvrargs = tmsvrargs;
 
   if (all) {
     struct tmdsptchtbl_t *rec = tmsvrargs->tmdsptchtbl;
@@ -239,26 +316,21 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   }
 
   tmsvrargs->svrinit(argc, argv);
-  tmsvrargs->svrthrinit(argc, argv);
-
   tmsvrargs->mainloop(0);
-
-  tmsvrargs->svrthrdone();
-  tmsvrargs->svrdone();
   tmsvrargs->svrdone();
   return 0;
 }
 
 int tpadvertise(FUXCONST char *svcname, void (*func)(TPSVCINFO *)) {
-  return ctxt.tpadvertise(svcname, func);
+  return ctxt->tpadvertise(svcname, func);
 }
 
 int tpunadvertise(FUXCONST char *svcname) {
-  return ctxt.tpunadvertise(svcname);
+  return ctxt->tpunadvertise(svcname);
 }
 
 void tpreturn(int rval, long rcode, char *data, long len, long flags) try {
-  return tctxt.tpreturn(rval, rcode, data, len, flags);
+  return tctxt->tpreturn(rval, rcode, data, len, flags);
 } catch (...) {
-  longjmp(tctxt.tpreturn_env, -1);
+  longjmp(tctxt->tpreturn_env, -1);
 }

@@ -83,8 +83,8 @@ std::string getubb() {
 
   std::ostringstream sout;
   std::copy(std::istreambuf_iterator<char>(fin),
-           std::istreambuf_iterator<char>(),
-                std::ostreambuf_iterator<char>(sout));
+            std::istreambuf_iterator<char>(),
+            std::ostreambuf_iterator<char>(sout));
   return sout.str();
 }
 
@@ -115,8 +115,8 @@ void mib::init_memory() {
   off += init(mem_->groups, cfg_.maxgroups, off - offsetof(mibmem, groups));
   off += init(mem_->advertisements, cfg_.maxservers * cfg_.maxservices,
               off - offsetof(mibmem, advertisements));
-  off +=
-      init(mem_->accessers, cfg_.maxaccessers, off - offsetof(mibmem, accessers));
+  off += init(mem_->accessers, cfg_.maxaccessers,
+              off - offsetof(mibmem, accessers));
 }
 
 size_t mib::find_advertisement(size_t service, size_t queue) {
@@ -260,7 +260,7 @@ void mib::remove() {
     }
   }
   for (size_t i = 0; i < accessers()->len; i++) {
-    auto &acc =  accessers().at(i);
+    auto &acc = accessers().at(i);
     if (acc.sem != -1) {
       fux::ipc::semrm(acc.sem);
       acc.sem = -1;
@@ -293,27 +293,26 @@ mib &getmib() {
 }
 
 mib::mib(const tuxconfig &cfg) : cfg_(cfg) {
-    shmid_ = shmget(cfg_.ipckey, needed(cfg_), 0600 | IPC_CREAT);
-    if (shmid_ == -1) {
-    }
+  shmid_ = shmget(cfg_.ipckey, needed(cfg_), 0600 | IPC_CREAT);
+  if (shmid_ == -1) {
+  }
 
-    mem_ = reinterpret_cast<mibmem *>(shmat(shmid_, nullptr, 0));
+  mem_ = reinterpret_cast<mibmem *>(shmat(shmid_, nullptr, 0));
 
-    int z = 0;
-    if (mem_->state.compare_exchange_strong(z, 1)) {
-      mem_->mainsem = fux::ipc::seminit(IPC_PRIVATE, 1);
-      mem_->conf = cfg_;
-      init_memory();
-      mem_->state = 2;
-    }
+  int z = 0;
+  if (mem_->state.compare_exchange_strong(z, 1)) {
+    mem_->mainsem = fux::ipc::seminit(IPC_PRIVATE, 1);
+    mem_->conf = cfg_;
+    init_memory();
+    mem_->state = 2;
+  }
 
-    while (mem_->state != 2) {
-      std::this_thread::yield();
-    }
+  while (mem_->state != 2) {
+    std::this_thread::yield();
+  }
 }
 
 mib::mib(const tuxconfig &cfg, fux::mib::in_heap) : cfg_(cfg) {
-    mem_ = reinterpret_cast<mibmem *>(calloc(1, needed(cfg_)));
-    init_memory();
-  }
-
+  mem_ = reinterpret_cast<mibmem *>(calloc(1, needed(cfg_)));
+  init_memory();
+}

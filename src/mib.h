@@ -92,9 +92,7 @@ class mibarrptr {
  public:
   mibarrptr(mibarr<T> *p) : p_(p) {}
 
-  mibarr<T> *operator->() {
-    return p_;
-  }
+  mibarr<T> *operator->() { return p_; }
   T &operator[](size_t pos) const {
     return reinterpret_cast<T *>(reinterpret_cast<char *>(p_) + p_->off)[pos];
   }
@@ -106,6 +104,7 @@ class mibarrptr {
   }
 
   auto size() const { return p_->size; }
+
  private:
   mibarr<T> *p_;
 };
@@ -131,9 +130,11 @@ struct mibmem {
   char data[];
 };
 
-namespace fux { namespace mib {
-  struct in_heap{};
-}}
+namespace fux {
+namespace mib {
+struct in_heap {};
+}
+}
 
 class mib {
  public:
@@ -191,5 +192,3 @@ class mib {
 
 mib &getmib();
 std::string getubb();
-
-

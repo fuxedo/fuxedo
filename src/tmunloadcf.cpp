@@ -37,7 +37,6 @@ int main(int argc, char *argv[]) {
   }
 
   try {
-
     std::cout << getubb();
 
   } catch (const std::system_error &e) {
