@@ -94,7 +94,7 @@ class msg {
 };
 
 int qcreate();
-void qsend(int msqid, msg &data, int flags);
+bool qsend(int msqid, msg &data, int flags);
 void qrecv(int msqid, msg &data, long msgtype, int flags);
 void qdelete(int msqid);
 }

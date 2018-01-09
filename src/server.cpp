@@ -127,19 +127,20 @@ struct server_thread_context {
   jmp_buf tpreturn_env;
 
   void tpreturn(int rval, long rcode, char *data, long len, long flags) {
-    res.set_data(data, len);
+    if (req->replyq != -1) {
+      res.set_data(data, len);
+      if (flags != 0) {
+        userlog("tpreturn with flags!=0");
+        res->rval = TPESVCERR;
+      } else {
+        res->rval = rval;
+      }
+      res->rcode = rcode;
+      res->flags = flags;
+      res->mtype = req->cd;
 
-    if (flags != 0) {
-      userlog("tpreturn with flags!=0");
-      res->rval = TPESVCERR;
-    } else {
-      res->rval = rval;
+      fux::ipc::qsend(req->replyq, res, 0);
     }
-    res->rcode = rcode;
-    res->flags = flags;
-    res->mtype = req->cd;
-
-    fux::ipc::qsend(req->replyq, res, 0);
 
     longjmp(tpreturn_env, 1);
   }

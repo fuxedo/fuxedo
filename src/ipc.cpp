@@ -143,7 +143,7 @@ int qcreate() {
 
 static const size_t MAX_QUEUE_MSG_SIZE = 4000;
 
-void qsend(int msqid, msg &data, int flags) {
+bool qsend(int msqid, msg &data, int flags) {
   data->ttype = fux::ipc::queue;
 
   if (data.size() > MAX_QUEUE_MSG_SIZE) {
@@ -163,14 +163,21 @@ void qsend(int msqid, msg &data, int flags) {
     int n = msgsnd(msqid, &fmsg, len - sizeof(long), flags);
     if (n == -1) {
       unlink(tmpname);
+      if (flags & IPC_NOWAIT && errno == EAGAIN) {
+        return false;
+      }
       throw std::system_error(errno, std::system_category());
     }
   } else {
     int n = msgsnd(msqid, data.buf(), data.size() - sizeof(long), flags);
     if (n == -1) {
+      if (flags & IPC_NOWAIT && errno == EAGAIN) {
+        return false;
+      }
       throw std::system_error(errno, std::system_category());
     }
   }
+  return true;
 }
 
 // IPC_NOWAIT

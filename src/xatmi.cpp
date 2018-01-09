@@ -19,21 +19,31 @@
 #include <cstdarg>
 #include <cstdio>
 
+namespace fux {
+namespace atmi {
+
 static thread_local int tperrno_ = 0;
 static thread_local long tpurcode_ = 0;
 
-int *_tls_tperrno() { return &tperrno_; }
-long *_tls_tpurcode() { return &tpurcode_; }
-
 static thread_local char tplasterr_[1024] = {0};
 
-void _tperror(int err, const char *fmt, ...) {
+void set_tperrno(int err, const char *fmt, ...) {
   tperrno_ = err;
   va_list ap;
   va_start(ap, fmt);
   vsnprintf(tplasterr_, sizeof(tplasterr_), fmt, ap);
   va_end(ap);
 }
+
+void reset_tperrno() {
+  tperrno_ = 0;
+  tplasterr_[0] = '\0';
+}
+}
+}
+
+int *_tls_tperrno() { return &fux::atmi::tperrno_; }
+long *_tls_tpurcode() { return &fux::atmi::tpurcode_; }
 
 char *tpstrerror(int err) {
   switch (err) {

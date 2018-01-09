@@ -29,8 +29,7 @@ SCENARIO("servers can be added", "[mib]") {
     tuxcfg.maxservices = 1;
     tuxcfg.maxgroups = 1;
     tuxcfg.maxqueues = 1;
-    mib m(tuxcfg);
-    m.connect_local();
+    mib m(tuxcfg, fux::mib::in_heap());
 
     WHEN("one server is added") {
       auto ptr = m.make_server(1, 1, "server", "clopt", "rqaddr");

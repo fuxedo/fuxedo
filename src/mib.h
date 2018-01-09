@@ -29,6 +29,12 @@
 size_t filesize(const std::string &filename);
 tuxconfig getconfig(ubbconfig *ubb = nullptr);
 
+struct accesser {
+  int sem;
+  pid_t pid;
+  int rpid;
+};
+
 struct machine {
   char address[30];
   char lmid[30];
@@ -36,6 +42,7 @@ struct machine {
   char tuxdir[256];
   char appdir[256];
   char ulogpfx[256];
+  char tlogdevice[256];
 };
 
 struct group {
@@ -43,12 +50,6 @@ struct group {
   char srvgrp[32];
   char openinfo[256];
   char tmsname[256];
-};
-
-struct client {
-  pid_t pid;
-  int rpid;
-  time_t last_alive_time;
 };
 
 struct server {
@@ -78,31 +79,35 @@ struct advertisement {
 };
 
 template <typename T>
-struct mibdata {
+struct mibarr {
   size_t len;
   size_t size;
-  size_t off;
   uint64_t revision;
-
+  size_t off;
   typedef T value_type;
 };
 
 template <typename T>
-class mibdptr {
+class mibarrptr {
  public:
-  mibdptr(mibdata<T> *p) : p_(p) {}
-  auto size() const { return p_->size; }
-  size_t &len() { return p_->len; }
+  mibarrptr(mibarr<T> *p) : p_(p) {}
 
+  mibarr<T> *operator->() {
+    return p_;
+  }
+  T &operator[](size_t pos) const {
+    return reinterpret_cast<T *>(reinterpret_cast<char *>(p_) + p_->off)[pos];
+  }
   T &at(size_t pos) const {
     if (!(pos < p_->size)) {
       throw std::out_of_range("at");
     }
-    return reinterpret_cast<T *>(reinterpret_cast<char *>(p_) + p_->off)[pos];
+    return (*this)[pos];
   }
 
+  auto size() const { return p_->size; }
  private:
-  mibdata<T> *p_;
+  mibarr<T> *p_;
 };
 
 static constexpr size_t nearest64(size_t n, size_t mult = 1) {
@@ -113,57 +118,41 @@ struct mibmem {
   std::atomic<int> state;
   int mainsem;
 
+  tuxconfig conf;
   machine mach;
 
-  mibdata<group> groups;
-  mibdata<server> servers;
-  mibdata<queue> queues;
-  mibdata<service> services;
-  mibdata<advertisement> advertisements;
-  mibdata<client> clients;
+  mibarr<group> groups;
+  mibarr<server> servers;
+  mibarr<queue> queues;
+  mibarr<service> services;
+  mibarr<advertisement> advertisements;
+  mibarr<accesser> accessers;
 
   char data[];
 };
 
+namespace fux { namespace mib {
+  struct in_heap{};
+}}
+
 class mib {
  public:
-  mib(const tuxconfig &cfg) : cfg_(cfg) {}
+  mib(const tuxconfig &cfg);
+  mib(const tuxconfig &cfg, fux::mib::in_heap);
 
   static size_t needed(const tuxconfig &cfg);
 
-  void connect() {
-    shmid_ = shmget(cfg_.ipckey, needed(cfg_), 0600 | IPC_CREAT);
-    if (shmid_ == -1) {
-    }
-
-    mem_ = reinterpret_cast<mibmem *>(shmat(shmid_, nullptr, 0));
-
-    int z = 0;
-    if (mem_->state.compare_exchange_strong(z, 1)) {
-      mem_->mainsem = fux::ipc::seminit(IPC_PRIVATE, 1);
-      init_memory();
-      mem_->state = 2;
-    }
-
-    while (mem_->state != 2) {
-      std::this_thread::yield();
-    }
-  }
-
-  void connect_local() {
-    mem_ = reinterpret_cast<mibmem *>(calloc(1, needed(cfg_)));
-    init_memory();
-  }
-
   void remove();
 
+  auto &conf() { return mem_->conf; }
   auto &mach() { return mem_->mach; }
-  auto servers() { return mibdptr<server>(&mem_->servers); }
-  auto queues() { return mibdptr<queue>(&mem_->queues); }
-  auto services() { return mibdptr<service>(&mem_->services); }
-  auto clients() { return mibdptr<client>(&mem_->clients); }
+  auto groups() { return mibarrptr<group>(&mem_->groups); }
+  auto servers() { return mibarrptr<server>(&mem_->servers); }
+  auto queues() { return mibarrptr<queue>(&mem_->queues); }
+  auto services() { return mibarrptr<service>(&mem_->services); }
+  auto accessers() { return mibarrptr<accesser>(&mem_->accessers); }
   auto advertisements() {
-    return mibdptr<advertisement>(&mem_->advertisements);
+    return mibarrptr<advertisement>(&mem_->advertisements);
   }
 
   void advertise(const std::string &servicename, size_t queue);
@@ -181,7 +170,7 @@ class mib {
   size_t find_service(const char *servicename);
   size_t make_service(const std::string &servicename);
 
-  size_t make_client(pid_t pid);
+  size_t make_accesser(pid_t pid);
 
   int make_service_rqaddr(size_t server);
 
@@ -201,3 +190,6 @@ class mib {
 };
 
 mib &getmib();
+std::string getubb();
+
+

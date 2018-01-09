@@ -133,8 +133,7 @@ int main(int argc, char *argv[]) {
 
     //    tuxcfg.maxqueues = std::stoi(config.resources.at("MAXQUEUES"));
 
-    mib m(tuxcfg);
-    m.connect_local();
+    mib m(tuxcfg, fux::mib::in_heap());
 
     ubb2mib(config, m);
   } catch (const std::system_error &e) {

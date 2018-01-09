@@ -61,7 +61,7 @@ class service_repository {
       entry.msqids.clear();
       auto lock = m_.data_lock();
       auto adv = m_.advertisements();
-      for (size_t i = 0; i < adv.len(); i++) {
+      for (size_t i = 0; i < adv->len; i++) {
         auto &a = adv.at(i);
         if (a.service == entry.service_id) {
           auto msqid = m_.queues().at(a.queue).msqid;
@@ -137,31 +137,41 @@ class client_context {
  public:
   client_context(mib &mibcon) : mibcon_(mibcon), repo_(mibcon) {
     auto lock = mibcon_.data_lock();
-    client_ = mibcon_.make_client(getpid());
-    rpid = mibcon_.clients().at(client_).rpid = fux::ipc::qcreate();
+    client_ = mibcon_.make_accesser(getpid());
+    rpid = mibcon_.accessers().at(client_).rpid = fux::ipc::qcreate();
   }
 
   ~client_context() {
     auto lock = mibcon_.data_lock();
-    fux::ipc::qdelete(mibcon_.clients().at(client_).rpid);
-    mibcon_.clients().at(client_).rpid = -1;
+    fux::ipc::qdelete(mibcon_.accessers().at(client_).rpid);
+    mibcon_.accessers().at(client_).rpid = -1;
   }
 
-  int tpacall(const char *svc, char *data, long len, long flags) {
+  int tpacall(const char *svc, char *data, long len, long flags) try {
     int msqid = repo_.get_queue(svc);
+
     int cd = cds_.allocate();
-    // TPERROR(TPELIMIT, "No free call descriptors");
-    // return -1;
+    if (cd == -1) {
+      return -1;
+    }
 
     rq.set_data(data, len);
 
     checked_copy(svc, rq->servicename);
     rq->mtype = cd;
     rq->cd = cd;
-    rq->replyq = rpid;
+    if (flags & TPNOREPLY) {
+      rq->replyq = -1;
+    } else {
+      rq->replyq = rpid;
+    }
 
     fux::ipc::qsend(msqid, rq, 0);
+    fux::atmi::reset_tperrno();
     return cd;
+  } catch (const std::out_of_range &e) {
+    TPERROR(TPENOENT, "Service %s does not exist", svc);
+    return -1;
   }
 
   int tpgetrply(int *cd, char **data, long *len, long flags) {
@@ -171,6 +181,7 @@ class client_context {
     if (len != nullptr) {
       *len = res.size_data();
     }
+    fux::atmi::reset_tperrno();
     return 0;
   }
 
@@ -179,6 +190,7 @@ class client_context {
       return -1;
     }
     // TPETRAN
+    fux::atmi::reset_tperrno();
     return 0;
   }
 
@@ -201,11 +213,13 @@ static client_context &getctxt() {
 
 int tpinit(TPINIT *tpinfo) {
   getctxt();
+  fux::atmi::reset_tperrno();
   return 0;
 }
 
 int tpterm() {
   tls_ctxt.reset();
+  fux::atmi::reset_tperrno();
   return 0;
 }
 

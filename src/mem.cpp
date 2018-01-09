@@ -98,6 +98,7 @@ char *tpalloc(const char *type, const char *subtype, long size) try {
     tptype->init(mem->data, size);
   }
 
+  fux::atmi::reset_tperrno();
   return mem->data;
 } catch (...) {
   return nullptr;
@@ -124,6 +125,7 @@ char *tprealloc(char *ptr, long size) try {
   if (mem->owner != nullptr && *(mem->owner) == ptr) {
     *(mem->owner) = mem->data;
   }
+  fux::atmi::reset_tperrno();
   return mem->data;
 } catch (...) {
   return nullptr;
@@ -145,6 +147,7 @@ void tpfree(char *ptr) try {
     }
     free(mem);
   }
+  fux::atmi::reset_tperrno();
 } catch (...) {
 }
 
@@ -162,6 +165,7 @@ long tptypes(char *ptr, char *type, char *subtype) try {
     std::copy_n(mem->subtype, sizeof(mem->subtype), subtype);
   }
 
+  fux::atmi::reset_tperrno();
   return 0;
 } catch (...) {
   return -1;
@@ -219,6 +223,7 @@ int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags) try {
   if (olen != nullptr) {
     *olen = ilen;
   }
+  fux::atmi::reset_tperrno();
   return 0;
 } catch (...) {
   TPERROR(TPEPROTO, "Invalid base64 string");
@@ -260,6 +265,7 @@ int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags) try {
   }
 
   *olen = needed;
+  fux::atmi::reset_tperrno();
   return 0;
 } catch (...) {
   return -1;

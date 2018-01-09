@@ -23,10 +23,17 @@
 #include <stdexcept>
 #include <string>
 
-void _tperror(int err, const char *fmt, ...)
+#define TPERROR(err, fmt, args...)                                       \
+  fux::atmi::set_tperrno(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
+                         __LINE__, ##args)
+
+namespace fux {
+namespace atmi {
+void set_tperrno(int err, const char *fmt, ...)
     __attribute__((format(printf, 2, 3)));
-#define TPERROR(err, fmt, args...) \
-  _tperror(err, "%s() in %s:%d: " fmt, __func__, __FILE__, __LINE__, ##args)
+void reset_tperrno();
+}
+}
 
 template <unsigned int N>
 void checked_copy(const std::string &src, char (&dst)[N]) {

@@ -53,9 +53,7 @@ TEST_CASE_METHOD(queue_fixture, "send multiple and receive by id", "[ipc]") {
   int i = 1;
   while (true) {
     rq->mtype = i;
-    try {
-      fux::ipc::qsend(msqid, rq, IPC_NOWAIT);
-    } catch (...) {
+    if (!fux::ipc::qsend(msqid, rq, IPC_NOWAIT)) {
       i--;
       break;
     }

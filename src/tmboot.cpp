@@ -70,8 +70,8 @@ int main(int argc, char *argv[]) {
     mib &m = getmib();
 
     auto servers = m.servers();
-    for (size_t i = 0; i < servers.len(); i++) {
-      auto &srv = servers.at(i);
+    for (size_t i = 0; i < servers->len; i++) {
+      auto &srv = servers[i];
       if (srv.autostart) {
         start(srv);
       }

@@ -60,10 +60,14 @@ void ubb2mib(ubbconfig &u, mib &m) {
   checked_copy(mach.second.at("TUXDIR"), m.mach().tuxdir);
   checked_copy(mach.second.at("APPDIR"), m.mach().appdir);
   checked_copy(mach.second["ULOGPFX"], m.mach().ulogpfx);
+  checked_copy(mach.second["TLOGDEVICE"], m.mach().tlogdevice);
 
   std::map<std::string, uint16_t> group_ids;
+  auto groups = m.groups();
   for (auto &grpconf : u.groups) {
-    group_ids[grpconf.first] = checked_get(grpconf.second, "GRPNO", 1, 30000);
+    auto grpno = checked_get(grpconf.second, "GRPNO", 1, 30000);
+
+    group_ids[grpconf.first] = grpno;
   }
 
   auto servers = m.servers();

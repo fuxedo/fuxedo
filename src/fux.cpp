@@ -38,7 +38,6 @@ int main(int argc, char *argv[]) {
     auto cfg = getconfig();
 
     mib m(cfg);
-    m.connect();
   } catch (const std::exception &e) {
     std::cerr << e.what() << std::endl;
     return -1;
