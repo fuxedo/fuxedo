@@ -55,7 +55,7 @@ class scoped_semlock {
 };
 
 enum transport : char { queue, file };
-enum category : char { application, system };
+enum category : char { application, admin };
 
 struct msgbase {
   long mtype;

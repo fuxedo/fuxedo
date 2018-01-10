@@ -66,6 +66,7 @@ struct server {
 struct queue {
   char rqaddr[32];
   int msqid;
+  long mtype;
 };
 
 struct service {

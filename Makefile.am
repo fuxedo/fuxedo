@@ -19,7 +19,7 @@ src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/mib.cpp src/ubb2mib.cpp \
                            src/userlog.cpp \
                            src/ipc.cpp \
-                           src/misc.cpp src/base64.cpp \
+                           src/misc.cpp src/base64.cpp src/fields.cpp \
                            src/todo.cpp
 
 src_libfuxedo_la_LDFLAGS = -lpthread
@@ -29,13 +29,16 @@ bin_PROGRAMS = src/mkfldhdr32 src/ud32 \
                src/tmipcrm \
                src/tmloadcf src/tmunloadcf \
                src/buildserver src/buildclient \
-               src/tmboot
+               src/tmboot src/tmshutdown
 
 src_buildserver_SOURCES = src/buildserver.cpp
 src_buildclient_SOURCES = src/buildclient.cpp
 
 src_tmboot_SOURCES = src/tmboot.cpp
 src_tmboot_LDADD = src/libfuxedo.la
+
+src_tmshutdown_SOURCES = src/tmshutdown.cpp
+src_tmshutdown_LDADD = src/libfuxedo.la
 
 src_mkfldhdr32_SOURCES = src/mkfldhdr32.cpp
 src_mkfldhdr32_LDADD = src/libfuxedo.la

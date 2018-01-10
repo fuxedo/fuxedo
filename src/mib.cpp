@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -171,6 +172,8 @@ size_t mib::make_queue(const std::string &rqaddr) {
   auto &queue = queues().at(queues()->len);
   checked_copy(rqaddr, queue.rqaddr);
   queue.msqid = -1;
+  queue.mtype = std::numeric_limits<long>::max();
+
   return queues()->len++;
 }
 
@@ -241,7 +244,6 @@ size_t mib::make_service(const std::string &servicename) {
 
 int mib::make_service_rqaddr(size_t server) {
   auto &queue = queues().at(servers().at(server).rqaddr);
-  std::cout << queue.rqaddr << "  " << queue.msqid << std::endl;
   if (queue.msqid == -1) {
     queue.msqid = fux::ipc::qcreate();
     if (queue.msqid == -1) {

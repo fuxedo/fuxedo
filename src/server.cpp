@@ -24,15 +24,17 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <memory>
 #include <thread>
 #include <vector>
 
+#include "fields.h"
+#include "fux.h"
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
-//#include "fux.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -73,8 +75,11 @@ void tpsvrthrdone() {}
 void ubb2mib(ubbconfig &u, mib &m);
 
 struct server_context {
+  uint16_t srvid;
+  uint16_t grpno;
+
   size_t srv;
-  size_t queue;
+  size_t queue_idx;
   int rqaddr;
   int argc;
   char **argv;
@@ -86,7 +91,9 @@ struct server_context {
   mib &m_;
   std::atomic<bool> stop;
 
-  server_context(mib &m) : m_(m), stop(false) {}
+  server_context(mib &m) : m_(m), stop(false), req_counter_(0) {
+    mtype_ = std::numeric_limits<long>::min();
+  }
 
   int tpadvertise(const char *svcname, void (*func)(TPSVCINFO *)) {
     fux::scoped_fuxlock lock(mutex);
@@ -119,7 +126,7 @@ struct server_context {
     } else {
       try {
         auto lock = m_.data_lock();
-        m_.advertise(svcname, queue);
+        m_.advertise(svcname, queue_idx);
       } catch (const std::out_of_range &e) {
         TPERROR(TPELIMIT, "%s", e.what());
         return -1;
@@ -146,6 +153,32 @@ struct server_context {
     }
     return 0;
   }
+
+  bool handle(long mtype, fux::fml32buf &buf) {
+    // Do not want to see this message again
+    mtype_ = -(mtype - 1);
+    req_counter_ = 0;
+
+    if (buf.get<long>(FUX_SRVID, 0) == srvid &&
+        buf.get<long>(FUX_GRPNO, 0) == grpno) {
+      stop = true;
+      return true;
+    }
+    return false;
+  }
+
+  long mtype() {
+    req_counter_ = (req_counter_ + 1) % 8;
+    if (req_counter_ == 0) {
+      // every nth message screw priorities and read first message from queue
+      return 0;
+    }
+    return mtype_;
+  }
+
+ private:
+  long mtype_;
+  int req_counter_;
 };
 
 static std::unique_ptr<server_context> ctxt;
@@ -204,29 +237,33 @@ static void dispatch() {
       break;
     }
 
+    TPSVCINFO tpsvcinfo;
     do {
       fux::scoped_fuxlock lock(ctxt->mutex);
       if (ctxt->stop) {
         break;
       }
 
-      fux::ipc::qrecv(ctxt->rqaddr, tctxt->req, 0, 0);
+      fux::ipc::qrecv(ctxt->rqaddr, tctxt->req, ctxt->mtype(), 0);
 
       tctxt->prepare();
       tctxt->req.get_data(&tctxt->atmibuf);
-      if (tctxt->req->cat == fux::ipc::system) {
-        // handle system message under global lock
-        ctxt->stop = true;
+      tpsvcinfo.data = tctxt->atmibuf;
+      if (tctxt->req->cat == fux::ipc::admin) {
+        fux::fml32buf buf(&tpsvcinfo);
+
+        if (!ctxt->handle(tctxt->req->mtype, buf)) {
+          // return for processing by other MSSQ servers
+          fux::ipc::qsend(ctxt->rqaddr, tctxt->req, 0);
+        }
         continue;
       } else {
         // else continue processing without global lock
       }
     } while (false);
 
-    TPSVCINFO tpsvcinfo;
     checked_copy(tctxt->req->servicename, tpsvcinfo.name);
     tpsvcinfo.flags = tctxt->req->flags;
-    tpsvcinfo.data = tctxt->atmibuf;
     tpsvcinfo.len = tctxt->req.size_data();
     tpsvcinfo.cd = tctxt->req->cd;
 
@@ -297,8 +334,11 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
     return -1;
   }
 
+  ctxt->srvid = srvid;
+  ctxt->grpno = grpno;
+
   ctxt->rqaddr = m.make_service_rqaddr(ctxt->srv);
-  ctxt->queue = m.servers().at(ctxt->srv).rqaddr;
+  ctxt->queue_idx = m.servers().at(ctxt->srv).rqaddr;
   ctxt->argc = argc;
   ctxt->argv = argv;
   ctxt->tmsvrargs = tmsvrargs;
