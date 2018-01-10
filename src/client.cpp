@@ -24,6 +24,7 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <memory>
 
 #include "ipc.h"
 #include "mib.h"
@@ -203,12 +204,12 @@ class client_context {
   int rpid;
 };
 
-static thread_local std::unique_ptr<client_context> tls_ctxt;
+static thread_local std::shared_ptr<client_context> cctxt;
 static client_context &getctxt() {
-  if (!tls_ctxt.get()) {
-    tls_ctxt = std::make_unique<client_context>(getmib());
+  if (!cctxt.get()) {
+    cctxt = std::make_shared<client_context>(getmib());
   }
-  return *tls_ctxt;
+  return *cctxt;
 }
 
 int tpinit(TPINIT *tpinfo) {
@@ -218,7 +219,7 @@ int tpinit(TPINIT *tpinfo) {
 }
 
 int tpterm() {
-  tls_ctxt.reset();
+  cctxt.reset();
   fux::atmi::reset_tperrno();
   return 0;
 }

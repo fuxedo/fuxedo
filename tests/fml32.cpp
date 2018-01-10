@@ -687,7 +687,7 @@ TEST_CASE("Fnext32-with-value", "[fml32]") {
 
   fieldid = fld_short;
   oc = 0;
-  len = 1;
+  len = 8;
   REQUIRE(Fnext32(fbfr, &fieldid, &oc, buf, &len) == 1);
   REQUIRE((fieldid == fld_long && oc == 0));
   REQUIRE(len == sizeof(long));
@@ -702,7 +702,7 @@ TEST_CASE("Fnext32-with-value", "[fml32]") {
 
   fieldid = BADFLDID;
   oc = 0;
-  len = 1;
+  len = 2;
   REQUIRE(Fnext32(fbfr, &fieldid, &oc, buf, &len) == 1);
   REQUIRE((fieldid == fld_short && oc == 0));
   REQUIRE(len == sizeof(short));

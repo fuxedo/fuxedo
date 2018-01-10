@@ -507,7 +507,12 @@ struct Fbfr32 {
 
       if (len != nullptr) {
         auto flen = flength(it);
-        if (value != nullptr && *len >= flen) {
+
+        if (*len < flen) {
+          *len = flen;
+          Ferror32 = FNOSPACE;
+          return -1;
+        } else if (value != nullptr) {
           std::copy_n(fvalue(it), flen, value);
         }
         *len = flen;
