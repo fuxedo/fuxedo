@@ -24,8 +24,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "fux.h"
+#include <userlog.h>
+
 #include "fields.h"
+#include "fux.h"
 #include "ipc.h"
 
 #include "mib.h"
@@ -36,7 +38,8 @@ int main(int argc, char *argv[]) {
   int srvid = -1;
   std::string grpname;
 
-  auto parser = clara::Help(show_help) |
+  auto parser =
+      clara::Help(show_help) |
       clara::Opt(srvid, "srvid")["-i"]("server's SRVID in TUXCONFIG") |
       clara::Opt(grpname, "grpname")["-g"]("server's SRVGRP in TUXCONFIG");
 
@@ -55,7 +58,6 @@ int main(int argc, char *argv[]) {
 
     fux::fml32buf buf;
     fux::ipc::msg req;
-    req->cat = fux::ipc::admin;
 
     auto servers = m.servers();
     auto queues = m.queues();
@@ -65,7 +67,12 @@ int main(int argc, char *argv[]) {
       buf.put(FUX_SRVID, 0, server.srvid);
       buf.put(FUX_GRPNO, 0, server.grpno);
       req.set_data(reinterpret_cast<char *>(*buf.fbfr()), 0);
+      req->cat = fux::ipc::admin;
       req->mtype = queue.mtype--;
+
+      userlog("Requesting %s -g %d -i %d to shutdown", server.servername,
+              server.grpno, server.srvid);
+
       fux::ipc::qsend(queue.msqid, req, 0);
     }
   } catch (const std::exception &e) {

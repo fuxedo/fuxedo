@@ -252,8 +252,10 @@ static void dispatch() {
       if (tctxt->req->cat == fux::ipc::admin) {
         fux::fml32buf buf(&tpsvcinfo);
 
+        userlog("Received admin message");
         if (!ctxt->handle(tctxt->req->mtype, buf)) {
           // return for processing by other MSSQ servers
+          userlog("Not the target receiver of message, put back in queue");
           fux::ipc::qsend(ctxt->rqaddr, tctxt->req, 0);
         }
         continue;
