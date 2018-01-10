@@ -155,7 +155,7 @@ bool qsend(int msqid, msg &data, int flags) {
             data.size() - sizeof(msgbase));
     fail_if(close(fd) == -1);
 
-    filemsg fmsg;
+    msgfile fmsg;
     fmsg.mtype = data->mtype;
     fmsg.ttype = fux::ipc::file;
     std::copy_n(tmpname, sizeof(tmpname), fmsg.filename);
@@ -192,7 +192,7 @@ void qrecv(int msqid, msg &data, long msgtype, int flags) {
   data.resize(n + sizeof(long));
   if (data->ttype == fux::ipc::file) {
     char filename[n];
-    strcpy(filename, data.as_filemsg().filename);
+    strcpy(filename, data.as_msgfile().filename);
     struct stat st;
     fail_if(stat(filename, &st) == -1);
     int fd = open(filename, 0);

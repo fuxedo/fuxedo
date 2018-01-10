@@ -63,11 +63,11 @@ struct msgbase {
   enum category cat;
 };
 
-struct filemsg : msgbase {
+struct msgfile : msgbase {
   char filename[PATH_MAX];
 };
 
-struct memmsg : msgbase {
+struct msgmem : msgbase {
   char servicename[XATMI_SERVICE_NAME_LENGTH];
   long flags;
   int cd;
@@ -79,14 +79,15 @@ struct memmsg : msgbase {
 
 class msg {
  public:
-  auto &as_filemsg() { return *reinterpret_cast<filemsg *>(buf()); }
-  memmsg *operator->() { return reinterpret_cast<memmsg *>(buf()); }
+  msg() { bytes_.resize(sizeof(msgmem)); }
+  auto &as_msgfile() { return *reinterpret_cast<msgfile *>(buf()); }
+  msgmem *operator->() { return reinterpret_cast<msgmem *>(buf()); }
   char *buf() { return &bytes_[0]; }
   size_t size() { return bytes_.size(); }
   void resize(size_t n) { bytes_.resize(n); }
-  void resize_data(size_t n) { bytes_.resize(n + sizeof(memmsg)); }
+  void resize_data(size_t n) { bytes_.resize(n + sizeof(msgmem)); }
   size_t size() const { return bytes_.size(); }
-  size_t size_data() const { return bytes_.size() - sizeof(memmsg); }
+  size_t size_data() const { return bytes_.size() - sizeof(msgmem); }
 
   void set_data(char *data, long len);
   void get_data(char **data);
