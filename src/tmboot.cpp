@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include "mib.h"
+#include "misc.h"
 
 bool alive(pid_t pid) { return kill(pid, 0) == 0; }
 
@@ -68,6 +69,9 @@ int main(int argc, char *argv[]) {
 
   try {
     mib &m = getmib();
+
+    auto path = fux::split(m.mach().appdir, ":");
+    path.push_back(m.mach().tuxdir);
 
     auto servers = m.servers();
     for (size_t i = 0; i < servers->len; i++) {

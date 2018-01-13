@@ -1,5 +1,6 @@
 #pragma once
 #include "atmidefs.h"
+#include "tx.h"
 
 #define FUXCONST const
 
@@ -82,8 +83,6 @@ int tpenqueue(char *qspace, char *qname, TPQCTL *ctl, char *data, long len,
               long flags);
 void tpforward(char *svc, char *data, long len, long flags);
 int tpgetrply(int *cd, char **data, long *len, long flags);
-
-int tx_info(TXINFO *info);
 
 #ifdef __cplusplus
 }

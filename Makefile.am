@@ -9,6 +9,7 @@ include_HEADERS = include/atmi.h include/xatmi.h \
                   include/userlog.h \
                   include/atmidefs.h \
                   include/xa.h \
+                  include/tx.h \
                   include/tpadm.h
 
 lib_LTLIBRARIES = src/libfuxedo.la
@@ -19,6 +20,7 @@ src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/mib.cpp src/ubb2mib.cpp \
                            src/userlog.cpp \
                            src/ipc.cpp \
+                           src/tx.cpp src/trx.cpp \
                            src/misc.cpp src/base64.cpp src/fields.cpp \
                            src/todo.cpp
 

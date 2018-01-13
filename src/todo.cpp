@@ -17,15 +17,6 @@
 #include <tpadm.h>
 #include <xatmi.h>
 
-int tpbegin(unsigned long timeout, long flags) { return -1; }
-int tpabort(long flags) { return -1; }
-int tpcommit(long flags) { return -1; }
-int tpgetlev() { return -1; }
-int tpsuspend(TPTRANID *tranid, long flags) { return -1; }
-int tpresume(TPTRANID *tranid, long flags) { return -1; }
-int tpopen(void) { return -1; }
-int tpclose(void) { return -1; }
-int tx_info(TXINFO *info) { return -1; }
 int tpenqueue(char *qspace, char *qname, TPQCTL *ctl, char *data, long len,
               long flags) {
   return -1;

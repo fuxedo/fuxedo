@@ -22,6 +22,7 @@
 #include <mutex>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #define TPERROR(err, fmt, args...)                                       \
   fux::atmi::set_tperrno(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
@@ -32,6 +33,17 @@ namespace atmi {
 void set_tperrno(int err, const char *fmt, ...)
     __attribute__((format(printf, 2, 3)));
 void reset_tperrno();
+}
+}
+
+#define FERROR32(err, fmt, args...)                                        \
+  fux::fml32::set_Ferror32(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
+                           __LINE__, ##args)
+namespace fux {
+namespace fml32 {
+void set_Ferror32(int err, const char *fmt, ...)
+    __attribute__((format(printf, 2, 3)));
+void reset_Ferror32();
 }
 }
 
@@ -113,4 +125,23 @@ class scoped_fuxlock {
   scoped_fuxlock(const scoped_fuxlock &) = delete;
   scoped_fuxlock &operator=(const scoped_fuxlock &) = delete;
 };
+
+inline std::vector<std::string> split(const std::string &s,
+                                      const std::string &delim) {
+  std::vector<std::string> tokens;
+  std::string token;
+
+  for (auto const c : s) {
+    if (delim.find(c) == std::string::npos) {
+      token += c;
+    } else if (!token.empty()) {
+      tokens.push_back(token);
+      token.clear();
+    }
+  }
+  if (!token.empty()) {
+    tokens.push_back(token);
+  }
+  return tokens;
+}
 }

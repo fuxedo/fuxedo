@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdarg>
 #include <cstddef>
 #include <map>
 #include <memory>
@@ -33,8 +34,90 @@
 #include <regex.h>
 #include "extreader.h"
 #include "fieldtbl32.h"
+#include "misc.h"
 
 #include <iostream>
+
+namespace fux {
+namespace fml32 {
+
+static thread_local int Ferror32_ = 0;
+
+static thread_local char Flasterr32_[1024] = {0};
+
+void set_Ferror32(int err, const char *fmt, ...) {
+  Ferror32_ = err;
+  va_list ap;
+  va_start(ap, fmt);
+  vsnprintf(Flasterr32_, sizeof(Flasterr32_), fmt, ap);
+  va_end(ap);
+}
+
+void reset_Ferror32() {
+  Ferror32_ = 0;
+  Flasterr32_[0] = '\0';
+}
+}
+}
+
+int *_tls_Ferror32() { return &fux::fml32::Ferror32_; }
+
+const char *Fstrerror32_(int err) {
+  switch (err) {
+    case FALIGN:
+      return "Fielded buffer not aligned";
+    case FNOTFLD:
+      return "Buffer not fielded";
+    case FNOSPACE:
+      return "No space in fielded buffer";
+    case FNOTPRES:
+      return "Field not present";
+    case FBADFLD:
+      return "Unknown field number or type";
+    case FTYPERR:
+      return "Illegal field type";
+    case FEUNIX:
+      return "case UNIX system call error";
+    case FBADNAME:
+      return "Unknown field name";
+    case FMALLOC:
+      return "malloc failed";
+    case FSYNTAX:
+      return "Bad syntax in Boolean expression";
+    case FFTOPEN:
+      return "Cannot find or open field table";
+    case FFTSYNTAX:
+      return "Syntax error in field table";
+    case FEINVAL:
+      return "Invalid argument to function";
+    case FBADTBL:
+      return "Destructive concurrent access to field table";
+    case FBADVIEW:
+      return "Cannot find or get view";
+    case FVFSYNTAX:
+      return "Syntax error in viewfile";
+    case FVFOPEN:
+      return "Cannot find or open viewfile";
+    case FBADACM:
+      return "ACM contains negative value";
+    case FNOCNAME:
+      return "cname not found";
+    case FEBADOP:
+      return "Invalid field type";
+    case FNOTRECORD:
+      return "Invalid record type";
+    case FRFSYNTAX:
+      return "Syntax error in recordfile";
+    case FRFOPEN:
+      return "Cannot find or open recordfile";
+    case FBADRECORD:
+      return "Cannot find or get record";
+    default:
+      return "?";
+  }
+}
+
+char *Fstrerror32(int err) { return const_cast<char *>(Fstrerror32_(err)); }
 
 unsigned int crc32b(unsigned char *data, size_t len) {
   unsigned crc = 0xFFFFFFFF;
@@ -47,25 +130,6 @@ unsigned int crc32b(unsigned char *data, size_t len) {
     }
   }
   return ~crc;
-}
-
-static std::vector<std::string> split(const std::string &s,
-                                      const std::string &delim) {
-  std::vector<std::string> tokens;
-  std::string token;
-
-  for (auto const c : s) {
-    if (delim.find(c) == std::string::npos) {
-      token += c;
-    } else if (!token.empty()) {
-      tokens.push_back(token);
-      token.clear();
-    }
-  }
-  if (!token.empty()) {
-    tokens.push_back(token);
-  }
-  return tokens;
 }
 
 struct Fbfr32fields {
@@ -143,8 +207,8 @@ struct Fbfr32fields {
       return;
     }
 
-    auto files = split(fieldtbls32, ",");
-    auto dirs = split(fldtbldir32, ":");
+    auto files = fux::split(fieldtbls32, ",");
+    auto dirs = fux::split(fldtbldir32, ":");
 
     std::unique_lock<std::shared_timed_mutex> lock(mutex);
 
@@ -1101,66 +1165,6 @@ struct Fbfr32 {
     }
   }
 };
-
-static thread_local int Ferror32_ = 0;
-int *_tls_Ferror32() { return &Ferror32_; }
-
-const char *Fstrerror32_(int err) {
-  switch (err) {
-    case FALIGN:
-      return "Fielded buffer not aligned";
-    case FNOTFLD:
-      return "Buffer not fielded";
-    case FNOSPACE:
-      return "No space in fielded buffer";
-    case FNOTPRES:
-      return "Field not present";
-    case FBADFLD:
-      return "Unknown field number or type";
-    case FTYPERR:
-      return "Illegal field type";
-    case FEUNIX:
-      return "case UNIX system call error";
-    case FBADNAME:
-      return "Unknown field name";
-    case FMALLOC:
-      return "malloc failed";
-    case FSYNTAX:
-      return "Bad syntax in Boolean expression";
-    case FFTOPEN:
-      return "Cannot find or open field table";
-    case FFTSYNTAX:
-      return "Syntax error in field table";
-    case FEINVAL:
-      return "Invalid argument to function";
-    case FBADTBL:
-      return "Destructive concurrent access to field table";
-    case FBADVIEW:
-      return "Cannot find or get view";
-    case FVFSYNTAX:
-      return "Syntax error in viewfile";
-    case FVFOPEN:
-      return "Cannot find or open viewfile";
-    case FBADACM:
-      return "ACM contains negative value";
-    case FNOCNAME:
-      return "cname not found";
-    case FEBADOP:
-      return "Invalid field type";
-    case FNOTRECORD:
-      return "Invalid record type";
-    case FRFSYNTAX:
-      return "Syntax error in recordfile";
-    case FRFOPEN:
-      return "Cannot find or open recordfile";
-    case FBADRECORD:
-      return "Cannot find or get record";
-    default:
-      return "?";
-  }
-}
-
-char *Fstrerror32(int err) { return const_cast<char *>(Fstrerror32_(err)); }
 
 FLDID32 Fmkfldid32(int type, FLDID32 num) {
   if (type != FLD_SHORT && type != FLD_LONG && type != FLD_CHAR &&
