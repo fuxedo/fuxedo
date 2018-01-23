@@ -2,7 +2,7 @@ ACLOCAL_AMFLAGS = -I m4
 AM_CXXFLAGS = -g -Wall -Wextra \
               -I$(top_srcdir)/include \
               -I$(top_srcdir)/third_party/catch -I$(top_srcdir)/third_party/clara
-AM_CFLAGS = -I$(top_srcdir)/include
+#AM_CFLAGS = -I$(top_srcdir)/include
 
 include_HEADERS = include/atmi.h include/xatmi.h \
                   include/fml32.h \
@@ -14,13 +14,16 @@ include_HEADERS = include/atmi.h include/xatmi.h \
 
 lib_LTLIBRARIES = src/libfuxedo.la
 
+mylibdir = $(libdir)
+mylib_DATA = src/tmserver.o
+
 src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/fml32.cpp src/expr.cpp \
                            src/server.cpp src/client.cpp \
                            src/mib.cpp src/ubb2mib.cpp \
                            src/userlog.cpp \
                            src/ipc.cpp \
-                           src/tx.cpp src/trx.cpp \
+                           src/xa.cpp src/tx.cpp src/trx.cpp \
                            src/misc.cpp src/base64.cpp src/fields.cpp \
                            src/todo.cpp
 
@@ -30,14 +33,19 @@ bin_PROGRAMS = src/mkfldhdr32 src/ud32 \
                src/fux \
                src/tmipcrm \
                src/tmloadcf src/tmunloadcf \
-               src/buildserver src/buildclient \
-               src/tmboot src/tmshutdown
+               src/buildserver src/buildclient src/buildtms \
+               src/tmboot src/tmshutdown \
+               src/TMS
 
+src_buildtms_SOURCES = src/buildtms.cpp
 src_buildserver_SOURCES = src/buildserver.cpp
 src_buildclient_SOURCES = src/buildclient.cpp
 
 src_tmboot_SOURCES = src/tmboot.cpp
 src_tmboot_LDADD = src/libfuxedo.la
+
+src_TMS_SOURCES = src/tmserver.cpp src/TMS.cpp
+src_TMS_LDADD = src/libfuxedo.la
 
 src_tmshutdown_SOURCES = src/tmshutdown.cpp
 src_tmshutdown_LDADD = src/libfuxedo.la
@@ -60,7 +68,9 @@ src_fux_LDADD = src/libfuxedo.la
 src_tmipcrm_SOURCES = src/tmipcrm.cpp
 src_tmipcrm_LDADD = src/libfuxedo.la
 
-TESTS = tests/xatmi tests/fml32 tests/mib tests/ipcq tests/base64 tests/userlog
+data_DATA = RM
+
+TESTS = tests/xatmi tests/fml32 tests/mib tests/ipcq tests/base64 tests/userlog tests/trx
 check_PROGRAMS = $(TESTS)
 
 AM_TESTS_ENVIRONMENT = FLDTBLDIR32=.:src:tests FIELDTBLS32=dummy,fields
@@ -82,6 +92,9 @@ tests_fml32_LDADD = src/libfuxedo.la
 
 tests_mib_SOURCES = tests/mib.cpp tests/tests-main.cpp
 tests_mib_LDADD = src/libfuxedo.la
+
+tests_trx_SOURCES = tests/trx.cpp tests/tests-main.cpp
+tests_trx_LDADD = src/libfuxedo.la
 
 clang-format:
 	clang-format -style=Google -i \

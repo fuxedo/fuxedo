@@ -17,12 +17,14 @@
 #include <clara.hpp>
 #include <cstdlib>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include <signal.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cstdlib>
 
 #include "mib.h"
 #include "misc.h"
@@ -30,8 +32,10 @@
 bool alive(pid_t pid) { return kill(pid, 0) == 0; }
 
 static void start(server &srv) {
+  std::cout << "exec " << srv.servername << " " << srv.clopt << " :"
+            << std::endl;
   if (srv.pid != 0 && alive(srv.pid)) {
-    printf("Already running\n");
+    std::cout << "\tINFO: Duplicate server." << std::endl;
     return;
   }
 
@@ -48,11 +52,13 @@ static void start(server &srv) {
     argv.push_back("-A");
     argv.push_back(nullptr);
 
-    if (execv(srv.servername, (char *const *)&argv[0]) == -1) {
-      perror("AAAAAAAA");
+    if (execvp(srv.servername, (char *const *)&argv[0]) == -1) {
+      // perror("AAAAAAAA");
+      exit(-1);
     }
   } else if (pid > 0) {
     srv.pid = pid;
+    std::cout << "\tprocess id=" << srv.pid << " ... Started." << std::endl;
   }
 }
 
@@ -70,8 +76,12 @@ int main(int argc, char *argv[]) {
   try {
     mib &m = getmib();
 
-    auto path = fux::split(m.mach().appdir, ":");
-    path.push_back(m.mach().tuxdir);
+    std::ostringstream path;
+    path << m.mach().tuxdir << "/bin:";
+    path << m.mach().appdir << ":";
+    path << std::getenv("PATH");
+
+    setenv("PATH", path.str().c_str(), 1);
 
     auto servers = m.servers();
     for (size_t i = 0; i < servers->len; i++) {

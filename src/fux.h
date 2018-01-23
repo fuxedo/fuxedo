@@ -136,4 +136,10 @@ class fml32buf {
   FBFR32 **fbfr_;
   FBFR32 *owned_;
 };
+
+inline void tpreturn(int rval, long rcode, fml32buf &buf) {
+  ::tpreturn(rval, rcode, reinterpret_cast<char *>(*buf.fbfr()), 0, 0);
+}
+
+// inline void tpcall(0
 }

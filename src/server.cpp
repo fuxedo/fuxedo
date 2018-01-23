@@ -40,10 +40,8 @@
 extern "C" {
 #endif
 int _tmrunserver(int);
-// struct xa_switch_t tmnull_switch;
 int _tmbuilt_with_thread_option = 0;
 int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs);
-xa_switch_t tmnull_switch;
 #if defined(__cplusplus)
 }
 #endif
@@ -298,7 +296,6 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
 
   int sep = 0;
   for (; sep < argc; sep++) {
-    std::cout << argv[sep] << std::endl;
     if (strcmp(argv[sep], "--") == 0) {
       break;
     }

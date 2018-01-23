@@ -134,14 +134,22 @@ inline std::vector<std::string> split(const std::string &s,
   for (auto const c : s) {
     if (delim.find(c) == std::string::npos) {
       token += c;
-    } else if (!token.empty()) {
+    } else {
       tokens.push_back(token);
       token.clear();
     }
   }
-  if (!token.empty()) {
-    tokens.push_back(token);
-  }
+  tokens.push_back(token);
   return tokens;
 }
 }
+
+namespace fux {
+typedef uint64_t trxid;
+}
+
+static constexpr size_t nearest(size_t n, size_t what, size_t mult = 1) {
+  return n <= (mult * what) ? (mult * what) : nearest(n, what, mult + 1);
+}
+
+static constexpr size_t nearest64(size_t n) { return nearest(n, 64); }

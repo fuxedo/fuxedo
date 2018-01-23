@@ -24,6 +24,8 @@
 #include <stdexcept>
 #include <string>
 
+#include <time.h>
+
 #include <algorithm>
 #include <iterator>
 #include <sstream>
@@ -32,6 +34,7 @@
 #include "ubbreader.h"
 
 #include "misc.h"
+#include "trx.h"
 
 size_t filesize(const std::string &filename) {
   std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
@@ -104,7 +107,8 @@ size_t mib::needed(const tuxconfig &cfg) {
          nearest64(cfg.maxservices * sizeof(service)) +
          nearest64(cfg.maxservers * cfg.maxservices * sizeof(advertisement)) +
          nearest64(cfg.maxgroups * sizeof(group)) +
-         nearest64(cfg.maxaccessers * sizeof(accesser));
+         nearest64(cfg.maxaccessers * sizeof(accesser)) +
+         nearest64(transaction_table::needed(100, cfg.maxgroups));
 }
 
 void mib::init_memory() {
@@ -118,6 +122,12 @@ void mib::init_memory() {
               off - offsetof(mibmem, advertisements));
   off += init(mem_->accessers, cfg_.maxaccessers,
               off - offsetof(mibmem, accessers));
+
+  mem_->transactions_off = off;
+  transactions().init(100, cfg_.maxgroups);
+
+  off += nearest64(transaction_table::needed(transactions().size,
+                                             transactions().max_participants));
 }
 
 size_t mib::find_advertisement(size_t service, size_t queue) {
@@ -175,6 +185,34 @@ size_t mib::make_queue(const std::string &rqaddr) {
   queue.mtype = std::numeric_limits<long>::max();
 
   return queues()->len++;
+}
+
+size_t mib::find_group(uint16_t grpno) {
+  for (size_t i = 0; i < groups()->len; i++) {
+    auto &group = groups().at(i);
+    if (group.grpno == grpno) {
+      return i;
+    }
+  }
+  return badoff;
+}
+
+size_t mib::make_group(uint16_t grpno, const std::string &srvgrp,
+                       const std::string &openinfo,
+                       const std::string &closeinfo,
+                       const std::string &tmsname) {
+  if (find_group(grpno) != badoff) {
+    throw std::logic_error("Duplicate group");
+  }
+
+  auto &group = groups().at(groups()->len);
+  group.grpno = grpno;
+  checked_copy(srvgrp, group.srvgrp);
+  checked_copy(openinfo, group.openinfo);
+  checked_copy(closeinfo, group.closeinfo);
+  checked_copy(tmsname, group.tmsname);
+
+  return groups()->len++;
 }
 
 size_t mib::find_server(uint16_t srvid, uint16_t grpno) {
@@ -317,4 +355,18 @@ mib::mib(const tuxconfig &cfg) : cfg_(cfg) {
 mib::mib(const tuxconfig &cfg, fux::mib::in_heap) : cfg_(cfg) {
   mem_ = reinterpret_cast<mibmem *>(calloc(1, needed(cfg_)));
   init_memory();
+}
+
+fux::trxid mib::gentrxid() {
+  struct timespec ts;
+  (void)clock_gettime(CLOCK_MONOTONIC, &ts);
+
+  auto counter = __sync_fetch_and_add(&(mem_->counter), 1);
+
+  // 10 bits machine identifier (from UBBCONFIG), 1024 machines
+  // 30 bits value representing the seconds since something, 30+years
+  // 24 bits counter, starting with a random value, 1,073,741,824 per second
+  return (uint64_t(mem_->host & 0b1111111111) << 54) +
+         (uint64_t(ts.tv_sec & 0b111111111111111111111111111111) << 24) +
+         (uint64_t(counter & 0b111111111111111111111111));
 }

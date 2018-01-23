@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+#include <cstdlib>
+#include <functional>  //std::hash
 #include <iostream>
 
 #include "mib.h"
@@ -54,6 +56,11 @@ void ubb2mib(ubbconfig &u, mib &m) {
     throw std::logic_error(
         "TUXCONFIG in configuration file and environment do not match");
   }
+
+  srand(time(nullptr));
+  m->host = std::hash<std::string>()(mach.first);
+  m->counter = rand();
+
   checked_copy(mach.first, m.mach().address);
   checked_copy(mach.second.at("LMID"), m.mach().lmid);
   checked_copy(mach.second.at("TUXCONFIG"), m.mach().tuxconfig);
@@ -64,15 +71,29 @@ void ubb2mib(ubbconfig &u, mib &m) {
 
   std::map<std::string, uint16_t> group_ids;
   auto groups = m.groups();
+  auto servers = m.servers();
   for (auto &grpconf : u.groups) {
     auto grpno = checked_get(grpconf.second, "GRPNO", 1, 30000);
 
+    auto &group = groups.at(
+        m.make_group(grpno, grpconf.first, grpconf.second["OPENINFO"],
+                     grpconf.second["CLOSEINFO"], grpconf.second["TMSNAME"]));
     group_ids[grpconf.first] = grpno;
+    if (grpconf.second["TMSNAME"].empty()) {
+      continue;
+    }
+
+    auto tmscount = checked_get(grpconf.second, "TMSCOUNT", 2, 10, 3);
+    for (auto n = 0; n < tmscount; n++) {
+      auto &server =
+          servers.at(m.make_server(30001 + n, grpno, grpconf.second["TMSNAME"],
+                                   "-A", std::to_string(grpno) + ".TM"));
+      server.autostart = true;
+    }
   }
 
-  auto servers = m.servers();
   for (auto &srvconf : u.servers) {
-    auto basesrvid = std::stoi(srvconf.second["SRVID"]);
+    auto basesrvid = checked_get(srvconf.second, "SRVID", 1, 30000);
     auto min = checked_get(srvconf.second, "MIN", 1, 1000, 1);
     auto max = checked_get(srvconf.second, "MAX", 1, 1000, 1);
     auto grpno = group_ids.at(srvconf.second.at("SRVGRP"));
@@ -80,7 +101,7 @@ void ubb2mib(ubbconfig &u, mib &m) {
       auto srvid = basesrvid + n;
       auto rqaddr = srvconf.second["RQADDR"];
       if (rqaddr.empty()) {
-        rqaddr = "." + std::to_string(srvid);
+        rqaddr = std::to_string(grpno) + "." + std::to_string(srvid);
       }
 
       auto &server = servers.at(m.make_server(srvid, grpno, srvconf.first,

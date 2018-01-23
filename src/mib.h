@@ -24,10 +24,13 @@
 #include <sys/shm.h>
 
 #include "ipc.h"
+#include "misc.h"
 #include "ubb.h"
 
 size_t filesize(const std::string &filename);
 tuxconfig getconfig(ubbconfig *ubb = nullptr);
+
+struct transaction_table;
 
 struct accesser {
   int sem;
@@ -49,6 +52,7 @@ struct group {
   uint16_t grpno;
   char srvgrp[32];
   char openinfo[256];
+  char closeinfo[256];
   char tmsname[256];
 };
 
@@ -110,13 +114,12 @@ class mibarrptr {
   mibarr<T> *p_;
 };
 
-static constexpr size_t nearest64(size_t n, size_t mult = 1) {
-  return n <= (mult * 64) ? (mult * 64) : nearest64(n, mult + 1);
-}
-
 struct mibmem {
   std::atomic<int> state;
   int mainsem;
+
+  uint32_t host;
+  uint32_t counter __attribute__((aligned(64)));
 
   tuxconfig conf;
   machine mach;
@@ -128,6 +131,7 @@ struct mibmem {
   mibarr<advertisement> advertisements;
   mibarr<accesser> accessers;
 
+  size_t transactions_off;
   char data[];
 };
 
@@ -146,6 +150,10 @@ class mib {
 
   void remove();
 
+  mibmem *operator->() { return mem_; }
+
+  fux::trxid gentrxid();
+
   auto &conf() { return mem_->conf; }
   auto &mach() { return mem_->mach; }
   auto groups() { return mibarrptr<group>(&mem_->groups); }
@@ -156,12 +164,21 @@ class mib {
   auto advertisements() {
     return mibarrptr<advertisement>(&mem_->advertisements);
   }
+  transaction_table &transactions() {
+    return *reinterpret_cast<transaction_table *>(mem_->data +
+                                                  mem_->transactions_off);
+  }
 
   void advertise(const std::string &servicename, size_t queue);
   void unadvertise(const std::string &servicename, size_t queue);
 
   size_t find_queue(const std::string &rqaddr);
   size_t make_queue(const std::string &rqaddr);
+
+  size_t find_group(uint16_t grpno);
+  size_t make_group(uint16_t grpno, const std::string &srvgrp,
+                    const std::string &openinfo, const std::string &closeinfo,
+                    const std::string &tmsname);
 
   size_t find_server(uint16_t srvid, uint16_t grpno);
   size_t make_server(uint16_t srvid, uint16_t grpno,

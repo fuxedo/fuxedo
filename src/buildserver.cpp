@@ -15,6 +15,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <clara.hpp>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -22,6 +23,7 @@
 #include <unistd.h>
 #include <cstdio>
 
+#include "build.h"
 #include "misc.h"
 
 // The code generated looks crazy at first
@@ -30,7 +32,7 @@
 static void gencode(
     FILE *fout,
     const std::vector<std::pair<std::string, std::string>> &services,
-    bool threads) {
+    bool threads, const std::string &xaswitch) {
   fprintf(fout,
           R"(#include <atmi.h>
 #include <stdio.h>
@@ -42,42 +44,45 @@ extern "C" {
 )");
 
   for (const auto &serviceinfo : services) {
-    fprintf(fout, "void %s(TPSVCINFO *);\n", serviceinfo.first.c_str());
+    fprintf(fout, "void %s(TPSVCINFO *);\n", serviceinfo.second.c_str());
   }
 
   fprintf(fout,
           R"(int _tmrunserver(int);
-extern struct xa_switch_t tmnull_switch;
+extern struct xa_switch_t %s;
 extern int _tmbuilt_with_thread_option;
 #if defined(__cplusplus)
 }
 #endif
 
 static struct tmdsptchtbl_t _tmdsptchtbl[] = {
-)");
+)",
+          xaswitch.c_str());
 
   for (const auto &serviceinfo : services) {
-    fprintf(fout, "  {\"%s\", \"%s\", %s, 0, 0},\n", serviceinfo.first.c_str(),
-            serviceinfo.second.c_str(), serviceinfo.second.c_str());
+    fprintf(fout, "  {\"%s\", \"%s\", %s, 0, 0, NULL},\n",
+            serviceinfo.first.c_str(), serviceinfo.second.c_str(),
+            serviceinfo.second.c_str());
   }
-  fprintf(fout, "  {NULL, NULL, NULL, 0, 0}\n};\n");
+  fprintf(fout, "  {NULL, NULL, NULL, 0, 0, NULL}\n};\n");
 
   fprintf(fout,
           R"(static struct tmsvrargs_t tmsvrargs = {
-                                       &tmnull_switch, _tmdsptchtbl,
+                                       &%s, _tmdsptchtbl,
                                        0,
                                        tpsvrinit, tpsvrdone,
                                        _tmrunserver,
                                        NULL, NULL, NULL, NULL,
                                        tprminit,
-                                       tpsvrthrinit, tpsvrthrdone };
+                                       tpsvrthrinit, tpsvrthrdone, NULL };
 
 struct tmsvrargs_t *_tmgetsvrargs() {
   return &tmsvrargs;
 }
 
 int main(int argc, char **argv) {
-)");
+)",
+          xaswitch.c_str());
 
   fprintf(fout, "  _tmbuilt_with_thread_option = %d;\n", threads ? 1 : 0);
   fprintf(fout, "  return _tmstartserver(argc, argv, _tmgetsvrargs());\n");
@@ -87,7 +92,12 @@ int main(int argc, char **argv) {
 static auto parse_services(const std::vector<std::string> &services) {
   std::vector<std::pair<std::string, std::string>> result;
   for (const auto &service : services) {
-    result.push_back(std::make_pair(service, service));
+    auto tmp = fux::split(service, ":");
+    if (tmp.size() == 1) {
+      result.push_back(std::make_pair(tmp.at(0), tmp.at(0)));
+    } else {
+      result.push_back(std::make_pair(tmp.at(0), tmp.at(1)));
+    }
   }
   return result;
 }
@@ -133,6 +143,13 @@ int main(int argc, char *argv[]) {
     tuxdir = "";
   }
 
+  auto rms = parse_rm();
+  auto rm = rms.find(rmname);
+  if (rm == rms.end() && !rmname.empty()) {
+    std::cerr << "Unknown RM name: " << rmname << std::endl;
+    return -1;
+  }
+
   const char *cc = std::getenv("CC");
   if (cc == nullptr) {
     cc = "cc";
@@ -144,7 +161,8 @@ int main(int argc, char *argv[]) {
   int fd = mkstemp(tmpname);
   FILE *fout = fdopen(fd, "w");
 
-  gencode(fout, parse_services(services), threads);
+  gencode(fout, parse_services(services), threads,
+          rm == rms.end() ? "tmnull_switch" : rm->second.xaswitch);
 
   fclose(fout);
 

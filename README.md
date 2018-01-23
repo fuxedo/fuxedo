@@ -31,6 +31,7 @@ Currently implemented:
   - tmipcrm
   - buildserver
   - buildclient
+  - buildtms
 - ...more to come
 
 ## Supported API function list
