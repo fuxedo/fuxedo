@@ -360,13 +360,11 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   return 0;
 }
 
-int tpadvertise( char *svcname, void (*func)(TPSVCINFO *)) {
+int tpadvertise(char *svcname, void (*func)(TPSVCINFO *)) {
   return ctxt->tpadvertise(svcname, func);
 }
 
-int tpunadvertise( char *svcname) {
-  return ctxt->tpunadvertise(svcname);
-}
+int tpunadvertise(char *svcname) { return ctxt->tpunadvertise(svcname); }
 
 void tpreturn(int rval, long rcode, char *data, long len, long flags) try {
   return tctxt->tpreturn(rval, rcode, data, len, flags);

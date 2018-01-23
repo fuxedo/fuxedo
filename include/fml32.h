@@ -59,21 +59,21 @@ FLDID32 Fmkfldid32(int type, FLDID32 num);
 int Fldtype32(FLDID32 fieldid);
 long Fldno32(FLDID32 fieldid);
 char *Fname32(FLDID32 fieldid);
-FLDID32 Fldid32( char *name);
+FLDID32 Fldid32(char *name);
 void Fidnm_unload32();
 void Fnmid_unload32();
 FBFR32 *Falloc32(FLDOCC32 F, FLDLEN32 V);
 FBFR32 *Frealloc32(FBFR32 *fbfr, FLDOCC32 F, FLDLEN32 V);
 int Ffree32(FBFR32 *fbfr);
 int Finit32(FBFR32 *fbfr, FLDLEN32 buflen);
-long Fsizeof32( FBFR32 *fbfr);
-long Fused32( FBFR32 *fbfr);
-long Funused32( FBFR32 *fbfr);
-long Fidxused32( FBFR32 *fbfr);
+long Fsizeof32(FBFR32 *fbfr);
+long Fused32(FBFR32 *fbfr);
+long Funused32(FBFR32 *fbfr);
+long Fidxused32(FBFR32 *fbfr);
 int Findex32(FBFR32 *fbfr, FLDOCC32 intvl);
 int Funindex32(FBFR32 *fbfr);
 int Frstrindex32(FBFR32 *fbfr, FLDOCC32 numidx);
-int Fchg32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc,  char *value,
+int Fchg32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *value,
            FLDLEN32 len);
 char *Ffind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len);
 int Fget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *loc,

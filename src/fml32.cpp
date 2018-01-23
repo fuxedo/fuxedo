@@ -236,7 +236,7 @@ long Fldno32(FLDID32 fieldid) { return Fbfr32fields::Fldno32(fieldid); }
 
 char *Fname32(FLDID32 fieldid) { return Fbfr32fields_.name(fieldid); }
 
-FLDID32 Fldid32( char *name) { return Fbfr32fields_.fldid(name); }
+FLDID32 Fldid32(char *name) { return Fbfr32fields_.fldid(name); }
 
 void Fidnm_unload32() { return Fbfr32fields_.idnm_unload(); }
 
@@ -1241,22 +1241,22 @@ void fml32finit(void *mem) { reinterpret_cast<Fbfr32 *>(mem)->finit(); }
 
 size_t fml32used(void *mem) { return reinterpret_cast<Fbfr32 *>(mem)->used(); }
 
-long Fsizeof32( FBFR32 *fbfr) {
+long Fsizeof32(FBFR32 *fbfr) {
   FBFR32_CHECK(-1, fbfr);
   return fbfr->size();
 }
 
-long Fused32( FBFR32 *fbfr) {
+long Fused32(FBFR32 *fbfr) {
   FBFR32_CHECK(-1, fbfr);
   return fbfr->used();
 }
 
-long Funused32( FBFR32 *fbfr) {
+long Funused32(FBFR32 *fbfr) {
   FBFR32_CHECK(-1, fbfr);
   return fbfr->unused();
 }
 
-long Fidxused32( FBFR32 *fbfr) {
+long Fidxused32(FBFR32 *fbfr) {
   FBFR32_CHECK(-1, fbfr);
   return 0;
 }
@@ -1276,7 +1276,7 @@ int Frstrindex32(FBFR32 *fbfr, FLDOCC32 numidx __attribute__((unused))) {
   return 0;
 }
 
-int Fchg32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc,  char *value,
+int Fchg32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *value,
            FLDLEN32 len) {
   FBFR32_CHECK(-1, fbfr);
   return fbfr->chg(fieldid, oc, value, len);
