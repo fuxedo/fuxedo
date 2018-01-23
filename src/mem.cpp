@@ -73,7 +73,7 @@ static tptype *typeptr(const char *type, const char *subtype) {
   return &(*tptype);
 }
 
-char *tpalloc(const char *type, const char *subtype, long size) try {
+char *tpalloc(char *type, char *subtype, long size) try {
   if (type == nullptr) {
     TPERROR(TPEINVAL, "type is nullptr");
     return nullptr;

@@ -2,8 +2,6 @@
 #include "atmidefs.h"
 #include "tx.h"
 
-#define FUXCONST const
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -14,7 +12,7 @@ long *_tls_tpurcode();
 #define tpurcode (*_tls_tpurcode())
 char *tpstrerror(int err);
 
-char *tpalloc(FUXCONST char *type, FUXCONST char *subtype, long size);
+char *tpalloc( char *type,  char *subtype, long size);
 char *tprealloc(char *ptr, long size);
 void tpfree(char *ptr);
 long tptypes(char *ptr, char *type, char *subtype);
@@ -59,8 +57,8 @@ struct tmsvrargs_t {
 
 int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs);
 
-int tpadvertise(FUXCONST char *svcname, void (*func)(TPSVCINFO *));
-int tpunadvertise(FUXCONST char *svcname);
+int tpadvertise( char *svcname, void (*func)(TPSVCINFO *));
+int tpunadvertise( char *svcname);
 
 int tpinit(TPINIT *tpinfo);
 int tpterm();

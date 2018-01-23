@@ -82,7 +82,7 @@ class extreader : public basic_parser {
           "expected newline '\\n', found '" + std::string(1, sym_) + "'");
     }
 
-    auto fieldid = Fldid32(fname.c_str());
+    auto fieldid = Fldid32(const_cast<char *>(fname.c_str()));
     if (fieldid == BADFLDID) {
     }
 

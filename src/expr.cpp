@@ -274,7 +274,7 @@ class expression_parser : public basic_parser {
       } else {
         oc = "0";
       }
-      auto fieldid = Fldid32(tok.c_str());
+      auto fieldid = Fldid32(const_cast<char *>(tok.c_str()));
       if (fieldid == BADFLDID) {
         throw unknown_field_name("Unknown field name", row_, col_,
                                  "field name '" + tok + "'");

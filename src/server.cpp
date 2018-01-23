@@ -345,7 +345,7 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   if (all) {
     struct tmdsptchtbl_t *rec = tmsvrargs->tmdsptchtbl;
     while (rec->svcname != nullptr && strlen(rec->svcname) > 0) {
-      if (tpadvertise(rec->svcname, rec->svcfunc) == -1) {
+      if (tpadvertise(const_cast<char *>(rec->svcname), rec->svcfunc) == -1) {
         userlog("Failed to advertise service %s / function %s : %s",
                 rec->svcname, rec->funcname, tpstrerror(tperrno));
         return -1;
@@ -360,11 +360,11 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   return 0;
 }
 
-int tpadvertise(FUXCONST char *svcname, void (*func)(TPSVCINFO *)) {
+int tpadvertise( char *svcname, void (*func)(TPSVCINFO *)) {
   return ctxt->tpadvertise(svcname, func);
 }
 
-int tpunadvertise(FUXCONST char *svcname) {
+int tpunadvertise( char *svcname) {
   return ctxt->tpunadvertise(svcname);
 }
 
