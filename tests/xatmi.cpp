@@ -18,11 +18,12 @@
 
 #include <xatmi.h>
 #include <cstring>
+#define DECONST(x) const_cast<char *>(x)
 
 TEST_CASE("tpalloc", "[tp-memory]") {
   GIVEN("NULL type") {
     WHEN("tpalloc is called") {
-      char *ptr = tpalloc(NULL, "*", 666);
+      char *ptr = tpalloc(NULL, DECONST("*"), 666);
       THEN("error is returned") {
         REQUIRE(ptr == nullptr);
         REQUIRE(tperrno == TPEINVAL);
@@ -32,7 +33,7 @@ TEST_CASE("tpalloc", "[tp-memory]") {
 
   GIVEN("STRING type") {
     WHEN("tpalloc is called") {
-      char *ptr = tpalloc("STRING", "*", 666);
+      char *ptr = tpalloc(DECONST("STRING"), DECONST("*"), 666);
       THEN("it succeeds") { REQUIRE(ptr != nullptr); }
       THEN("memory is writable") { memset(ptr, 0, 666); }
     }
@@ -40,7 +41,7 @@ TEST_CASE("tpalloc", "[tp-memory]") {
 
   GIVEN("CARRAY type") {
     WHEN("tpalloc is called") {
-      char *ptr = tpalloc("CARRAY", "*", 10);
+      char *ptr = tpalloc(DECONST("CARRAY"), DECONST("*"), 10);
       THEN("it succeeds") { REQUIRE(ptr != nullptr); }
       THEN("memory is writable") { memset(ptr, 0, 10); }
     }
@@ -48,7 +49,7 @@ TEST_CASE("tpalloc", "[tp-memory]") {
 
   GIVEN("any type (CARRAY in this case)") {
     WHEN("tpalloc is called") {
-      char *ptr = tpalloc("CARRAY", "*", 666);
+      char *ptr = tpalloc(DECONST("CARRAY"), DECONST("*"), 666);
       THEN("returns a buffer aligned on long workd") {
         REQUIRE(((long)ptr % sizeof(long)) == 0);
       }
@@ -57,7 +58,7 @@ TEST_CASE("tpalloc", "[tp-memory]") {
 
   GIVEN("FOOBAR type") {
     WHEN("tpalloc is called") {
-      char *ptr = tpalloc("FOOBAR", "*", 666);
+      char *ptr = tpalloc(DECONST("FOOBAR"), DECONST("*"), 666);
       THEN("error is returned") {
         REQUIRE(ptr == nullptr);
         REQUIRE(tperrno == TPENOENT);
@@ -80,7 +81,7 @@ TEST_CASE("tptypes", "[tp-memory]") {
   }
 
   GIVEN("STRING buffer") {
-    char *ptr = tpalloc("STRING", "*", 666);
+    char *ptr = tpalloc(DECONST("STRING"), DECONST("*"), 666);
     WHEN("tptypes is called") {
       char type[8];
       char subtype[16];
