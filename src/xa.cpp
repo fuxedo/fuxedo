@@ -16,23 +16,19 @@
 
 #include <xa.h>
 
-int ax_reg(int rmid, XID *xid, long flags) { return TMER_TMERR; }
-int ax_unreg(int rmid, long flags) { return TMER_TMERR; }
+int ax_reg(int, XID *, long) { return TMER_TMERR; }
+int ax_unreg(int, long) { return TMER_TMERR; }
 
-static int xa_open(char *xa_info, int rmid, long flags) { return XA_OK; }
-static int xa_close(char *xa_info, int rmid, long flags) { return XA_OK; }
-static int xa_start(XID *xid, int rmid, long flags) { return XA_OK; }
-static int xa_commit(XID *xid, int rmid, long flags) { return XA_OK; }
-static int xa_complete(int *handle, int *retval, int rmid, long flags) {
-  return XA_OK;
-}
-static int xa_end(XID *xid, int rmid, long flags) { return XA_OK; }
-static int xa_forget(XID *xid, int rmid, long flags) { return XA_OK; }
-static int xa_prepare(XID *xid, int rmid, long flags) { return XA_RDONLY; }
-static int xa_recover(XID *xids, long count, int rmid, long flags) {
-  return XA_OK;
-}
-static int xa_rollback(XID *xid, int rmid, long flags) { return XA_OK; }
+static int xa_open(char *, int, long) { return XA_OK; }
+static int xa_close(char *, int, long) { return XA_OK; }
+static int xa_start(XID *, int, long) { return XA_OK; }
+static int xa_commit(XID *, int, long) { return XA_OK; }
+static int xa_complete(int *, int *, int, long) { return XA_OK; }
+static int xa_end(XID *, int, long) { return XA_OK; }
+static int xa_forget(XID *, int, long) { return XA_OK; }
+static int xa_prepare(XID *, int, long) { return XA_RDONLY; }
+static int xa_recover(XID *, long, int, long) { return XA_OK; }
+static int xa_rollback(XID *, int, long) { return XA_OK; }
 
 extern "C" {
 struct xa_switch_t tmnull_switch {
