@@ -19,6 +19,7 @@ mylib_DATA = src/tmserver.o
 
 src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/fml32.cpp src/expr.cpp \
+                           src/ctxt.cpp \
                            src/server.cpp src/client.cpp \
                            src/mib.cpp src/ubb2mib.cpp \
                            src/userlog.cpp \

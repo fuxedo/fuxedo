@@ -26,9 +26,11 @@
 #include <memory>
 #include <vector>
 
+#include "ctxt.h"
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
+#include "calldesc.h"
 
 struct service_entry {
   std::vector<int> msqids;
@@ -84,56 +86,6 @@ class service_repository {
   std::map<const char *, service_entry, cmp_cstr> services_;
 };
 
-class call_describtors {
- private:
-  std::vector<int> cds_;
-  int seq_;
-
-  // cycle 1..x
-  int nextseq() {
-    seq_++;
-    if (seq_ > 0xffffff) {
-      seq_ = 1;
-    }
-    return seq_;
-  }
-
-  void insert_cd(int cd) {
-    cds_.insert(std::upper_bound(std::begin(cds_), std::end(cds_), cd), cd);
-  }
-
-  auto find_cd(int cd) {
-    return std::upper_bound(std::begin(cds_), std::end(cds_), cd);
-  }
-
- public:
-  call_describtors() : seq_(0) {}
-
-  int allocate() {
-    if (cds_.size() > 128) {
-      TPERROR(TPELIMIT, "No free call descriptors");
-      return -1;
-    }
-    while (true) {
-      auto cd = nextseq();
-      if (find_cd(cd) == cds_.end()) {
-        insert_cd(cd);
-        return cd;
-      }
-    }
-  }
-
-  int release(int cd) {
-    auto it = find_cd(cd);
-    if (it == cds_.end()) {
-      TPERROR(TPEBADDESC, "Not allocated");
-      return -1;
-    }
-    cds_.erase(it);
-    return 0;
-  }
-};
-
 class client_context {
  public:
   client_context(mib &mibcon) : mibcon_(mibcon), repo_(mibcon) {
@@ -151,7 +103,8 @@ class client_context {
   int tpacall(const char *svc, char *data, long len, long flags) try {
     int msqid = repo_.get_queue(svc);
 
-    int cd = cds_.allocate();
+    auto lock = fux::glob::calldescs()->lock();
+    int cd = fux::glob::calldescs()->allocate();
     if (cd == -1) {
       return -1;
     }
@@ -187,7 +140,8 @@ class client_context {
   }
 
   int tpcancel(int cd) {
-    if (cds_.release(cd) == -1) {
+    auto lock = fux::glob::calldescs()->lock();
+    if (fux::glob::calldescs()->release(cd) == -1) {
       return -1;
     }
     // TPETRAN
@@ -198,7 +152,6 @@ class client_context {
  private:
   mib &mibcon_;
   size_t client_;
-  call_describtors cds_;
   service_repository repo_;
   fux::ipc::msg rq, res;
   int rpid;

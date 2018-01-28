@@ -18,4 +18,14 @@
 
 extern FLDID32 FUX_SRVID;
 extern FLDID32 FUX_GRPNO;
-extern FLDID32 FUX_TMCMD;
+
+namespace fux {
+namespace tm {
+enum xa_func { prepare, commit, rollback };
+extern FLDID32 FUX_XAFUNC;
+extern FLDID32 FUX_XAXID;
+extern FLDID32 FUX_XARMID;
+extern FLDID32 FUX_XAFLAGS;
+extern FLDID32 FUX_XARET;
+}
+}

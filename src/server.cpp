@@ -30,6 +30,7 @@
 #include <thread>
 #include <vector>
 
+#include "ctxt.h"
 #include "fields.h"
 #include "fux.h"
 #include "ipc.h"
@@ -277,6 +278,12 @@ static void dispatch() {
   tctxt.reset();
 }
 
+namespace fux {
+namespace glob {
+extern xa_switch_t *xa_switch;
+}
+}
+
 int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   bool show_help = false;
   bool verbose = false;
@@ -341,6 +348,7 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   ctxt->argc = argc;
   ctxt->argv = argv;
   ctxt->tmsvrargs = tmsvrargs;
+  fux::glob::xa_switch = tmsvrargs->xa_switch;
 
   if (all) {
     struct tmdsptchtbl_t *rec = tmsvrargs->tmdsptchtbl;

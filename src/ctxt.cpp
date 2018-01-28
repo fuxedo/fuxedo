@@ -14,17 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <fml32.h>
-
-FLDID32 FUX_SRVID = Fmkfldid32(FLD_LONG, 10);
-FLDID32 FUX_GRPNO = Fmkfldid32(FLD_LONG, 11);
+#include "ctxt.h"
+#include "calldesc.h"
 
 namespace fux {
-namespace tm {
-FLDID32 FUX_XAFUNC = Fmkfldid32(FLD_LONG, 20);
-FLDID32 FUX_XAXID = Fmkfldid32(FLD_CARRAY, 21);
-FLDID32 FUX_XARMID = Fmkfldid32(FLD_LONG, 22);
-FLDID32 FUX_XAFLAGS = Fmkfldid32(FLD_LONG, 23);
-FLDID32 FUX_XARET = Fmkfldid32(FLD_LONG, 24);
+namespace glob {
+
+xa_switch_t *xa_switch;
+xa_switch_t *xaswitch() {
+  return xa_switch;
+}
+
+fux::call_describtors *calldescs() {
+  static fux::call_describtors cds;
+  return &cds;
+}
 }
 }

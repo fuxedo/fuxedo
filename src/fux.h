@@ -35,6 +35,17 @@ class fml32buf_error : public std::exception {
   long code_;
 };
 
+class xatmi_error : public std::exception {
+ public:
+  xatmi_error() : code_(tperrno) {}
+  virtual const char *what() const noexcept override {
+    return tpstrerror(code_);
+  }
+
+ private:
+  long code_;
+};
+
 template <typename T>
 struct identity {
   typedef T type;
@@ -117,8 +128,8 @@ class fml32buf {
   std::string get(FLDID32 fieldid, FLDOCC32 oc, identity<std::string>) {
     FLDLEN32 len;
     char *ret;
-    if ((ret = CFfind32(*fbfr(), fieldid, oc, &len, FLD_STRING)) != nullptr) {
-      return ret;
+    if ((ret = CFfind32(*fbfr(), fieldid, oc, &len, FLD_CARRAY)) != nullptr) {
+      return std::string(ret, len);
     }
     throw fml32buf_error();
   }
@@ -127,8 +138,8 @@ class fml32buf {
                   const std::string &default_value, identity<std::string>) {
     FLDLEN32 len;
     char *ret;
-    if ((ret = CFfind32(*fbfr(), fieldid, oc, &len, FLD_STRING)) != nullptr) {
-      return ret;
+    if ((ret = CFfind32(*fbfr(), fieldid, oc, &len, FLD_CARRAY)) != nullptr) {
+      return std::string(ret, len);
     }
     return default_value;
   }
@@ -141,5 +152,17 @@ inline void tpreturn(int rval, long rcode, fml32buf &buf) {
   ::tpreturn(rval, rcode, reinterpret_cast<char *>(*buf.fbfr()), 0, 0);
 }
 
-// inline void tpcall(0
+inline void tpcall(const char *svc, fml32buf &buf, long flags) {
+  long olen = 0;
+  int n =
+      ::tpcall(const_cast<char *>(svc), reinterpret_cast<char *>(*buf.fbfr()),
+               0, reinterpret_cast<char **>(buf.fbfr()), &olen, flags);
+  if (n == -1) {
+    throw xatmi_error();
+  }
+}
+
+inline void tpcall(const std::string &svc, fml32buf &buf, long flags) {
+  tpcall(svc.c_str(), buf, flags);
+}
 }
