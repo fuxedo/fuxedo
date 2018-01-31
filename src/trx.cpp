@@ -92,7 +92,7 @@ int tpabort(long flags) {
     return -1;
   }
 
-  // TODO: clean call describtors
+  // TODO: clean call descriptors
   int rc = tx_rollback();
 
   if (rc == TX_OK) {
@@ -123,7 +123,7 @@ int tpcommit(long flags) {
     return -1;
   }
 
-  // TODO: clean call describtors, do rollback
+  // TODO: clean call descriptors, do rollback
   int rc = tx_commit();
 
   if (rc == TX_OK) {

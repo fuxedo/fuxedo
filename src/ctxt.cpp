@@ -21,12 +21,10 @@ namespace fux {
 namespace glob {
 
 xa_switch_t *xa_switch;
-xa_switch_t *xaswitch() {
-  return xa_switch;
-}
+xa_switch_t *xaswitch() { return xa_switch; }
 
-fux::call_describtors *calldescs() {
-  static fux::call_describtors cds;
+fux::call_descriptors *calldescs() {
+  static fux::call_descriptors cds;
   return &cds;
 }
 }

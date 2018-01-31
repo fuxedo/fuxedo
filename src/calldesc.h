@@ -22,7 +22,7 @@
 
 namespace fux {
 
-class call_describtors {
+class call_descriptors {
  private:
   std::mutex mutex;
   std::vector<int> cds_;
@@ -46,7 +46,7 @@ class call_describtors {
   }
 
  public:
-  call_describtors() : seq_(0) {}
+  call_descriptors() : seq_(0) {}
 
   auto lock() { return fux::scoped_fuxlock(mutex); }
 

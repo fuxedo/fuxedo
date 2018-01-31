@@ -55,6 +55,16 @@ Currently implemented:
 - Oracle Tuxedo XATMI extensions
   - tpimport/tpexport
   - tpinit/tpterm
+- Oracle Tuxedo XATMI transaction interface
+  - tpopen/tpclose
+  - tpbegin/tpabort/tpcommit
+  - tpgetlev
+  - tpsuspend/tpresume
+- X/Open TX interface
+  - tx\_open/tx\_close
+  - tx\_begin/tx\_rollback/tx\_commit
+  - tx\_info
+  - tx\_set\_commit\_return/tx\_set\_transaction\_control/tx\_set\_transaction\_timeout
 - FML32
   - a lot
 - Boolean expressions

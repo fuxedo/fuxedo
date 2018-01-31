@@ -18,11 +18,11 @@
 #include <xa.h>
 
 namespace fux {
-class call_describtors;
+class call_descriptors;
 
 namespace glob {
 
 xa_switch_t *xaswitch();
-fux::call_describtors *calldescs();
+fux::call_descriptors *calldescs();
 }
 }

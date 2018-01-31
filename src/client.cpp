@@ -26,11 +26,11 @@
 #include <memory>
 #include <vector>
 
+#include "calldesc.h"
 #include "ctxt.h"
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
-#include "calldesc.h"
 
 struct service_entry {
   std::vector<int> msqids;

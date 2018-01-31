@@ -46,8 +46,8 @@ int main(int argc, char *argv[]) {
   char command[4 * 1024];
   snprintf(command, sizeof(command),
            "$TUXDIR/bin/buildserver -r \"%s\" -o \"%s\" -f "
-           "$TUXDIR/lib/tmserver.o -s .TM:TM",
-           rmname.c_str(), outfile.c_str());
+           "$TUXDIR/lib/tmserver.o -s .TM:TM%s",
+           rmname.c_str(), outfile.c_str(), verbose ? " -v" : "");
   if (verbose) {
     std::cout << command << std::endl;
   }
