@@ -23,7 +23,7 @@
 // TX_ERROR => TPERMERR
 // TX_FAIL => TPESYSTEM
 
-int topen() {
+int tpopen() {
   if (false) {
     TPERROR(TPEPROTO, "tx_open called from client");
     return -1;
