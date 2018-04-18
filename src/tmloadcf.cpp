@@ -44,10 +44,16 @@ long require(T &dict, const std::string &key, long min, long max,
 
 int main(int argc, char *argv[]) {
   bool show_help = false;
+  bool noop = false;
+  bool yes = false;
+  bool count = false;
   std::string file;
 
   auto parser =
       clara::Help(show_help) |
+      clara::Opt(noop)["-n"]("perform syntax check, do not load") |
+      clara::Opt(yes)["-y"]("answer Yes to all questions") |
+      clara::Opt(count)["-c"]("print IPC resources needed for configuration") |
       clara::Arg(file, "ubbconfig")("configuration file to load").required();
 
   auto result = parser.parse(clara::Args(argc, argv));

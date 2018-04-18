@@ -207,6 +207,10 @@ void qrecv(int msqid, msg &data, long msgtype, int flags) {
 void qdelete(int msqid) { msgctl(msqid, IPC_RMID, NULL); }
 
 void msg::set_data(char *data, long len) {
+  if (data == nullptr) {
+    resize_data(0);
+    return;
+  }
   auto needed = fux::mem::bufsize(data, len);
   resize_data(needed);
   if (tpexport(data, len, (*this)->data, &needed, 0) == -1) {

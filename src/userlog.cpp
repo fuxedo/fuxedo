@@ -28,6 +28,8 @@
 
 #include <string>
 
+#include <gsl/gsl_util>
+
 // FIXME: Linux only
 extern const char *__progname;
 char *proc_name = const_cast<char *>(__progname);
@@ -65,6 +67,7 @@ int userlog(const char *fmt, ...) {
   if (fout == nullptr) {
     return -1;
   }
+  auto _ = gsl::finally([&] { fclose(fout); });
 
   char buf[BUFSIZ];
   ssize_t n;
@@ -86,10 +89,6 @@ int userlog(const char *fmt, ...) {
   buf[n++] = '\n';
   buf[n] = 0;
   fwrite(buf, n, 1, fout);
-
-  if (fout != nullptr) {
-    fclose(fout);
-  }
 
   return 0;
 }

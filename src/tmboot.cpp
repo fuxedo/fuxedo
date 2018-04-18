@@ -58,14 +58,21 @@ static void start(server &srv) {
     }
   } else if (pid > 0) {
     srv.pid = pid;
-    std::cout << "\tprocess id=" << srv.pid << " ... Started." << std::endl;
+    if (alive(pid)) {
+      std::cout << "\tprocess id=" << srv.pid << " ... Started." << std::endl;
+    } else {
+      std::cout << "\tINFO: process id=" << srv.pid << " Assume started (pipe)."
+                << std::endl;
+    }
   }
 }
 
 int main(int argc, char *argv[]) {
   bool show_help = false;
+  bool yes = false;
 
-  auto parser = clara::Parser() | clara::Help(show_help);
+  auto parser = clara::Help(show_help) |
+                clara::Opt(yes)["-y"]("answer Yes to all questions");
 
   auto result = parser.parse(clara::Args(argc, argv));
   if (!result) {

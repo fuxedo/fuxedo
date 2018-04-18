@@ -1,7 +1,9 @@
 ACLOCAL_AMFLAGS = -I m4
 AM_CXXFLAGS = -g -Wall -Wextra \
               -I$(top_srcdir)/include \
-              -I$(top_srcdir)/third_party/catch -I$(top_srcdir)/third_party/clara
+              -I$(top_srcdir)/third_party/catch \
+              -I$(top_srcdir)/third_party/clara \
+              -I$(top_srcdir)/third_party/GSL
 #AM_CFLAGS = -I$(top_srcdir)/include
 
 include_HEADERS = include/atmi.h include/xatmi.h \

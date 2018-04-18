@@ -135,8 +135,12 @@ class client_context {
     if (len != nullptr) {
       *len = res.size_data();
     }
-    fux::atmi::reset_tperrno();
-    return 0;
+    if (res->rval == TPSUCCESS) {
+      fux::atmi::reset_tperrno();
+      return 0;
+    }
+    TPERROR(TPESVCFAIL, "Service failed with %d", res->rval);
+    return -1;
   }
 
   int tpcancel(int cd) {
