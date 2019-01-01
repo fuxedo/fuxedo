@@ -23,10 +23,23 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <cstdlib>
 
 #define TPERROR(err, fmt, args...)                                       \
   fux::atmi::set_tperrno(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
                          __LINE__, ##args)
+
+namespace fux {
+namespace util {
+inline std::string getenv(const char *name, const char *defval) {
+  auto *val = std::getenv(name);
+  if (val != nullptr) {
+    return val;
+  }
+  return defval;
+}
+}
+}
 
 namespace fux {
 namespace atmi {

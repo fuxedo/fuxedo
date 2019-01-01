@@ -138,10 +138,7 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  const char *tuxdir = std::getenv("TUXDIR");
-  if (tuxdir == nullptr) {
-    tuxdir = "";
-  }
+  auto tuxdir = fux::util::getenv("TUXDIR", "");
 
   auto rms = parse_rm();
   auto rm = rms.find(rmname);
@@ -150,12 +147,8 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  const char *cc = std::getenv("CC");
-  if (cc == nullptr) {
-    cc = "cc";
-  }
-
-  const char *cflags = std::getenv("CFLAGS");
+  auto cc = fux::util::getenv("CC", "cc");
+  auto cflags = fux::util::getenv("CFLAGS", "");
 
   char tmpname[] = "fuxedo-XXXXXX";
   int fd = mkstemp(tmpname);

@@ -4,7 +4,7 @@
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// (at your /ption) any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -53,17 +53,9 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  const char *tuxdir = std::getenv("TUXDIR");
-  if (tuxdir == nullptr) {
-    tuxdir = "";
-  }
-
-  const char *cc = std::getenv("CC");
-  if (cc == nullptr) {
-    cc = "cc";
-  }
-
-  const char *cflags = std::getenv("CFLAGS");
+  auto tuxdir = fux::util::getenv("TUXDIR", "");
+  auto cc = fux::util::getenv("CC", "cc");
+  auto cflags = fux::util::getenv("CFLAGS", "");
 
   std::vector<std::string> cmd;
   cmd.push_back(cc);

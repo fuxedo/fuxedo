@@ -59,6 +59,8 @@ class fml32buf {
   }
   fml32buf(TPSVCINFO *svcinfo)
       : fbfr_(reinterpret_cast<FBFR32 **>(&svcinfo->data)), owned_(nullptr) {}
+  fml32buf(FBFR32 **owning_ptr)
+      : fbfr_(owning_ptr), owned_(nullptr) {}
 
   fml32buf(const fml32buf &) = delete;
   fml32buf(fml32buf &&) = delete;

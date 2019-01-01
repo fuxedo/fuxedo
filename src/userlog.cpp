@@ -4,7 +4,7 @@
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// (at your /ption) any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -30,6 +30,8 @@
 
 #include <gsl/gsl_util>
 
+#include "misc.h"
+
 // FIXME: Linux only
 extern const char *__progname;
 char *proc_name = const_cast<char *>(__progname);
@@ -45,13 +47,8 @@ static std::string getname() {
 int userlog(const char *fmt, ...) {
   static std::string nodename = getname();
 
-  const char *ULOGPFX = std::getenv("ULOGPFX");
-  if (ULOGPFX == nullptr) {
-    ULOGPFX = "ULOG";
-  }
-
-  const char *ULOGMILLISEC = std::getenv("ULOGMILLISEC");
-  bool millisec = ULOGMILLISEC != nullptr && strcmp(ULOGMILLISEC, "y");
+  auto ULOGPFX = fux::util::getenv("ULOGPFX", "ULOG");
+  bool millisec = fux::util::getenv("ULOGMILLISEC", "n") == "y";
 
   struct timeval tv;
   struct tm timeinfo;
@@ -60,7 +57,7 @@ int userlog(const char *fmt, ...) {
   localtime_r(&tv.tv_sec, &timeinfo);
 
   char logfile[FILENAME_MAX + 1];
-  snprintf(logfile, sizeof(logfile), "%s.%02d%02d%02d", ULOGPFX,
+  snprintf(logfile, sizeof(logfile), "%s.%02d%02d%02d", ULOGPFX.c_str(),
            timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_year % 100);
 
   FILE *fout = fopen(logfile, "a");

@@ -22,4 +22,3 @@ int tpenqueue(char *qspace, char *qname, TPQCTL *ctl, char *data, long len,
   return -1;
 }
 void tpforward(char *svc, char *data, long len, long flags) {}
-int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long flags) { return -1; }

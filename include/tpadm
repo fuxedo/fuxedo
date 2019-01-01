@@ -1,0 +1,41 @@
+$#pragma once
+$
+$#include "fml32.h"
+$
+$#ifdef __cplusplus
+$extern "C" {
+$#endif
+$int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long flags);
+$#ifdef __cplusplus
+$}
+$#endif
+
+*base 100
+
+TA_OPERATION  1 string -
+TA_CLASS      2 string -
+TA_CURSOR     3 string -
+TA_OCCURS     4 long -
+TA_FLAGS      5 long -
+TA_FILTER     6 long -
+TA_MIBTIMEOUT 7 long -
+TA_CURSORHOLD 8 long -
+TA_MORE       9 long -
+TA_ERROR      10 long -
+$// Possible TA_ERROR values
+$// TAOK the operation was successfully performed. No updates were made to the application.
+$// TAUPDATED an update was successfully made to the application.
+$// TAPARTIAL a partial update was successfully made to the application.
+$#define TAOK       0
+$#define TAUPDATED  1
+$#define TAPARTIAL  2
+
+
+TA_SRVGRP   11  string -
+TA_GRPNO    12  long -
+TA_LMID     13  string -
+TA_STATE    14  string -
+TA_OPENINFO 15  string -
+TA_CLOSEINFO 16  string -
+TA_TMSCOUNG 17  long -
+TA_TMSNAME  18  string -

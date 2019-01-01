@@ -28,7 +28,7 @@ src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/ipc.cpp \
                            src/xa.cpp src/tx.cpp src/trx.cpp \
                            src/misc.cpp src/base64.cpp src/fields.cpp \
-                           src/todo.cpp
+                           src/tpadmcall.cpp src/todo.cpp
 
 src_libfuxedo_la_LDFLAGS = -lpthread
 
@@ -73,7 +73,7 @@ src_tmipcrm_LDADD = src/libfuxedo.la
 
 data_DATA = RM
 
-TESTS = tests/xatmi tests/fml32 tests/mib tests/ipcq tests/base64 tests/userlog tests/trx
+TESTS = tests/xatmi tests/fml32 tests/expr tests/mib tests/ipcq tests/base64 tests/userlog tests/trx
 check_PROGRAMS = $(TESTS)
 
 AM_TESTS_ENVIRONMENT = FLDTBLDIR32=.:src:tests FIELDTBLS32=dummy,fields
@@ -92,6 +92,9 @@ tests_xatmi_LDADD = src/libfuxedo.la
 
 tests_fml32_SOURCES = tests/fml32.cpp tests/tests-main.cpp
 tests_fml32_LDADD = src/libfuxedo.la
+
+tests_expr_SOURCES = tests/expr.cpp tests/tests-main.cpp
+tests_expr_LDADD = src/libfuxedo.la
 
 tests_mib_SOURCES = tests/mib.cpp tests/tests-main.cpp
 tests_mib_LDADD = src/libfuxedo.la
