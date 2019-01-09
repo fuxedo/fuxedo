@@ -306,13 +306,7 @@ struct Fbfr32 {
     size_ = buflen - min_size();
     len_ = 0;
 
-    offset_long_ = 0;
-    offset_char_ = 0;
-    offset_float_ = 0;
-    offset_double_ = 0;
-    offset_string_ = 0;
-    offset_carray_ = 0;
-    offset_fml32_ = 0;
+    memset(offsets_, 0, sizeof(offsets_));
     return 0;
   }
   void reinit(FLDLEN32 buflen) { size_ = buflen - min_size(); }
@@ -332,13 +326,7 @@ struct Fbfr32 {
       return -1;
     }
     len_ = src->len_;
-    offset_long_ = src->offset_long_;
-    offset_char_ = src->offset_char_;
-    offset_double_ = src->offset_double_;
-    offset_float_ = src->offset_float_;
-    offset_string_ = src->offset_string_;
-    offset_carray_ = src->offset_carray_;
-    offset_fml32_ = src->offset_fml32_;
+    std::copy_n(src->offsets_, max_offset_, offsets_);
     std::copy_n(src->data_, src->len_, data_);
     return 0;
   }
@@ -913,46 +901,57 @@ struct Fbfr32 {
     shift(Fldtype32(from->fieldid), -diff);
   }
 
-  void shift(int type, ssize_t delta) {
+
+  int offset_for(int type) {
     switch (type) {
       case FLD_SHORT:
-        offset_long_ += delta;
-      // fall through
+        return min_offset_;
       case FLD_LONG:
-        offset_char_ += delta;
-      // fall through
+        return long_;
       case FLD_CHAR:
-        offset_float_ += delta;
-      // fall through
+        return char_;
       case FLD_FLOAT:
-        offset_double_ += delta;
-      // fall through
+        return float_;
       case FLD_DOUBLE:
-        offset_string_ += delta;
-      // fall through
+        return double_;
       case FLD_STRING:
-        offset_carray_ += delta;
-      // fall through
+        return string_;
       case FLD_CARRAY:
-        offset_fml32_ += delta;
-      // fall through
+        return carray_;
       case FLD_FML32:
-        len_ += delta;
-      // fall through
+        return fml32_;
       default:
-        break;
+        return max_offset_;
+    }
+  }
+
+  uint32_t first_byte(int type) {
+    int off = offset_for(type);
+    if (off == min_offset_) {
+      return 0;
+    }
+    return offsets_[off];
+  }
+
+  uint32_t last_byte(int type) {
+    int off = offset_for(type) + 1;
+    if (off == max_offset_) {
+      return len_;
+    }
+    return offsets_[off];
+  }
+
+  void shift(int type, ssize_t delta) {
+    len_ += delta;
+    for (int off = offset_for(type) + 1; off < max_offset_; off++) {
+        offsets_[off] += delta;
     }
   }
 
   uint32_t size_;
   uint32_t len_;
-  uint32_t offset_long_;
-  uint32_t offset_char_;
-  uint32_t offset_float_;
-  uint32_t offset_double_;
-  uint32_t offset_string_;
-  uint32_t offset_carray_;
-  uint32_t offset_fml32_;
+  enum type_offset { min_offset_ = -1, long_ = 0, char_, float_, double_, string_, carray_, fml32_, max_offset_ };
+  uint32_t offsets_[max_offset_];
   char data_[] __attribute__((aligned(8)));
 
   size_t min_size() const { return offsetof(Fbfr32, data_); }
@@ -976,7 +975,7 @@ struct Fbfr32 {
       case FLD_FML32:
         return Fused32(reinterpret_cast<FBFR32 *>(data));
       default:
-        return 0;
+        __builtin_unreachable();
     }
   }
 
@@ -1020,7 +1019,7 @@ struct Fbfr32 {
       case FLD_FML32:
         return reinterpret_cast<fieldn *>(field)->flen;
       default:
-        return 0;
+        __builtin_unreachable();
     }
   }
 
@@ -1032,53 +1031,26 @@ struct Fbfr32 {
       return reinterpret_cast<field16b *>(field)->data;
     } else if (klass == FIELDN) {
       return reinterpret_cast<fieldn *>(field)->data;
-    } else {
-      __builtin_unreachable();
     }
     __builtin_unreachable();
   }
 
   fieldhead *end(int type) {
-    if (type == FLD_SHORT) {
-      return reinterpret_cast<fieldhead *>(data_ + offset_long_);
-    } else if (type == FLD_LONG) {
-      return reinterpret_cast<fieldhead *>(data_ + offset_char_);
-    } else if (type == FLD_CHAR) {
-      return reinterpret_cast<fieldhead *>(data_ + offset_float_);
-    } else if (type == FLD_FLOAT) {
-      return reinterpret_cast<fieldhead *>(data_ + offset_double_);
-    } else if (type == FLD_DOUBLE) {
-      return reinterpret_cast<fieldhead *>(data_ + offset_string_);
-    } else if (type == FLD_STRING) {
-      return reinterpret_cast<fieldhead *>(data_ + offset_carray_);
-    } else if (type == FLD_CARRAY) {
-      return reinterpret_cast<fieldhead *>(data_ + offset_fml32_);
-    } else if (type == FLD_FML32) {
-      return reinterpret_cast<fieldhead *>(data_ + len_);
-    }
-    __builtin_unreachable();
+    return reinterpret_cast<fieldhead *>(data_ + last_byte(type));
   }
 
   fieldhead *where(FLDID32 fieldid, FLDOCC32 oc) {
-    switch (Fldtype32(fieldid)) {
-      case FLD_SHORT:
-        return where<field8b>(fieldid, oc, 0, offset_long_);
-      case FLD_LONG:
-        return where<field16b>(fieldid, oc, offset_long_, offset_char_);
-      case FLD_CHAR:
-        return where<field8b>(fieldid, oc, offset_char_, offset_float_);
-      case FLD_FLOAT:
-        return where<field8b>(fieldid, oc, offset_float_, offset_double_);
-      case FLD_DOUBLE:
-        return where<field16b>(fieldid, oc, offset_double_, offset_string_);
-      case FLD_STRING:
-        return wheren(fieldid, oc, offset_string_, offset_carray_);
-      case FLD_CARRAY:
-        return wheren(fieldid, oc, offset_carray_, offset_fml32_);
-      case FLD_FML32:
-        return wheren(fieldid, oc, offset_fml32_, len_);
-      default:
-        return nullptr;
+    int type = Fldtype32(fieldid);
+    auto klass = fldclass(fieldid);
+
+    if (klass == FIELD8) {
+        return where<field8b>(fieldid, oc, first_byte(type), last_byte(type));
+    } else if (klass == FIELD16) {
+        return where<field16b>(fieldid, oc, first_byte(type), last_byte(type));
+    } else if (klass == FIELDN) {
+        return wheren(fieldid, oc, first_byte(type), last_byte(type));
+    } else {
+      __builtin_unreachable();
     }
   }
 
@@ -1547,14 +1519,6 @@ int CFget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf,
   return 0;
 }
 
-char *Ffinds32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc) {
-  return CFfind32(fbfr, fieldid, oc, nullptr, FLD_STRING);
-}
-
-int Fgets32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf) {
-  return CFget32(fbfr, fieldid, oc, buf, nullptr, FLD_STRING);
-}
-
 int Fextread32(FBFR32 *fbfr, FILE *iop) {
   FBFR32_CHECK(-1, fbfr);
   auto p = extreader(iop);
@@ -1573,4 +1537,12 @@ int Fwrite32(FBFR32 *fbfr, FILE *iop) {
 int Fread32(FBFR32 *fbfr, FILE *iop) {
   FBFR32_CHECK(-1, fbfr);
   return fbfr->read(iop);
+}
+
+char *Ffinds32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc) {
+  return CFfind32(fbfr, fieldid, oc, nullptr, FLD_STRING);
+}
+
+int Fgets32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf) {
+  return CFget32(fbfr, fieldid, oc, buf, nullptr, FLD_STRING);
 }
