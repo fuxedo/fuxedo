@@ -2,8 +2,8 @@
 
 #ifndef XIDDATASIZE
 /*
-* Transaction branch identification : XID and NULLXID :
-*/
+ * Transaction branch identification : XID and NULLXID :
+ */
 #define XIDDATASIZE 128 /* size in bytes */
 #define MAXGTRIDSIZE 64 /* maximum size in bytes of gtrid */
 #define MAXBQUALSIZE 64 /* maximum size in bytes of bqual */
@@ -15,19 +15,19 @@ struct xid_t {
 };
 typedef struct xid_t XID;
 /*
-* A value of - 1 in formatID means that the XID is null.
-*/
+ * A value of - 1 in formatID means that the XID is null.
+ */
 
 #endif
 
 /*
-* Declarations of routines by which RMs call TMs :
-*/
+ * Declarations of routines by which RMs call TMs :
+ */
 extern int ax_reg(int rmid, XID *xid, long flags);
 extern int ax_unreg(int rmid, long flags);
 /*
-* XA Switch Data Structure
-*/
+ * XA Switch Data Structure
+ */
 #define RMNAMESZ \
   32 /* length of resource manager name, including the null terminator */
 #define MAXINFOSIZE                                                   \
@@ -59,8 +59,8 @@ struct xa_switch_t {
 };
 
 /*
-* Flag definitions for the RM switch
-*/
+ * Flag definitions for the RM switch
+ */
 #define TMNOFLAGS 0x00000000L  /* no resource manager features selected */
 #define TMREGISTER 0x00000001L /* resource manager dynamically registers */
 #define TMNOMIGRATE \
@@ -68,8 +68,8 @@ struct xa_switch_t {
 #define TMUSEASYNC \
   0x00000004L /* resource manager supports asynchronous operations */
 /*
-* Flag definitions for xa_ and ax_ routines
-*/
+ * Flag definitions for xa_ and ax_ routines
+ */
 /* use TMNOFLAGS, defined above, when not specifying other flags */
 #define TMASYNC 0x80000000L /* perform routine asynchronously */
 #define TMONEPHASE \
@@ -90,8 +90,8 @@ struct xa_switch_t {
 #define TMJOIN 0x00200000L /* caller is joining existing transaction branch */
 #define TMMIGRATE 0x00100000L /* caller intends to perform migration */
 /*
-* ax_() return codes (transaction manager reports to resource manager)
-*/
+ * ax_() return codes (transaction manager reports to resource manager)
+ */
 #define TM_JOIN 2 /* caller is joining existing transaction branch */
 #define TM_RESUME \
   1 /* caller is resuming association with suspended transaction branch */
@@ -100,22 +100,20 @@ struct xa_switch_t {
 #define TMER_INVAL -2 /* invalid arguments were given */
 #define TMER_PROTO -3 /* routine invoked in an improper context */
 /*
-* xa_() return codes (resource manager reports to transaction manager)
-*/
+ * xa_() return codes (resource manager reports to transaction manager)
+ */
 #define XA_RBBASE 100 /* the inclusive lower bound of the rollback codes */
 #define XA_RBROLLBACK \
   XA_RBBASE /* the rollback was caused by an unspecified reason */
 #define XA_RBCOMMFAIL \
   XA_RBBASE + 1 /* the rollback was caused by a communication failure */
 #define XA_RBDEADLOCK XA_RBBASE + 2 /* a deadlock was detected */
-#define XA_RBINTEGRITY                                                  \
-  XA_RBBASE +                                                           \
-      3 /* a condition that violates the integrity of the resources was \
-              detected */
-#define XA_RBOTHER                                                       \
-  XA_RBBASE +                                                            \
-      4 /* the resource manager rolled back the transaction branch for a \
-           reason not on this list */
+#define XA_RBINTEGRITY                                                      \
+  XA_RBBASE + 3 /* a condition that violates the integrity of the resources \
+                   was detected */
+#define XA_RBOTHER                                                             \
+  XA_RBBASE + 4 /* the resource manager rolled back the transaction branch for \
+                   a reason not on this list */
 #define XA_RBPROTO \
   XA_RBBASE + 5 /* a protocol error occurred in the resource manager */
 #define XA_RBTIMEOUT XA_RBBASE + 6   /* a transaction branch took too long */

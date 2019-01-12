@@ -289,5 +289,5 @@ long bufsize(char *ptr, long used) {
     return mem->size - offsetof(tpmem, type);
   }
 }
-}
-}
+}  // namespace mem
+}  // namespace fux

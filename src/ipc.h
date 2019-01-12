@@ -100,5 +100,5 @@ int qcreate();
 bool qsend(int msqid, msg &data, int flags);
 void qrecv(int msqid, msg &data, long msgtype, int flags);
 void qdelete(int msqid);
-}
-}
+}  // namespace ipc
+}  // namespace fux

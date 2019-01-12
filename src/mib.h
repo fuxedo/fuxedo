@@ -138,8 +138,8 @@ struct mibmem {
 namespace fux {
 namespace mib {
 struct in_heap {};
-}
-}
+}  // namespace mib
+}  // namespace fux
 
 class mib {
  public:

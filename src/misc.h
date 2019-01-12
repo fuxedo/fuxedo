@@ -18,12 +18,12 @@
 #include <xatmi.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
 #include <mutex>
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <cstdlib>
 
 #define TPERROR(err, fmt, args...)                                       \
   fux::atmi::set_tperrno(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
@@ -38,27 +38,16 @@ inline std::string getenv(const char *name, const char *defval) {
   }
   return defval;
 }
-}
-}
+}  // namespace util
+}  // namespace fux
 
 namespace fux {
 namespace atmi {
 void set_tperrno(int err, const char *fmt, ...)
     __attribute__((format(printf, 2, 3)));
 void reset_tperrno();
-}
-}
-
-#define FERROR32(err, fmt, args...)                                        \
-  fux::fml32::set_Ferror32(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
-                           __LINE__, ##args)
-namespace fux {
-namespace fml32 {
-void set_Ferror32(int err, const char *fmt, ...)
-    __attribute__((format(printf, 2, 3)));
-void reset_Ferror32();
-}
-}
+}  // namespace atmi
+}  // namespace fux
 
 template <unsigned int N>
 void checked_copy(const std::string &src, char (&dst)[N]) {
@@ -111,8 +100,8 @@ namespace fux {
 namespace mem {
 void setowner(char *ptr, char **owner);
 long bufsize(char *ptr, long used = -1);
-}
-}
+}  // namespace mem
+}  // namespace fux
 
 namespace fux {
 extern bool threaded;
@@ -155,7 +144,7 @@ inline std::vector<std::string> split(const std::string &s,
   tokens.push_back(token);
   return tokens;
 }
-}
+}  // namespace fux
 
 namespace fux {
 typedef uint64_t trxid;

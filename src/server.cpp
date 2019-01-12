@@ -282,7 +282,7 @@ namespace fux {
 namespace glob {
 extern xa_switch_t *xa_switch;
 }
-}
+}  // namespace fux
 
 int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   bool show_help = false;

@@ -5,7 +5,7 @@
 #define XATMI_SERVICE_NAME_LENGTH 32
 
 /* The following definitions must be included in atmi.h
-*/
+ */
 
 /* Flags to service routines */
 
@@ -30,14 +30,14 @@
 #define TPSUCCESS 0x04000000 /* service SUCCESS for tpreturn */
 
 /* Flags to tpscmt - Valid TP_COMMIT_CONTROL
-* characteristic values
-*/
+ * characteristic values
+ */
 #define TP_CMT_LOGGED         \
   0x01 /* return after commit \
-* decision is logged */
+        * decision is logged */
 #define TP_CMT_COMPLETE           \
   0x02 /* return after commit has \
-* completed */
+        * completed */
 
 /* client identifier structure */
 struct clientid_t {
@@ -53,11 +53,11 @@ struct tpsvcinfo {
   char *data;     /* pointer to data */
   long len;       /* request data length */
   int cd;         /* connection descriptor
-          * if (flags TPCONV) true */
+                   * if (flags TPCONV) true */
   long appkey;    /* application authentication client
-     * key */
+                   * key */
   CLIENTID cltid; /* client identifier for originating
-  * client */
+                   * client */
 };
 
 typedef struct tpsvcinfo TPSVCINFO;
@@ -85,26 +85,26 @@ typedef struct tp_tranid_t TPTRANID;
 /* Flags for TPINIT */
 #define TPU_MASK                         \
   0x00000007 /* unsolicited notification \
-* mask */
+              * mask */
 #define TPU_SIG              \
   0x00000001 /* signal based \
-* notification */
+              * notification */
 #define TPU_DIP              \
   0x00000002 /* dip-in based \
-* notification */
+              * notification */
 #define TPU_IGN                                     \
   0x00000004                  /* ignore unsolicited \
-   * messages */
+                               * messages */
 #define TPU_THREAD 0x00000040 /* THREAD notification */
 #define TPSA_FASTPATH            \
   0x00000008 /* System access == \
-* fastpath */
+              * fastpath */
 #define TPSA_PROTECTED           \
   0x00000010 /* System access == \
-* protected */
+              * protected */
 #define TPMULTICONTEXTS                   \
   0x00000020 /* multiple context associa- \
-* tions per process */
+              * tions per process */
 /* /Q tpqctl_t data structure */
 #define TMQNAMELEN 127
 #define TMMSGIDLEN 32
@@ -166,8 +166,8 @@ extern long tpurcode;
 
 /* tperrno values - error codes */
 /* The reference pages explain the context in which the following
-* error codes can return.
-*/
+ * error codes can return.
+ */
 
 #define TPMINVAL 0 /* minimum error message */
 #define TPEABORT 1

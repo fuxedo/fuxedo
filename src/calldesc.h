@@ -74,4 +74,4 @@ class call_descriptors {
     return 0;
   }
 };
-}
+}  // namespace fux

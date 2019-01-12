@@ -22,21 +22,22 @@
 
 using fux::fml32buf;
 
-static void manage_group(const std::string &operation, fml32buf &in, fml32buf &out) {
-    tuxconfig tuxcfg;
-    tuxcfg.size = 0;
-    tuxcfg.ipckey = 0;
-    tuxcfg.maxservers = 1;
-    tuxcfg.maxservices = 1;
-    tuxcfg.maxgroups = 1;
-    tuxcfg.maxqueues = 1;
-    mib m(tuxcfg, fux::mib::in_heap());
+static void manage_group(const std::string &operation, fml32buf &in,
+                         fml32buf &out) {
+  tuxconfig tuxcfg;
+  tuxcfg.size = 0;
+  tuxcfg.ipckey = 0;
+  tuxcfg.maxservers = 1;
+  tuxcfg.maxservices = 1;
+  tuxcfg.maxgroups = 1;
+  tuxcfg.maxqueues = 1;
+  mib m(tuxcfg, fux::mib::in_heap());
 
-    auto groups = m.groups();
+  auto groups = m.groups();
 
-    if (operation == "GET") {
-    } else if (operation == "SET") {
-    }
+  if (operation == "GET") {
+  } else if (operation == "SET") {
+  }
 }
 
 int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long flags) {

@@ -26,5 +26,5 @@ FLDID32 FUX_XAXID = Fmkfldid32(FLD_CARRAY, 21);
 FLDID32 FUX_XARMID = Fmkfldid32(FLD_LONG, 22);
 FLDID32 FUX_XAFLAGS = Fmkfldid32(FLD_LONG, 23);
 FLDID32 FUX_XARET = Fmkfldid32(FLD_LONG, 24);
-}
-}
+}  // namespace tm
+}  // namespace fux

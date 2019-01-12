@@ -6,8 +6,8 @@ extern "C" {
 
 #define TX_H_VERSION 0 /* current version of this header file */
 /*
-* Transaction identifier
-*/
+ * Transaction identifier
+ */
 #ifndef XIDDATASIZE
 #define XIDDATASIZE 128 /* size in bytes */
 struct xid_t {
@@ -18,12 +18,12 @@ struct xid_t {
 };
 typedef struct xid_t XID;
 /*
-* A value of -1 in formatID means that the XID is null.
-*/
+ * A value of -1 in formatID means that the XID is null.
+ */
 #endif
 /*
-* Definitions for tx_*() routines
-*/
+ * Definitions for tx_*() routines
+ */
 /* commit return values */
 typedef long COMMIT_RETURN;
 #define TX_COMMIT_COMPLETED 0
@@ -51,8 +51,8 @@ struct tx_info_t {
 typedef struct tx_info_t TXINFO;
 
 /*
-* Declarations of routines by which Applications call TMs:
-*/
+ * Declarations of routines by which Applications call TMs:
+ */
 int tx_begin();
 int tx_close();
 int tx_commit();
@@ -64,8 +64,8 @@ int tx_set_transaction_control(TRANSACTION_CONTROL);
 int tx_set_transaction_timeout(TRANSACTION_TIMEOUT);
 
 /*
-* tx_*() return codes (transaction manager reports to application)
-*/
+ * tx_*() return codes (transaction manager reports to application)
+ */
 #define TX_NOT_SUPPORTED 1 /* option not supported */
 #define TX_OK 0            /* normal execution */
 #define TX_OUTSIDE -1      /* application is in an RM local transaction */
@@ -87,14 +87,13 @@ int tx_set_transaction_timeout(TRANSACTION_TIMEOUT);
                                  could not be started */
 #define TX_MIXED_NO_BEGIN                                                     \
   (TX_MIXED + TX_NO_BEGIN) /* mixed plus new transaction could not be started \
-                              */
+                            */
 #define TX_HAZARD_NO_BEGIN \
   (TX_HAZARD +             \
    TX_NO_BEGIN) /* hazard plus new transaction could not be started */
-#define TX_COMMITTED_NO_BEGIN                                                \
-  (TX_COMMITTED +                                                            \
-   TX_NO_BEGIN) /* heuristically committed plus new transaction could not be \
-                   started */
+#define TX_COMMITTED_NO_BEGIN                                                  \
+  (TX_COMMITTED + TX_NO_BEGIN) /* heuristically committed plus new transaction \
+                                  could not be started */
 
 #ifdef __cplusplus
 }

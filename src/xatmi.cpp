@@ -39,8 +39,8 @@ void reset_tperrno() {
   tperrno_ = 0;
   tplasterr_[0] = '\0';
 }
-}
-}
+}  // namespace atmi
+}  // namespace fux
 
 int *_tls_tperrno() { return &fux::atmi::tperrno_; }
 long *_tls_tpurcode() { return &fux::atmi::tpurcode_; }

@@ -41,9 +41,9 @@ union semun {
 };
 
 /*
-* more-than-inspired by W. Richard Stevens' UNIX Network
-* Programming 2nd edition, volume 2, lockvsem.c, page 295.
-*/
+ * more-than-inspired by W. Richard Stevens' UNIX Network
+ * Programming 2nd edition, volume 2, lockvsem.c, page 295.
+ */
 int seminit(key_t key, int nsems) {
   int semid = semget(key, nsems, IPC_CREAT | IPC_EXCL | 0666);
 
@@ -222,5 +222,5 @@ void msg::get_data(char **data) {
     throw std::runtime_error("tpimport failed");
   }
 }
-}
-}
+}  // namespace ipc
+}  // namespace fux

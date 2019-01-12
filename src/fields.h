@@ -27,5 +27,5 @@ extern FLDID32 FUX_XAXID;
 extern FLDID32 FUX_XARMID;
 extern FLDID32 FUX_XAFLAGS;
 extern FLDID32 FUX_XARET;
-}
-}
+}  // namespace tm
+}  // namespace fux

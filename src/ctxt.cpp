@@ -27,5 +27,5 @@ fux::call_descriptors *calldescs() {
   static fux::call_descriptors cds;
   return &cds;
 }
-}
-}
+}  // namespace glob
+}  // namespace fux
