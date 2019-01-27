@@ -14,7 +14,7 @@ Fuxedo is an open source implementation of X/Open XATMI specification and some O
 
 There is no definition of what "core functionality" is but I will start with the functions I use on daily basis. Things like TSAM, Jolt, SALT, queues and adapters are out of scope.
 
-C++14 is used as implementation language with plans for C++17 in near future. This choice makes some of XATMI C-style interfaces weird to implement but life is too short to write everything in C.
+Currently C++17 is used as implementation language mostly to learn what the new standard offers. This choice makes some of XATMI C-style interfaces weird to implement but life is too short to write everything in C.
 
 Currently implemented:
 

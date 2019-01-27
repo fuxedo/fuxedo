@@ -9,7 +9,7 @@ AC_PROG_CXX
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT([shared])
 AC_LANG([C++])
-AX_CXX_COMPILE_STDCXX_14(ext, mandatory)
+AX_CXX_COMPILE_STDCXX_17(ext, mandatory)
 
 AC_SUBST([AM_CXXFLAGS])
 AC_SUBST([AM_LDFLAGS])
