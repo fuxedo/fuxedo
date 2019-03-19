@@ -21,6 +21,7 @@
 #include <fml32.h>
 #include "extreader.h"
 #include "fieldtbl32.h"
+#include "misc.h"
 
 #include <iostream>
 
