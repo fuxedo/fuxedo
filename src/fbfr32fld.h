@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+#include <map>
 #include <shared_mutex>
 
 #include <fml32.h>
@@ -38,7 +39,7 @@ void reset_Ferror32();
 struct Fbfr32fields {
   std::shared_timed_mutex mutex;
   std::map<FLDID32, std::string> id_to_name;
-  std::map<std::string, FLDID32> name_to_id;
+  std::map<std::string, FLDID32, std::less<>> name_to_id;
   std::atomic<bool> id_to_name_loaded;
   std::atomic<bool> name_to_id_loaded;
 

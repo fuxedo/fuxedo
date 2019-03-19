@@ -19,10 +19,7 @@
 #include <cstddef>
 #include <cstring>
 
-#include <vector>
 #include "misc.h"
-
-#include <iostream>
 
 struct tptype {
   char type[8];
@@ -41,7 +38,7 @@ void fml32reinit(void *, size_t);
 void fml32finit(void *);
 size_t fml32used(void *);
 
-std::vector<tptype> _tptypes = {
+static tptype _tptypes[] = {
     tptype{"CARRAY", "*", 0, nullptr, nullptr, nullptr, nullptr},
     tptype{"STRING", "*", 512, nullptr, nullptr, nullptr, strused},
     tptype{"FML32", "*", 512, fml32init, fml32reinit, fml32finit, fml32used}};
@@ -59,13 +56,13 @@ static tpmem *memptr(char *ptr) {
 }
 
 static tptype *typeptr(const char *type, const char *subtype) {
-  const auto &tptype =
-      std::find_if(_tptypes.begin(), _tptypes.end(), [&](const auto &t) {
+  const auto &tptype = std::find_if(
+      std::begin(_tptypes), std::end(_tptypes), [&](const auto &t) {
         return (strncmp(t.type, type, sizeof(t.type)) == 0 &&
                 (subtype == nullptr || subtype[0] == '\0' ||
                  strncmp(t.subtype, subtype, sizeof(t.subtype)) == 0));
       });
-  if (tptype == _tptypes.end()) {
+  if (tptype == std::end(_tptypes)) {
     TPERROR(TPENOENT, "unknown type [%s] and subtype[%s]", type,
             subtype == nullptr ? "" : subtype);
     return nullptr;

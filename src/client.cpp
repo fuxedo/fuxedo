@@ -33,68 +33,78 @@
 #include "misc.h"
 
 struct service_entry {
-  std::vector<int> msqids;
-  size_t idx;
-  size_t service_id;
+  std::vector<int> queues;
+  size_t current_queue;
   uint64_t cached_revision;
-  uint64_t *revision;
+  uint64_t *mib_revision;
+  size_t mib_service;
 
-  service_entry() : idx(0) {}
+  service_entry() : current_queue(0) {}
 };
 
 class service_repository {
  public:
   service_repository(mib &m) : m_(m) {}
   int get_queue(const char *svc) {
-    auto it = services_.find(svc);
+    auto &entry = get_entry(svc);
+    refresh(entry);
+    return load_balance(entry);
+  }
+
+ private:
+  service_entry &get_entry(const char *service_name) {
+    auto it = services_.find(service_name);
     if (it == services_.end()) {
       auto lock = m_.data_lock();
       service_entry entry;
-      entry.service_id = m_.find_service(svc);
-      if (entry.service_id == m_.badoff) {
-        throw std::out_of_range(svc);
+      entry.mib_service = m_.find_service(service_name);
+      if (entry.mib_service == m_.badoff) {
+        throw std::out_of_range(service_name);
       }
-      entry.revision = &(m_.services().at(entry.service_id).revision);
+      entry.mib_revision = &(m_.services().at(entry.mib_service).revision);
       entry.cached_revision = 0;
-      it = services_.insert(std::make_pair(strdup(svc), entry)).first;
+      it = services_.insert(std::make_pair(service_name, entry)).first;
     }
+    return it->second;
+  }
 
-    auto &entry = it->second;
-    if (entry.cached_revision != *(entry.revision)) {
-      entry.msqids.clear();
+  void refresh(service_entry &entry) {
+    if (entry.cached_revision != *(entry.mib_revision)) {
+      entry.queues.clear();
       auto lock = m_.data_lock();
       auto adv = m_.advertisements();
       for (size_t i = 0; i < adv->len; i++) {
         auto &a = adv.at(i);
-        if (a.service == entry.service_id) {
+        if (a.service == entry.mib_service) {
           auto msqid = m_.queues().at(a.queue).msqid;
-          entry.msqids.push_back(msqid);
+          entry.queues.push_back(msqid);
         }
       }
-      entry.cached_revision = *(entry.revision);
+      entry.cached_revision = *(entry.mib_revision);
     }
-
-    if (entry.msqids.empty()) {
-      throw std::out_of_range(svc);
-    }
-    entry.idx = (entry.idx + 1) % entry.msqids.size();
-    return entry.msqids[entry.idx];
   }
 
- private:
+  int load_balance(service_entry &entry) {
+    if (entry.queues.empty()) {
+      throw std::out_of_range("no queue");
+    }
+    entry.current_queue = (entry.current_queue + 1) % entry.queues.size();
+    return entry.queues[entry.current_queue];
+  }
+
   mib &m_;
-  std::map<const char *, service_entry, cmp_cstr> services_;
+  std::map<std::string, service_entry, std::less<void>> services_;
 };
 
-class client_context {
+class client {
  public:
-  client_context(mib &mibcon) : mibcon_(mibcon), repo_(mibcon) {
+  client(mib &mibcon) : mibcon_(mibcon), repo_(mibcon) {
     auto lock = mibcon_.data_lock();
     client_ = mibcon_.make_accesser(getpid());
     rpid = mibcon_.accessers().at(client_).rpid = fux::ipc::qcreate();
   }
 
-  ~client_context() {
+  ~client() {
     auto lock = mibcon_.data_lock();
     fux::ipc::qdelete(mibcon_.accessers().at(client_).rpid);
     mibcon_.accessers().at(client_).rpid = -1;
@@ -161,34 +171,34 @@ class client_context {
   int rpid;
 };
 
-static thread_local std::shared_ptr<client_context> cctxt;
-static client_context &getctxt() {
-  if (!cctxt.get()) {
-    cctxt = std::make_shared<client_context>(getmib());
+static thread_local std::shared_ptr<client> current_client;
+static client &getclient() {
+  if (!current_client.get()) {
+    current_client = std::make_shared<client>(getmib());
   }
-  return *cctxt;
+  return *current_client;
 }
 
 int tpinit(TPINIT *tpinfo) {
-  getctxt();
+  getclient();
   fux::atmi::reset_tperrno();
   return 0;
 }
 
 int tpterm() {
-  cctxt.reset();
+  current_client.reset();
   fux::atmi::reset_tperrno();
   return 0;
 }
 
-int tpcancel(int cd) { return getctxt().tpcancel(cd); }
+int tpcancel(int cd) { return getclient().tpcancel(cd); }
 
 int tpacall(char *svc, char *data, long len, long flags) {
-  return getctxt().tpacall(svc, data, len, flags);
+  return getclient().tpacall(svc, data, len, flags);
 }
 
 int tpgetrply(int *cd, char **data, long *len, long flags) {
-  return getctxt().tpgetrply(cd, data, len, flags);
+  return getclient().tpgetrply(cd, data, len, flags);
 }
 int tpcall(char *svc, char *idata, long ilen, char **odata, long *olen,
            long flags) {

@@ -16,27 +16,24 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <cctype>
+#include <cstdarg>
+#include <cstddef>
 #include <cstdlib>
 #include <cstring>
+
 #include <fstream>
 #include <string>
 
 #include <algorithm>
 #include <atomic>
-#include <cstdarg>
-#include <cstddef>
-#include <map>
 #include <memory>
-#include <vector>
 
 #include <fml32.h>
 #include <regex.h>
 #include "extreader.h"
 
-#include <iostream>
-
-#include "misc.h"
 #include "fbfr32fld.h"
+#include "misc.h"
 
 static unsigned int crc32b(unsigned char *data, size_t len) {
   unsigned crc = 0xFFFFFFFF;

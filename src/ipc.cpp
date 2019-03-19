@@ -31,8 +31,7 @@
 #include <cstring>
 #include <iostream>
 
-namespace fux {
-namespace ipc {
+namespace fux::ipc {
 
 union semun {
   int val;
@@ -124,6 +123,10 @@ void semrm(int semid) {
                             "Semaphore removal failed");
   }
 }
+
+}  // namespace fux::ipc
+
+namespace fux::ipc {
 
 #define fail_if(cond)                                            \
   if ((cond)) {                                                  \
@@ -217,10 +220,11 @@ void msg::set_data(char *data, long len) {
     throw std::runtime_error("tpexport failed");
   }
 }
+
 void msg::get_data(char **data) {
   if (tpimport((*this)->data, size_data(), data, 0, 0) == -1) {
     throw std::runtime_error("tpimport failed");
   }
 }
-}  // namespace ipc
-}  // namespace fux
+
+}  // namespace fux::ipc

@@ -73,13 +73,15 @@ void tpsvrthrdone() {}
 
 void ubb2mib(ubbconfig &u, mib &m);
 
-struct server_context {
+struct server_main {
   uint16_t srvid;
   uint16_t grpno;
 
-  size_t srv;
-  size_t queue_idx;
-  int rqaddr;
+  int request_queue;
+
+  size_t mib_server;
+  size_t mib_queue;
+
   int argc;
   char **argv;
   struct tmsvrargs_t *tmsvrargs;
@@ -90,7 +92,7 @@ struct server_context {
   mib &m_;
   std::atomic<bool> stop;
 
-  server_context(mib &m) : m_(m), stop(false), req_counter_(0) {
+  server_main(mib &m) : m_(m), stop(false), req_counter_(0) {
     mtype_ = std::numeric_limits<long>::min();
   }
 
@@ -125,7 +127,7 @@ struct server_context {
     } else {
       try {
         auto lock = m_.data_lock();
-        m_.advertise(svcname, queue_idx);
+        m_.advertise(svcname, mib_queue);
       } catch (const std::out_of_range &e) {
         TPERROR(TPELIMIT, "%s", e.what());
         return -1;
@@ -180,14 +182,14 @@ struct server_context {
   int req_counter_;
 };
 
-static std::unique_ptr<server_context> ctxt;
+static std::unique_ptr<server_main> main_ptr;
 
-struct server_thread_context {
-  server_thread_context() : atmibuf(nullptr) {
-    ctxt->tmsvrargs->svrthrinit(ctxt->argc, ctxt->argv);
+struct server_thread {
+  server_thread() : atmibuf(nullptr) {
+    main_ptr->tmsvrargs->svrthrinit(main_ptr->argc, main_ptr->argv);
   }
 
-  ~server_thread_context() { ctxt->tmsvrargs->svrthrdone(); }
+  ~server_thread() { main_ptr->tmsvrargs->svrthrdone(); }
 
   void prepare() {
     if (atmibuf == nullptr) {
@@ -226,36 +228,37 @@ struct server_thread_context {
   }
 };
 
-static thread_local std::unique_ptr<server_thread_context> tctxt;
+static thread_local std::unique_ptr<server_thread> thread_ptr;
 
 static void dispatch() {
-  tctxt = std::make_unique<server_thread_context>();
+  thread_ptr = std::make_unique<server_thread>();
 
   while (true) {
-    if (ctxt->stop) {
+    if (main_ptr->stop) {
       break;
     }
 
     TPSVCINFO tpsvcinfo;
     do {
-      fux::scoped_fuxlock lock(ctxt->mutex);
-      if (ctxt->stop) {
+      fux::scoped_fuxlock lock(main_ptr->mutex);
+      if (main_ptr->stop) {
         break;
       }
 
-      fux::ipc::qrecv(ctxt->rqaddr, tctxt->req, ctxt->mtype(), 0);
+      fux::ipc::qrecv(main_ptr->request_queue, thread_ptr->req,
+                      main_ptr->mtype(), 0);
 
-      tctxt->prepare();
-      tctxt->req.get_data(&tctxt->atmibuf);
-      tpsvcinfo.data = tctxt->atmibuf;
-      if (tctxt->req->cat == fux::ipc::admin) {
+      thread_ptr->prepare();
+      thread_ptr->req.get_data(&thread_ptr->atmibuf);
+      tpsvcinfo.data = thread_ptr->atmibuf;
+      if (thread_ptr->req->cat == fux::ipc::admin) {
         fux::fml32buf buf(&tpsvcinfo);
 
         userlog("Received admin message");
-        if (!ctxt->handle(tctxt->req->mtype, buf)) {
+        if (!main_ptr->handle(thread_ptr->req->mtype, buf)) {
           // return for processing by other MSSQ servers
           userlog("Not the target receiver of message, put back in queue");
-          fux::ipc::qsend(ctxt->rqaddr, tctxt->req, 0);
+          fux::ipc::qsend(main_ptr->request_queue, thread_ptr->req, 0);
         }
         continue;
       } else {
@@ -263,19 +266,19 @@ static void dispatch() {
       }
     } while (false);
 
-    checked_copy(tctxt->req->servicename, tpsvcinfo.name);
-    tpsvcinfo.flags = tctxt->req->flags;
-    tpsvcinfo.len = tctxt->req.size_data();
-    tpsvcinfo.cd = tctxt->req->cd;
+    checked_copy(thread_ptr->req->servicename, tpsvcinfo.name);
+    tpsvcinfo.flags = thread_ptr->req->flags;
+    tpsvcinfo.len = thread_ptr->req.size_data();
+    tpsvcinfo.cd = thread_ptr->req->cd;
 
-    auto it = ctxt->advertisements.find(tpsvcinfo.name);
-    if (setjmp(tctxt->tpreturn_env) == 0) {
+    auto it = main_ptr->advertisements.find(tpsvcinfo.name);
+    if (setjmp(thread_ptr->tpreturn_env) == 0) {
       it->second(&tpsvcinfo);
     } else {
     }
   }
 
-  tctxt.reset();
+  thread_ptr.reset();
 }
 
 namespace fux {
@@ -333,21 +336,21 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   }
 
   mib &m = getmib();
-  ctxt = std::make_unique<server_context>(m);
+  main_ptr = std::make_unique<server_main>(m);
 
-  ctxt->srv = m.find_server(srvid, grpno);
-  if (ctxt->srv == m.badoff) {
+  main_ptr->mib_server = m.find_server(srvid, grpno);
+  if (main_ptr->mib_server == m.badoff) {
     return -1;
   }
 
-  ctxt->srvid = srvid;
-  ctxt->grpno = grpno;
+  main_ptr->srvid = srvid;
+  main_ptr->grpno = grpno;
 
-  ctxt->rqaddr = m.make_service_rqaddr(ctxt->srv);
-  ctxt->queue_idx = m.servers().at(ctxt->srv).rqaddr;
-  ctxt->argc = argc;
-  ctxt->argv = argv;
-  ctxt->tmsvrargs = tmsvrargs;
+  main_ptr->request_queue = m.make_service_rqaddr(main_ptr->mib_server);
+  main_ptr->mib_queue = m.servers().at(main_ptr->mib_server).rqaddr;
+  main_ptr->argc = argc;
+  main_ptr->argv = argv;
+  main_ptr->tmsvrargs = tmsvrargs;
   fux::glob::xa_switch = tmsvrargs->xa_switch;
 
   if (all) {
@@ -369,13 +372,27 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
 }
 
 int tpadvertise(char *svcname, void (*func)(TPSVCINFO *)) {
-  return ctxt->tpadvertise(svcname, func);
+  if (!main_ptr) {
+    TPERROR(TPEPROTO, "%s can't be called from client", __func__);
+    return -1;
+  }
+  return main_ptr->tpadvertise(svcname, func);
 }
 
-int tpunadvertise(char *svcname) { return ctxt->tpunadvertise(svcname); }
+int tpunadvertise(char *svcname) {
+  if (!main_ptr) {
+    TPERROR(TPEPROTO, "%s can't be called from client", __func__);
+    return -1;
+  }
+  return main_ptr->tpunadvertise(svcname);
+}
 
 void tpreturn(int rval, long rcode, char *data, long len, long flags) try {
-  return tctxt->tpreturn(rval, rcode, data, len, flags);
+  if (!main_ptr) {
+    TPERROR(TPEPROTO, "%s can't be called from client", __func__);
+    abort();
+  }
+  return thread_ptr->tpreturn(rval, rcode, data, len, flags);
 } catch (...) {
-  longjmp(tctxt->tpreturn_env, -1);
+  longjmp(thread_ptr->tpreturn_env, -1);
 }

@@ -35,8 +35,8 @@ void reset_Ferror32() {
   Ferror32_ = 0;
   Flasterr32_[0] = '\0';
 }
-}
-}
+}  // namespace fml32
+}  // namespace fux
 
 int *_tls_Ferror32() { return &fux::fml32::Ferror32_; }
 
@@ -138,17 +138,17 @@ FBFR32 *Falloc32(FLDOCC32 F, FLDLEN32 V) {
     }                                                        \
   } while (false)
 
-#define FLDID32_CHECK(err, fldid) \
-do { \
-  if (!Fbfr32fields::valid_fldtype32(Fbfr32fields::Fldtype32(fieldid))) { \
-    Ferror32 = FTYPERR; \
-    return err; \
-  } \
-  if (fldid == BADFLDID) { \
-    Ferror32 = FBADFLD; \
-    return err; \
-  } \
-} while(false)
+#define FLDID32_CHECK(err, fldid)                                           \
+  do {                                                                      \
+    if (!Fbfr32fields::valid_fldtype32(Fbfr32fields::Fldtype32(fieldid))) { \
+      Ferror32 = FTYPERR;                                                   \
+      return err;                                                           \
+    }                                                                       \
+    if (fldid == BADFLDID) {                                                \
+      Ferror32 = FBADFLD;                                                   \
+      return err;                                                           \
+    }                                                                       \
+  } while (false)
 
 int Finit32(FBFR32 *fbfr, FLDLEN32 buflen) {
   FBFR32_CHECK(-1, fbfr);

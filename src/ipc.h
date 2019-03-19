@@ -54,6 +54,10 @@ class scoped_semlock {
   scoped_semlock &operator=(const scoped_semlock &) = delete;
 };
 
+}  // namespace ipc
+
+namespace ipc {
+
 enum transport : char { queue, file };
 enum category : char { application, admin };
 
@@ -100,5 +104,6 @@ int qcreate();
 bool qsend(int msqid, msg &data, int flags);
 void qrecv(int msqid, msg &data, long msgtype, int flags);
 void qdelete(int msqid);
+
 }  // namespace ipc
 }  // namespace fux
