@@ -4,10 +4,21 @@ matrix:
   include:
 
     - os: linux
+      dist: xenial
       compiler: clang
       addons:
         apt:
-          sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-trusty-6.0']
+          sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-xenial-5.0']
+          packages: ['clang-5.0', 'libstdc++-8-dev']
+      env: COMPILER='clang++-5.0'
+
+
+    - os: linux
+      dist: xenial
+      compiler: clang
+      addons:
+        apt:
+          sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-xenial-6.0']
           packages: ['clang-6.0', 'libstdc++-8-dev']
       env: COMPILER='clang++-6.0'
 
