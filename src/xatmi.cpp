@@ -32,26 +32,44 @@ void reset_tperrno() {
 int *_tls_tperrno() { return &fux::atmi::tperrno_; }
 long *_tls_tpurcode() { return &fux::atmi::tpurcode_; }
 
-char *tpstrerror(int err) {
+static const char *tpstrerror_(int err) {
   switch (err) {
     case TPEBADDESC:
+      return "TPEBADDESC";
     case TPEBLOCK:
+      return "TPEBLOCK";
     case TPEINVAL:
+      return "TPEINVAL";
     case TPELIMIT:
+      return "TPELIMIT";
     case TPENOENT:
+      return "TPENOENT";
     case TPEOS:
+      return "TPEOS";
     case TPEPROTO:
+      return "TPEPROTO";
     case TPESVCERR:
+      return "TPESVCERR";
     case TPESVCFAIL:
+      return "TPESVCFAIL";
     case TPESYSTEM:
+      return "TPESYSTEM";
     case TPETIME:
+      return "TPETIME";
     case TPETRAN:
+      return "TPETRAN";
     case TPGOTSIG:
+      return "TPGOTSIG";
     case TPEITYPE:
+      return "TPEITYPE";
     case TPEOTYPE:
+      return "TPEOTYPE";
     case TPEEVENT:
+      return "TPEEVENT";
     case TPEMATCH:
+      return "TPEMATCH";
     default:
-      return const_cast<char *>("?");
+      return "?";
   }
 }
+char *tpstrerror(int err) { return const_cast<char *>(tpstrerror_(err)); }

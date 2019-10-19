@@ -63,7 +63,7 @@ TEST_CASE_METHOD(queue_fixture, "send and receive file message", "[ipc]") {
   rq->flags = 1;
   rq->cd = 2;
 
-  fux::ipc::qsend(msqid, rq, 0,fux::ipc::flags::noflags);
+  fux::ipc::qsend(msqid, rq, 0, fux::ipc::flags::noflags);
 
   fux::ipc::qrecv(msqid, rs, 0, 0);
 

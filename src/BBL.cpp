@@ -38,7 +38,6 @@ extern "C" void TMIB(TPSVCINFO *svcinfo) {
   fux::fml32buf buf(svcinfo);
   tm(buf);
 
-
   mib &m = getmib();
   auto now = std::chrono::steady_clock::now();
   auto accessers = m.accessers();
@@ -68,8 +67,8 @@ extern int _tmbuilt_with_thread_option;
 }
 #endif
 
-static struct tmdsptchtbl_t _tmdsptchtbl[] = {{".TMIB", "TMIB", TMIB, 0, 0, NULL},
-                                              {NULL, NULL, NULL, 0, 0, NULL}};
+static struct tmdsptchtbl_t _tmdsptchtbl[] = {
+    {".TMIB", "TMIB", TMIB, 0, 0, NULL}, {NULL, NULL, NULL, 0, 0, NULL}};
 static struct tmsvrargs_t tmsvrargs = {
     &tmnull_switch, _tmdsptchtbl, 0,    tpsvrinit, tpsvrdone, _tmrunserver,
     NULL,           NULL,         NULL, NULL,      tprminit,  tpsvrthrinit,

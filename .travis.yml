@@ -40,12 +40,13 @@ matrix:
 
 
 before_script:
+  - sysctl -a
   - export CXX=${COMPILER}
   - ./autogen.sh
 
 script:
-  - ./configure --prefix=/home/travis/fuxbin && make && make check
-  - ulimit -a
+  - ./configure --prefix=/home/travis/fuxbin
+  - make && make check
   - make install && make installcheck
 
 branches:

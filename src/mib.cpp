@@ -298,7 +298,10 @@ void mib::remove() {
     }
   }
   fux::ipc::semrm(mem_->mainsem);
-  shmctl(shmid_, IPC_RMID, NULL);
+  if (shmctl(shmid_, IPC_RMID, NULL) == -1) {
+    throw std::system_error(errno, std::system_category(),
+                            "shmctl(IPC_RMID) failed");
+  }
 }
 
 void ubb2mib(ubbconfig &u, mib &m);
@@ -322,9 +325,13 @@ mib &getmib() {
 mib::mib(const tuxconfig &cfg) : cfg_(cfg) {
   shmid_ = shmget(cfg_.ipckey, needed(cfg_), 0600 | IPC_CREAT);
   if (shmid_ == -1) {
+    throw std::system_error(errno, std::system_category(), "shmget failed");
   }
 
   mem_ = reinterpret_cast<mibmem *>(shmat(shmid_, nullptr, 0));
+  if (mem_ == reinterpret_cast<void *>(-1)) {
+    throw std::system_error(errno, std::system_category(), "shmat failed");
+  }
 
   int z = 0;
   if (mem_->state.compare_exchange_strong(z, 1)) {

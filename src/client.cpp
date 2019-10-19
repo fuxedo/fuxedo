@@ -85,7 +85,8 @@ class service_repository {
 
 class client {
  public:
-  client(mib &mibcon) : mibcon_(mibcon), repo_(mibcon), blocktime_next(0), blocktime_all(0) {
+  client(mib &mibcon)
+      : mibcon_(mibcon), repo_(mibcon), blocktime_next(0), blocktime_all(0) {
     auto lock = mibcon_.data_lock();
     client_ = mibcon_.make_accesser(getpid());
     rpid = mibcon_.accessers().at(client_).rpid = fux::ipc::qcreate();
@@ -286,7 +287,4 @@ int tpcall(char *svc, char *idata, long ilen, char **odata, long *olen,
 int tpsblktime(int blktime, long flags) {
   return getclient().tpsblktime(blktime, flags);
 }
-int tpgblktime(long flags) {
-  return getclient().tpgblktime(flags);
-}
-
+int tpgblktime(long flags) { return getclient().tpgblktime(flags); }

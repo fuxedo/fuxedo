@@ -3,10 +3,10 @@
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <limits>
 #include <thread>
-#include <chrono>
 
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -20,7 +20,8 @@ tuxconfig getconfig(ubbconfig *ubb = nullptr);
 
 struct transaction_table;
 
-constexpr auto INVALID_TIME = std::chrono::time_point<std::chrono::steady_clock>::max();
+constexpr auto INVALID_TIME =
+    std::chrono::time_point<std::chrono::steady_clock>::max();
 struct accesser {
   pid_t pid;
   int rpid;

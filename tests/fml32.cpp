@@ -1108,7 +1108,7 @@ TEST_CASE("Fextread32 empty buffer is OK", "[fml32]") {
   REQUIRE((file.f = fopen(file.name.c_str(), "r")) != nullptr);
   REQUIRE(Fextread32(fbfr, file.f) != -1);
 }
- 
+
 TEST_CASE("Fextread32", "[fml32]") {
   auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
 

@@ -133,7 +133,8 @@ int qcreate() {
 
 static const size_t MAX_QUEUE_MSG_SIZE = 4000;
 
-static bool msgsnd_timed(int msqid, void *ptr, size_t len, enum flags flag, long msec) {
+static bool msgsnd_timed(int msqid, void *ptr, size_t len, enum flags flag,
+                         long msec) {
   if (flag == fux::ipc::notime) {
     int n = msgsnd(msqid, ptr, len - sizeof(long), 0);
     if (n != -1) {
@@ -152,26 +153,26 @@ static bool msgsnd_timed(int msqid, void *ptr, size_t len, enum flags flag, long
       throw std::system_error(errno, std::system_category());
     }
   } else {  // noflags
-      const long interval_msec = 100;
-      int times = msec / interval_msec + 2;
+    const long interval_msec = 100;
+    int times = msec / interval_msec + 2;
 
-      for (int i = 0; i < times; i++) {
-        int n = msgsnd(msqid, ptr, len - sizeof(long), IPC_NOWAIT);
-        if (n != -1) {
-          return true;
-        } else if (errno != EAGAIN) {
-          throw std::system_error(errno, std::system_category());
-        }
-        if (i == 0) {
-          // Immediate retry
-          continue;
-        }
-
-        struct timespec req = {0, interval_msec * 1000000};
-        if (nanosleep(&req, nullptr) == -1) {
-          throw std::system_error(errno, std::system_category());
-        }
+    for (int i = 0; i < times; i++) {
+      int n = msgsnd(msqid, ptr, len - sizeof(long), IPC_NOWAIT);
+      if (n != -1) {
+        return true;
+      } else if (errno != EAGAIN) {
+        throw std::system_error(errno, std::system_category());
       }
+      if (i == 0) {
+        // Immediate retry
+        continue;
+      }
+
+      struct timespec req = {0, interval_msec * 1000000};
+      if (nanosleep(&req, nullptr) == -1) {
+        throw std::system_error(errno, std::system_category());
+      }
+    }
   }
 }
 

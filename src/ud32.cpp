@@ -66,7 +66,8 @@ int main(int argc, char *argv[]) {
       cd = tpacall(srvcnm, reinterpret_cast<char *>(rq), 0, TPNOFLAGS);
     } else {
       long olen = 0;
-      cd = tpcall(srvcnm, reinterpret_cast<char *>(rq), 0, reinterpret_cast<char **>(&rq), &olen, TPNOFLAGS);
+      cd = tpcall(srvcnm, reinterpret_cast<char *>(rq), 0,
+                  reinterpret_cast<char **>(&rq), &olen, TPNOFLAGS);
     }
 
     if (cd == -1) {
