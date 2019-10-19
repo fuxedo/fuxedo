@@ -45,6 +45,7 @@ before_script:
 
 script:
   - ./configure --prefix=/home/travis/fuxbin && make && make check
+  - ulimit -a
   - make install && make installcheck
 
 branches:

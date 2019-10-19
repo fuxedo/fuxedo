@@ -14,6 +14,9 @@ int main(int argc, char *argv[]) {
 
   long rcvlen = 6;
   int ret = tpcall("SERVICE_TPSUCCESS", sndbuf, 0, &rcvbuf, &rcvlen, 0);
+  if (ret == -1) {
+    fprintf(stderr, "%s\n", tpstrerror(tperrno));
+  }
   assert(ret != -1);
   assert(tpurcode == 1);
 
