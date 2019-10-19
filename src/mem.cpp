@@ -42,9 +42,9 @@ static tpmem *memptr(char *ptr) {
   return (tpmem *)(ptr - offsetof(struct tpmem, data));
 }
 
-static tptype *typeptr(const char *type, const char *subtype) {
+static const tptype *typeptr(const char *type, const char *subtype) {
   const auto &tptype = std::find_if(
-      std::begin(_tptypes), std::end(_tptypes), [&](const auto &t) {
+      std::cbegin(_tptypes), std::cend(_tptypes), [&](const auto &t) {
         return (strncmp(t.type, type, sizeof(t.type)) == 0 &&
                 (subtype == nullptr || subtype[0] == '\0' ||
                  strncmp(t.subtype, subtype, sizeof(t.subtype)) == 0));
@@ -117,7 +117,7 @@ char *tprealloc(char *ptr, long size) try {
 
 void tpfree(char *ptr) try {
   if (ptr != nullptr) {
-    // Inside service routines do not free buffer past into a service routine
+    // Inside service routines do not free buffer passed into a service routine
     auto mem = memptr(ptr);
     const auto tptype = typeptr(mem->type, mem->subtype);
     if (tptype == nullptr) {
@@ -255,8 +255,7 @@ int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags) try {
   return -1;
 }
 
-namespace fux {
-namespace mem {
+namespace fux::mem {
 void setowner(char *ptr, char **owner) { memptr(ptr)->owner = owner; }
 
 long bufsize(char *ptr, long used) {
@@ -273,5 +272,4 @@ long bufsize(char *ptr, long used) {
     return mem->size - offsetof(tpmem, type);
   }
 }
-}  // namespace mem
-}  // namespace fux
+}  // namespace fux::mem

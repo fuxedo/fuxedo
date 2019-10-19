@@ -48,9 +48,16 @@ class fml32buf {
       : fbfr_(reinterpret_cast<FBFR32 **>(&svcinfo->data)), owned_(nullptr) {}
   fml32buf(FBFR32 **owning_ptr) : fbfr_(owning_ptr), owned_(nullptr) {}
 
-  fml32buf(const fml32buf &) = delete;
+  fml32buf(const fml32buf &other) {
+    update([&] { return Fcpy32(*fbfr(), *other.fbfr()); });
+  }
+
+  fml32buf &operator=(const fml32buf &other) {
+    update([&] { return Fcpy32(*fbfr(), *other.fbfr()); });
+    return *this;
+  }
+
   fml32buf(fml32buf &&) = delete;
-  fml32buf &operator=(const fml32buf &) = delete;
   fml32buf &operator=(fml32buf &&) = delete;
 
   template <typename T>
@@ -60,6 +67,13 @@ class fml32buf {
   template <typename T>
   T get(FLDID32 fieldid, FLDOCC32 oc, const T &default_value) {
     return get(fieldid, oc, default_value, identity<T>());
+  }
+
+  fml32buf &put(FLDID32 fieldid, FLDOCC32 oc, const fml32buf &value) {
+    return update([&] {
+      return Fchg32(*fbfr(), fieldid, oc,
+                    reinterpret_cast<char *>(*value.fbfr()), 0);
+    });
   }
 
   fml32buf &put(FLDID32 fieldid, FLDOCC32 oc, const std::string &value) {
@@ -76,7 +90,10 @@ class fml32buf {
     });
   }
 
-  FBFR32 **fbfr() { return fbfr_; }
+  FLDOCC32 count(FLDID32 fieldid) { return Foccur32(*fbfr(), fieldid); }
+
+  FBFR32 *ptr() const { return *fbfr_; }
+  FBFR32 **fbfr() const { return fbfr_; }
 
  private:
   fml32buf &update(std::function<int()> f) {

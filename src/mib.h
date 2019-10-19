@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <limits>
 #include <thread>
+#include <chrono>
 
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -19,10 +20,11 @@ tuxconfig getconfig(ubbconfig *ubb = nullptr);
 
 struct transaction_table;
 
+constexpr auto INVALID_TIME = std::chrono::time_point<std::chrono::steady_clock>::max();
 struct accesser {
-  int sem;
   pid_t pid;
   int rpid;
+  std::chrono::steady_clock::time_point rpid_timeout;
 };
 
 struct machine {
@@ -127,6 +129,34 @@ namespace mib {
 struct in_heap {};
 }  // namespace mib
 }  // namespace fux
+
+template <typename T>
+class mib_iterator {
+ public:
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = T;
+  using difference_type = int;
+  using pointer = T *;
+  using reference = T &;
+};
+/*
+class iterator
+        {
+            public:
+                typedef iterator self_type;
+                typedef T value_type;
+                typedef T& reference;
+                typedef T* pointer;
+                typedef std::forward_iterator_tag iterator_category;
+                typedef int difference_type;
+                iterator(pointer ptr) : ptr_(ptr) { }
+                self_type operator++() { self_type i = *this; ptr_++; return i;
+} self_type operator++(int junk) { ptr_++; return *this; } reference operator*()
+{ return *ptr_; } pointer operator->() { return ptr_; } bool operator==(const
+self_type& rhs) { return ptr_ == rhs.ptr_; } bool operator!=(const self_type&
+rhs) { return ptr_ != rhs.ptr_; } private: pointer ptr_;
+        };
+*/
 
 class mib {
  public:

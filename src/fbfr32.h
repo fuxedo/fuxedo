@@ -306,6 +306,25 @@ struct Fbfr32 {
     return fvalue(field);
   }
 
+  char *findlast(FLDID32 fieldid, FLDOCC32 *oc, FLDLEN32 *flen) {
+    auto lastoc = occur(fieldid);
+    if (lastoc == 0) {
+      Ferror32 = FNOTPRES;
+      return nullptr;
+    }
+
+    lastoc -= 1;
+    auto field = where(fieldid, lastoc);
+
+    if (oc != nullptr) {
+      *oc = lastoc;
+    }
+    if (flen != nullptr) {
+      *flen = flength(field);
+    }
+    return fvalue(field);
+  }
+
   int pres(FLDID32 fieldid, FLDOCC32 oc) {
     auto field = where(fieldid, oc);
     if (field == nullptr || field->fieldid != fieldid) {

@@ -245,16 +245,19 @@ size_t mib::find_service(const std::string &servicename) {
 }
 
 size_t mib::make_accesser(pid_t pid) {
+  ssize_t at = -1;
   for (size_t i = 0; i < accessers()->len; i++) {
     if (accessers().at(i).pid == 0) {
-      accessers().at(i).sem = fux::ipc::seminit(IPC_PRIVATE, 1);
-      accessers().at(i).pid = pid;
-      return i;
+      at = i;
+      break;
     }
   }
-  auto &accesser = accessers().at(accessers()->len);
+  if (at == -1) {
+    at = accessers()->len++;
+  }
+  auto &accesser = accessers().at(at);
   accesser.pid = pid;
-  return accessers()->len++;
+  return at;
 }
 
 size_t mib::make_service(const std::string &servicename) {
@@ -288,10 +291,7 @@ void mib::remove() {
   }
   for (size_t i = 0; i < accessers()->len; i++) {
     auto &acc = accessers().at(i);
-    if (acc.sem != -1) {
-      fux::ipc::semrm(acc.sem);
-      acc.sem = -1;
-    }
+    acc.rpid_timeout = INVALID_TIME;
     if (acc.rpid != -1) {
       msgctl(acc.rpid, IPC_RMID, NULL);
       acc.rpid = -1;

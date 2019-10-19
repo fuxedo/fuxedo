@@ -10,6 +10,10 @@ $#ifdef __cplusplus
 $}
 $#endif
 
+*base 0
+
+SRVCNM        1 string -
+
 *base 100
 
 TA_OPERATION  1 string -

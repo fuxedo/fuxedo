@@ -208,7 +208,7 @@ struct server_thread {
       res->flags = flags;
       res->mtype = req->cd;
 
-      fux::ipc::qsend(req->replyq, res, 0);
+      fux::ipc::qsend(req->replyq, res, 0, fux::ipc::flags::notime);
     }
 
     longjmp(tpreturn_env, 1);
@@ -245,7 +245,8 @@ static void dispatch() {
         if (!main_ptr->handle(thread_ptr->req->mtype, buf)) {
           // return for processing by other MSSQ servers
           userlog("Not the target receiver of message, put back in queue");
-          fux::ipc::qsend(main_ptr->request_queue, thread_ptr->req, 0);
+          fux::ipc::qsend(main_ptr->request_queue, thread_ptr->req, 0,
+                          fux::ipc::flags::notime);
         }
         continue;
       } else {

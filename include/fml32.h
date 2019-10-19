@@ -76,6 +76,7 @@ int Frstrindex32(FBFR32 *fbfr, FLDOCC32 numidx);
 int Fchg32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *value,
            FLDLEN32 len);
 char *Ffind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len);
+char *Ffindlast32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 *oc, FLDLEN32 *len);
 int Fget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *loc,
            FLDLEN32 *len);
 int Fpres32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc);

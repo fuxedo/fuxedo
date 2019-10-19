@@ -59,6 +59,12 @@ void ubb2mib(ubbconfig &u, mib &m) {
   std::map<std::string, uint16_t> group_ids;
   auto groups = m.groups();
   auto servers = m.servers();
+
+  {
+    auto &server = servers.at(m.make_server(0, 0, "BBL", "", ".BBL"));
+    server.autostart = true;
+  }
+
   for (auto &grpconf : u.groups) {
     auto grpno = checked_get(grpconf.second, "GRPNO", 1, 30000);
 

@@ -133,9 +133,49 @@ int qcreate() {
 
 static const size_t MAX_QUEUE_MSG_SIZE = 4000;
 
-bool qsend(int msqid, msg &data, int flags) {
-  data->ttype = fux::ipc::queue;
+static bool msgsnd_timed(int msqid, void *ptr, size_t len, enum flags flag, long msec) {
+  if (flag == fux::ipc::notime) {
+    int n = msgsnd(msqid, ptr, len - sizeof(long), 0);
+    if (n != -1) {
+      return true;
+    } else {
+      throw std::system_error(errno, std::system_category());
+    }
+  } else if (flag == fux::ipc::noblock) {
+    int n = msgsnd(msqid, ptr, len - sizeof(long), IPC_NOWAIT);
+    if (n != -1) {
+      return true;
+    } else {
+      if (errno == EAGAIN) {
+        return false;
+      }
+      throw std::system_error(errno, std::system_category());
+    }
+  } else {  // noflags
+      const long interval_msec = 100;
+      int times = msec / interval_msec + 2;
 
+      for (int i = 0; i < times; i++) {
+        int n = msgsnd(msqid, ptr, len - sizeof(long), IPC_NOWAIT);
+        if (n != -1) {
+          return true;
+        } else if (errno != EAGAIN) {
+          throw std::system_error(errno, std::system_category());
+        }
+        if (i == 0) {
+          // Immediate retry
+          continue;
+        }
+
+        struct timespec req = {0, interval_msec * 1000000};
+        if (nanosleep(&req, nullptr) == -1) {
+          throw std::system_error(errno, std::system_category());
+        }
+      }
+  }
+}
+
+bool qsend(int msqid, msg &data, long timeout, enum flags flags) {
   if (data.size() > MAX_QUEUE_MSG_SIZE) {
     char tmpname[] = "/tmp/msgbase-XXXXXX";
     int fd = mkstemp(tmpname);
@@ -150,24 +190,16 @@ bool qsend(int msqid, msg &data, int flags) {
     fmsg.ttype = fux::ipc::file;
     std::copy_n(tmpname, sizeof(tmpname), fmsg.filename);
     auto len = sizeof(msgbase) + sizeof(tmpname);
-    int n = msgsnd(msqid, &fmsg, len - sizeof(long), flags);
-    if (n == -1) {
+
+    if (!msgsnd_timed(msqid, &fmsg, len, flags, timeout)) {
       unlink(tmpname);
-      if (flags & IPC_NOWAIT && errno == EAGAIN) {
-        return false;
-      }
-      throw std::system_error(errno, std::system_category());
+      return false;
     }
+    return true;
   } else {
-    int n = msgsnd(msqid, data.buf(), data.size() - sizeof(long), flags);
-    if (n == -1) {
-      if (flags & IPC_NOWAIT && errno == EAGAIN) {
-        return false;
-      }
-      throw std::system_error(errno, std::system_category());
-    }
+    data->ttype = fux::ipc::queue;
+    return msgsnd_timed(msqid, data.buf(), data.size(), flags, timeout);
   }
-  return true;
 }
 
 // IPC_NOWAIT

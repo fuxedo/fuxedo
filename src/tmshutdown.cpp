@@ -64,12 +64,13 @@ int main(int argc, char *argv[]) {
       userlog("Requesting %s -g %d -i %d to shutdown", server.servername,
               server.grpno, server.srvid);
 
-      fux::ipc::qsend(queue.msqid, req, 0);
+      fux::ipc::qsend(queue.msqid, req, 0, fux::ipc::flags::notime);
 
       std::cout << "\tServer Id = " << server.srvid
                 << " Group Id = " << server.grpno << ":  shutdown succeeded"
                 << std::endl;
     }
+    m.remove();
   } catch (const std::exception &e) {
     std::cerr << e.what() << std::endl;
     return -1;

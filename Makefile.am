@@ -38,7 +38,7 @@ bin_PROGRAMS = src/mkfldhdr32 src/ud32 \
                src/tmloadcf src/tmunloadcf \
                src/buildserver src/buildclient src/buildtms \
                src/tmboot src/tmshutdown \
-               src/TMS
+               src/BBL src/TMS
 
 src_buildtms_SOURCES = src/buildtms.cpp
 src_buildserver_SOURCES = src/buildserver.cpp
@@ -49,6 +49,9 @@ src_tmboot_LDADD = src/libfuxedo.la
 
 src_TMS_SOURCES = src/tmserver.cpp src/TMS.cpp
 src_TMS_LDADD = src/libfuxedo.la
+
+src_BBL_SOURCES = src/BBL.cpp
+src_BBL_LDADD = src/libfuxedo.la
 
 src_tmshutdown_SOURCES = src/tmshutdown.cpp
 src_tmshutdown_LDADD = src/libfuxedo.la
@@ -108,3 +111,7 @@ clang-format:
                             $(top_srcdir)/src/*.cpp \
                             $(top_srcdir)/src/*.h \
                             $(top_srcdir)/tests/*.cpp
+
+installcheck-local:
+	TUXDIR=$(prefix) make -C install-tests/tpcall
+	echo "installcheck"

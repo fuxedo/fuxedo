@@ -82,6 +82,13 @@ int tpenqueue(char *qspace, char *qname, TPQCTL *ctl, char *data, long len,
 void tpforward(char *svc, char *data, long len, long flags);
 int tpgetrply(int *cd, char **data, long *len, long flags);
 
+#define TPBLK_NEXT              0x01
+#define TPBLK_ALL               0x02
+#define TPBLK_SECOND            0x00
+#define TPBLK_MILLISECOND       0x10
+int tpsblktime(int blktime, long flags);
+int tpgblktime(long flags);
+
 #ifdef __cplusplus
 }
 #endif

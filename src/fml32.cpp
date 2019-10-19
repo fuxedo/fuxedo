@@ -219,6 +219,11 @@ char *Ffind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len) {
   FLDID32_CHECK(nullptr, fieldid);
   return fbfr->find(fieldid, oc, len);
 }
+char *Ffindlast32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 *oc, FLDLEN32 *len) {
+  FBFR32_CHECK(nullptr, fbfr);
+  FLDID32_CHECK(nullptr, fieldid);
+  return fbfr->findlast(fieldid, oc, len);
+}
 int Fpres32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);

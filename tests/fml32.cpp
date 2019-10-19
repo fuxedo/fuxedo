@@ -568,6 +568,33 @@ TEST_CASE("Fadd32-Foccur32", "[fml32]") {
   Ffree32(fbfr);
 }
 
+TEST_CASE("Ffindlast32", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  REQUIRE(fbfr != nullptr);
+
+  auto fld_short = Fmkfldid32(FLD_SHORT, 10);
+
+  for (short i = 0; i < 3; i++) {
+    REQUIRE(Fadd32(fbfr, fld_short, reinterpret_cast<char *>(&i), 0) != -1);
+  }
+
+  REQUIRE(Foccur32(fbfr, fld_short) == 3);
+
+  short n;
+  FLDOCC32 oc;
+  char *p = Ffindlast32(fbfr, fld_short, nullptr, nullptr);
+  REQUIRE(p != nullptr);
+  REQUIRE(reinterpret<short>(p) == 2);
+
+  p = Ffindlast32(fbfr, fld_short, &oc, nullptr);
+  REQUIRE(p != nullptr);
+  REQUIRE(reinterpret<short>(p) == 2);
+  REQUIRE(p != nullptr);
+  REQUIRE(oc == 2);
+
+  Ffree32(fbfr);
+}
+
 TEST_CASE("Fdel32", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   REQUIRE(fbfr != nullptr);
@@ -1071,6 +1098,17 @@ TEST_CASE("Fget32 for nested fml32 does not change param size", "[fml32]") {
   tpfree((char *)fbfr);
 }
 
+TEST_CASE("Fextread32 empty buffer is OK", "[fml32]") {
+  auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
+
+  tempfile file(__LINE__);
+  fprintf(file.f, "\n");
+  fclose(file.f);
+
+  REQUIRE((file.f = fopen(file.name.c_str(), "r")) != nullptr);
+  REQUIRE(Fextread32(fbfr, file.f) != -1);
+}
+ 
 TEST_CASE("Fextread32", "[fml32]") {
   auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
 

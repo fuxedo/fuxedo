@@ -23,7 +23,7 @@ TEST_CASE_METHOD(queue_fixture, "send and receive ipc message", "[ipc]") {
   rq->flags = 1;
   rq->cd = 2;
 
-  fux::ipc::qsend(msqid, rq, 0);
+  fux::ipc::qsend(msqid, rq, 0, fux::ipc::flags::noflags);
 
   fux::ipc::qrecv(msqid, rs, 0, 0);
 
@@ -40,7 +40,7 @@ TEST_CASE_METHOD(queue_fixture, "send multiple and receive by id", "[ipc]") {
   int i = 1;
   while (true) {
     rq->mtype = i;
-    if (!fux::ipc::qsend(msqid, rq, IPC_NOWAIT)) {
+    if (!fux::ipc::qsend(msqid, rq, 0, fux::ipc::flags::noblock)) {
       i--;
       break;
     }
@@ -63,7 +63,7 @@ TEST_CASE_METHOD(queue_fixture, "send and receive file message", "[ipc]") {
   rq->flags = 1;
   rq->cd = 2;
 
-  fux::ipc::qsend(msqid, rq, 0);
+  fux::ipc::qsend(msqid, rq, 0,fux::ipc::flags::noflags);
 
   fux::ipc::qrecv(msqid, rs, 0, 0);
 

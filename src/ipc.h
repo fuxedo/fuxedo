@@ -46,7 +46,8 @@ class scoped_semlock {
 namespace ipc {
 
 enum transport : char { queue, file };
-enum category : char { application, admin };
+enum category : char { application, admin, unblock };
+enum flags : char { noflags = 0, noblock, notime };
 
 struct msgbase {
   long mtype;
@@ -88,7 +89,7 @@ class msg {
 };
 
 int qcreate();
-bool qsend(int msqid, msg &data, int flags);
+bool qsend(int msqid, msg &data, long timeout, enum flags flags);
 void qrecv(int msqid, msg &data, long msgtype, int flags);
 void qdelete(int msqid);
 
