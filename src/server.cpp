@@ -36,22 +36,6 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs);
 
 static void dispatch();
 
-int _tmrunserver(int) {
-  if (_tmbuilt_with_thread_option) {
-    std::vector<std::thread> threads;
-    for (int i = 0; i < 3; i++) {
-      threads.emplace_back(std::thread(dispatch));
-    }
-
-    for (auto &t : threads) {
-      t.join();
-    }
-  } else {
-    dispatch();
-  }
-  return 0;
-}
-
 int tprminit(char *, void *) { return 0; }
 int tpsvrinit(int, char **) { return 0; }
 void tpsvrdone() {}
@@ -82,6 +66,8 @@ struct server_main {
   server_main(mib &m) : m_(m), stop(false), req_counter_(0) {
     mtype_ = std::numeric_limits<long>::min();
   }
+
+  void active() { m_.servers().at(mib_server).status = 'A'; }
 
   int tpadvertise(const char *svcname, void (*func)(TPSVCINFO *)) {
     fux::scoped_fuxlock lock(mutex);
@@ -170,6 +156,23 @@ struct server_main {
 };
 
 static std::unique_ptr<server_main> main_ptr;
+
+int _tmrunserver(int) {
+  main_ptr->active();
+  if (_tmbuilt_with_thread_option) {
+    std::vector<std::thread> threads;
+    for (int i = 0; i < 3; i++) {
+      threads.emplace_back(std::thread(dispatch));
+    }
+
+    for (auto &t : threads) {
+      t.join();
+    }
+  } else {
+    dispatch();
+  }
+  return 0;
+}
 
 struct server_thread {
   server_thread() : atmibuf(nullptr) {

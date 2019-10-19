@@ -26,6 +26,7 @@ static void start(server &srv) {
     return;
   }
 
+  srv.status = '?';
   auto pid = fork();
   if (pid == 0) {
     std::vector<const char *> argv;
@@ -45,6 +46,18 @@ static void start(server &srv) {
     }
   } else if (pid > 0) {
     srv.pid = pid;
+    for (;;) {
+      if (srv.status == 'A') {
+        break;
+      } else if (!alive(pid)) {
+        break;
+      } else {
+        struct timespec req = {0, 100000000};
+        if (nanosleep(&req, nullptr) == -1) {
+          throw std::system_error(errno, std::system_category());
+        }
+      }
+    }
     if (alive(pid)) {
       std::cout << "\tprocess id=" << srv.pid << " ... Started." << std::endl;
     } else {

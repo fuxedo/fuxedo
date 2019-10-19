@@ -56,6 +56,7 @@ struct server {
   pid_t pid;
   time_t last_alive_time;
   size_t rqaddr;
+  char status;
   char servername[128];
   char clopt[1024];
 };
