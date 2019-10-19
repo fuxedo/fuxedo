@@ -28,7 +28,10 @@ struct accesser {
 };
 
 struct machine {
-  char address[30];
+  // char address[30];
+  // Does not fit Travis CI machine names like
+  // travis-job-639f543d-4c99-47ee-b050-1a08446902d8
+  char address[64];
   char lmid[30];
   char tuxconfig[256];
   char tuxdir[256];
