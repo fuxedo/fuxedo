@@ -110,8 +110,9 @@ clang-format:
                             $(top_srcdir)/include/*.h \
                             $(top_srcdir)/src/*.cpp \
                             $(top_srcdir)/src/*.h \
-                            $(top_srcdir)/tests/*.cpp
+                            $(top_srcdir)/tests/*.cpp \
+                            $(top_srcdir)/install-tests/*/*.c
 
 installcheck-local:
+	TUXDIR=$(prefix) make -C install-tests/server
 	TUXDIR=$(prefix) make -C install-tests/tpcall
-	echo "installcheck"

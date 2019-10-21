@@ -53,6 +53,9 @@ int main(int argc, char *argv[]) {
 
     for (int i = servers->len - 1; i >= 0; i--) {
       auto &server = servers[i];
+      if (server.pid == 0) {
+        continue;
+      }
       auto &queue = queues.at(server.rqaddr);
 
       buf.put(FUX_SRVID, 0, server.srvid);

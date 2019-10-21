@@ -49,6 +49,8 @@ struct group {
   char tmsname[256];
 };
 
+enum struct state_t { active, inactive };
+
 struct server {
   uint16_t srvid;
   uint16_t grpno;
@@ -56,7 +58,7 @@ struct server {
   pid_t pid;
   time_t last_alive_time;
   size_t rqaddr;
-  char status;
+  state_t state;
   char servername[128];
   char clopt[1024];
 };

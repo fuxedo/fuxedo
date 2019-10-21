@@ -13,23 +13,26 @@ int main(int argc, char *argv[]) {
   assert(rcvbuf != NULL);
 
   long rcvlen = 6;
-  int ret = tpcall("SERVICE_TPSUCCESS", sndbuf, 0, &rcvbuf, &rcvlen, 0);
+  int ret = tpcall("SERVICE", sndbuf, 0, &rcvbuf, &rcvlen, 0);
   if (ret == -1) {
     fprintf(stderr, "%s\n", tpstrerror(tperrno));
   }
   assert(ret != -1);
-  assert(tpurcode == 1);
 
   assert(strcmp(rcvbuf, "HELLO") == 0);
 
   memset(rcvbuf, 0, rcvlen);
 
-  ret = tpcall("SERVICE_TPFAIL", sndbuf, 0, &rcvbuf, &rcvlen, 0);
-  assert(ret == -1);
-  assert(tperrno == TPESVCFAIL);
-  assert(tpurcode == 2);
+  ret = tpcall("MTSERVICE", sndbuf, 0, &rcvbuf, &rcvlen, 0);
+  assert(ret != -1);
 
   assert(strcmp(rcvbuf, "HELLO") == 0);
+
+  memset(rcvbuf, 0, rcvlen);
+
+  ret = tpcall("FAILSERVICE", sndbuf, 0, &rcvbuf, &rcvlen, 0);
+  assert(ret == -1);
+  assert(tperrno == TPENOENT);
 
   tpfree(sndbuf);
   tpfree(rcvbuf);

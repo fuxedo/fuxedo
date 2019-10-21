@@ -28,7 +28,7 @@
 extern "C" {
 #endif
 int _tmrunserver(int);
-int _tmbuilt_with_thread_option = 0;
+int _tmbuilt_with_thread_option;
 int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs);
 #if defined(__cplusplus)
 }
@@ -67,7 +67,7 @@ struct server_main {
     mtype_ = std::numeric_limits<long>::min();
   }
 
-  void active() { m_.servers().at(mib_server).status = 'A'; }
+  void active() { m_.servers().at(mib_server).state = state_t::active; }
 
   int tpadvertise(const char *svcname, void (*func)(TPSVCINFO *)) {
     fux::scoped_fuxlock lock(mutex);
@@ -158,28 +158,12 @@ struct server_main {
 static std::unique_ptr<server_main> main_ptr;
 
 int _tmrunserver(int) {
-  main_ptr->active();
-  if (_tmbuilt_with_thread_option) {
-    std::vector<std::thread> threads;
-    for (int i = 0; i < 3; i++) {
-      threads.emplace_back(std::thread(dispatch));
-    }
-
-    for (auto &t : threads) {
-      t.join();
-    }
-  } else {
-    dispatch();
-  }
+  // Just a placeholder
   return 0;
 }
 
 struct server_thread {
-  server_thread() : atmibuf(nullptr) {
-    main_ptr->tmsvrargs->svrthrinit(main_ptr->argc, main_ptr->argv);
-  }
-
-  ~server_thread() { main_ptr->tmsvrargs->svrthrdone(); }
+  server_thread() : atmibuf(nullptr) {}
 
   void prepare() {
     if (atmibuf == nullptr) {
@@ -229,7 +213,7 @@ static void dispatch() {
     }
 
     TPSVCINFO tpsvcinfo;
-    do {
+    {
       fux::scoped_fuxlock lock(main_ptr->mutex);
       if (main_ptr->stop) {
         break;
@@ -255,7 +239,7 @@ static void dispatch() {
       } else {
         // else continue processing without global lock
       }
-    } while (false);
+    }
 
     checked_copy(thread_ptr->req->servicename, tpsvcinfo.name);
     tpsvcinfo.flags = thread_ptr->req->flags;
@@ -270,6 +254,15 @@ static void dispatch() {
   }
 
   thread_ptr.reset();
+}
+
+static void thread_dispatch(tmsvrargs_t *tmsvrargs, int argc, char *argv[]) {
+  if (int n = tmsvrargs->svrthrinit(argc, argv); n != 0) {
+    userlog("tpsvrthrinit() = %d", n);
+    return;
+  }
+  dispatch();
+  tmsvrargs->svrthrdone();
 }
 
 namespace fux {
@@ -344,6 +337,11 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   main_ptr->tmsvrargs = tmsvrargs;
   fux::glob::xa_switch = tmsvrargs->xa_switch;
 
+  if (int n = tmsvrargs->svrinit(argc, argv); n != 0) {
+    userlog("tpsvrinit() = %d", n);
+    return -1;
+  }
+
   if (all) {
     struct tmdsptchtbl_t *rec = tmsvrargs->tmdsptchtbl;
     while (rec->svcname != nullptr && strlen(rec->svcname) > 0) {
@@ -356,8 +354,23 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
     }
   }
 
-  tmsvrargs->svrinit(argc, argv);
+  main_ptr->active();
+
+  if (_tmbuilt_with_thread_option) {
+    std::vector<std::thread> threads;
+    for (int i = 0; i < 3; i++) {
+      threads.emplace_back(std::thread(thread_dispatch, tmsvrargs, argc, argv));
+    }
+
+    for (auto &t : threads) {
+      t.join();
+    }
+  } else {
+    dispatch();
+  }
+
   tmsvrargs->mainloop(0);
+
   tmsvrargs->svrdone();
   return 0;
 }

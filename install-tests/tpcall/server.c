@@ -1,5 +1,5 @@
-#include <userlog.h>
 #include <atmi.h>
+#include <userlog.h>
 
 void SERVICE_TPSUCCESS(TPSVCINFO *svcinfo) {
   userlog(":TEST: %s called", __func__);

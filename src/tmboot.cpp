@@ -10,6 +10,7 @@
 
 #include <signal.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <cstdlib>
 
@@ -26,7 +27,7 @@ static void start(server &srv) {
     return;
   }
 
-  srv.status = '?';
+  srv.state = state_t::inactive;
   auto pid = fork();
   if (pid == 0) {
     std::vector<const char *> argv;
@@ -40,6 +41,12 @@ static void start(server &srv) {
     argv.push_back("-A");
     argv.push_back(nullptr);
 
+    if (freopen("/dev/null", "r", stdin) == nullptr ||
+        freopen("stdout", "a", stdout) == nullptr ||
+        freopen("stderr", "a", stderr) == nullptr) {
+      exit(-1);
+    }
+
     if (execvp(srv.servername, (char *const *)&argv[0]) == -1) {
       // perror("AAAAAAAA");
       exit(-1);
@@ -47,22 +54,23 @@ static void start(server &srv) {
   } else if (pid > 0) {
     srv.pid = pid;
     for (;;) {
-      if (srv.status == 'A') {
+      if (srv.state == state_t::active) {
         break;
-      } else if (!alive(pid)) {
+      }
+      if (int n = waitpid(pid, nullptr, WNOHANG); n == pid || n == -1) {
         break;
-      } else {
-        struct timespec req = {0, 100000000};
-        if (nanosleep(&req, nullptr) == -1) {
-          throw std::system_error(errno, std::system_category());
-        }
+      }
+
+      struct timespec req = {0, 100000000};
+      if (nanosleep(&req, nullptr) == -1) {
+        throw std::system_error(errno, std::system_category());
       }
     }
     if (alive(pid)) {
       std::cout << "\tprocess id=" << srv.pid << " ... Started." << std::endl;
     } else {
-      std::cout << "\tINFO: process id=" << srv.pid << " Assume started (pipe)."
-                << std::endl;
+      srv.pid = 0;
+      std::cout << "\tFailed." << std::endl;
     }
   }
 }
