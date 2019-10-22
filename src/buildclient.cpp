@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include <sys/wait.h>
 #include <cstdlib>
 
 #include "misc.h"

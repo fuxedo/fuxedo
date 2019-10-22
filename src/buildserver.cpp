@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include <sys/wait.h>
 #include <unistd.h>
 #include <cstdio>
 
