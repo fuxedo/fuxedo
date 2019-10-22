@@ -171,5 +171,5 @@ int main(int argc, char *argv[]) {
   if (!keep) {
     unlink(filename.c_str());
   }
-  return rc;
+  return WEXITSTATUS(rc);
 }

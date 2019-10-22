@@ -61,5 +61,5 @@ int main(int argc, char *argv[]) {
     std::cout << command << std::endl;
   }
 
-  return std::system(command.c_str());
+  return WEXITSTATUS(std::system(command.c_str()));
 }

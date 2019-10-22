@@ -129,7 +129,13 @@ class client {
   }
 
   int tpgetrply(int *cd, char **data, long *len, long flags) {
-    fux::ipc::qrecv(rpid, res, *cd, 0);
+    fux::ipc::msg res;
+
+    if (flags & TPGETANY) {
+      fux::ipc::qrecv(rpid, res, 0, 0);
+    } else {
+      fux::ipc::qrecv(rpid, res, *cd, 0);
+    }
     if (res->cat == fux::ipc::unblock) {
       TPERROR(TPETIME, "Timeout message received");
       return -1;
@@ -137,14 +143,16 @@ class client {
 
     res.get_data(data);
     tpurcode = res->rcode;
+    *cd = res->cd;
+    fux::glob::calldescs()->release(*cd);
     if (len != nullptr) {
       *len = res.size_data();
     }
-    if (res->rval == TPSUCCESS) {
+    if (res->rval == TPMINVAL) {
       fux::atmi::reset_tperrno();
       return 0;
     }
-    TPERROR(TPESVCFAIL, "Service failed with %d", res->rval);
+    TPERROR(res->rval, "Service failed with %d", res->rval);
     return -1;
   }
 
@@ -226,6 +234,8 @@ class client {
     return blocktime;
   }
 
+  int get_queue(const char *svc) { return repo_.get_queue(svc); }
+
  private:
   fux::ipc::flags to_flags(long flags) {
     if (flags & TPNOTIME) {
@@ -240,7 +250,8 @@ class client {
   mib &mibcon_;
   size_t client_;
   service_repository repo_;
-  fux::ipc::msg rq, res;
+  fux::ipc::msg rq;
+  std::vector<fux::ipc::msg> responses;
   int rpid;
   long blocktime_next;
   long blocktime_all;
@@ -288,3 +299,5 @@ int tpsblktime(int blktime, long flags) {
   return getclient().tpsblktime(blktime, flags);
 }
 int tpgblktime(long flags) { return getclient().tpgblktime(flags); }
+
+int get_queue(const char *svc) { return getclient().get_queue(svc); }

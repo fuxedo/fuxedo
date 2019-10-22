@@ -116,3 +116,5 @@ clang-format:
 installcheck-local:
 	TUXDIR=$(prefix) make -C install-tests/server
 	TUXDIR=$(prefix) make -C install-tests/tpcall
+	TUXDIR=$(prefix) make -C install-tests/tpacall
+	TUXDIR=$(prefix) make -C install-tests/tpforward

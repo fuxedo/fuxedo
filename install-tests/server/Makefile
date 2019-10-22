@@ -8,7 +8,6 @@ export TUXCONFIG:=$(CURDIR)/tuxconfig
 
 check: server mtserver failserver client tuxconfig
 	-rm -f ULOG.*
-	-tmipcrm -y
 	tmboot -y
 	./client
 	tmshutdown -y

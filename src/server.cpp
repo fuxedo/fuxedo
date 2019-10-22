@@ -44,6 +44,8 @@ void tpsvrthrdone() {}
 
 void ubb2mib(ubbconfig &u, mib &m);
 
+int get_queue(const char *svc);
+
 struct server_main {
   uint16_t srvid;
   uint16_t grpno;
@@ -177,6 +179,28 @@ struct server_thread {
   char *atmibuf;
   jmp_buf tpreturn_env;
 
+  void tpforward(char *svc, char *data, long len, long flags) {
+    int msqid = get_queue(svc);
+    res.set_data(data, len);
+
+    if (data != nullptr && data != atmibuf) {
+      tpfree(data);
+    }
+
+    if (flags != 0) {
+      userlog("tpforward with flags!=0");
+    }
+    checked_copy(svc, res->servicename);
+    res->flags = flags;
+    res->replyq = req->replyq;
+    res->mtype = req->cd;
+    res->cd = req->cd;
+
+    fux::ipc::qsend(msqid, res, 0, fux::ipc::flags::notime);
+
+    longjmp(tpreturn_env, 1);
+  }
+
   void tpreturn(int rval, long rcode, char *data, long len, long flags) {
     if (req->replyq != -1) {
       res.set_data(data, len);
@@ -194,6 +218,7 @@ struct server_thread {
       res->rcode = rcode;
       res->flags = flags;
       res->mtype = req->cd;
+      res->cd = req->cd;
 
       fux::ipc::qsend(req->replyq, res, 0, fux::ipc::flags::notime);
     }
@@ -396,7 +421,28 @@ void tpreturn(int rval, long rcode, char *data, long len, long flags) try {
     TPERROR(TPEPROTO, "%s can't be called from client", __func__);
     abort();
   }
+  if (rval == TPSUCCESS) {
+    rval = TPMINVAL;
+  } else if (rval == TPFAIL) {
+    rval = TPESVCFAIL;
+  } else if (rval == TPEXIT) {
+    rval = TPESVCERR;
+  } else {
+    rval = TPESVCERR;
+  }
   return thread_ptr->tpreturn(rval, rcode, data, len, flags);
 } catch (...) {
+  userlog("tpreturn failed");
   longjmp(thread_ptr->tpreturn_env, -1);
+}
+
+void tpforward(char *svc, char *data, long len, long flags) try {
+  if (!main_ptr) {
+    TPERROR(TPEPROTO, "%s can't be called from client", __func__);
+    abort();
+  }
+  return thread_ptr->tpforward(svc, data, len, flags);
+} catch (...) {
+  userlog("tpforward failed");
+  tpreturn(TPESVCERR, 0, data, len, flags);
 }

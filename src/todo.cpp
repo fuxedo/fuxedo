@@ -8,4 +8,3 @@ int tpenqueue(char *qspace, char *qname, TPQCTL *ctl, char *data, long len,
               long flags) {
   return -1;
 }
-void tpforward(char *svc, char *data, long len, long flags) {}
