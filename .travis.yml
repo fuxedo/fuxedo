@@ -9,7 +9,7 @@ matrix:
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-xenial-5.0']
-          packages: ['clang-5.0', 'libstdc++-8-dev', 'lcov']
+          packages: ['clang-5.0', 'libstdc++-8-dev']
       env: COMPILER='clang++-5.0'
 
 
@@ -19,7 +19,7 @@ matrix:
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-xenial-6.0']
-          packages: ['clang-6.0', 'libstdc++-8-dev', 'lcov']
+          packages: ['clang-6.0', 'libstdc++-8-dev']
       env: COMPILER='clang++-6.0'
 
     - os: linux
@@ -27,8 +27,16 @@ matrix:
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
-          packages: ['g++-7', 'lcov']
-      env: COMPILER='g++-7' COVERAGE=1
+          packages: ['g++-7']
+      env: COMPILER='g++-7'
+
+    - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources: ['ubuntu-toolchain-r-test']
+          packages: ['g++-8']
+      env: COMPILER='g++-8'
 
     - os: linux
       compiler: gcc
@@ -39,8 +47,8 @@ matrix:
       env: COMPILER='g++-8' COVERAGE=1
 
 
+
 before_script:
-  - sysctl -a
   - export CXX=${COMPILER}
   - ./autogen.sh
 
@@ -56,7 +64,10 @@ script:
   - make install && make installcheck
 
 after_success:
-  - lcov --capture --directory . --output-file coverage.info
-  - lcov --remove coverage.info '/usr/*' '*/tests/*' '*/third_party/*' --output-file coverage.info
-  - lcov --list coverage.info
-  - bash <(curl -s https://codecov.io/bash) -f coverage.info || echo "Codecov did not collect coverage reports"
+  - |
+    if [[ "${COVERAGE}" == "1" ]]; then
+      lcov --capture --directory . --output-file coverage.info
+      lcov --remove coverage.info '/usr/*' '*/tests/*' '*/third_party/*' --output-file coverage.info
+      lcov --list coverage.info
+      bash <(curl -s https://codecov.io/bash) -f coverage.info || echo "Codecov did not collect coverage reports"
+    fi
