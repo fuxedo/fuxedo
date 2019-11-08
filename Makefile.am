@@ -1,8 +1,8 @@
 ACLOCAL_AMFLAGS = -I m4
 
 if CODE_COVERAGE_ENABLED 
-gcov_flags = -fprofile-arcs -ftest-coverage --coverage
-gcov_ldflags = -lgcov
+gcov_flags = -fprofile-arcs -ftest-coverage
+gcov_ldflags = -fprofile-arcs -ftest-coverage -lgcov
 endif
 
 AM_CXXFLAGS = -g -Wall -Wextra $(gcov_flags) \
