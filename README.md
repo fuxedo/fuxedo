@@ -3,6 +3,7 @@
 Making the world a better place through minimal message-oriented transport layers.
 
 [![Build Status](https://travis-ci.org/fuxedo/fuxedo.svg?branch=master)](https://travis-ci.org/fuxedo/fuxedo)
+[![codecov](https://codecov.io/gh/fuxedo/fuxedo/branch/master/graph/badge.svg)](https://codecov.io/gh/fuxedo/fuxedo)
 
 ## Why Fuxedo?
 
