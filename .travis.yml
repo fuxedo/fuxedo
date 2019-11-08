@@ -28,7 +28,7 @@ matrix:
         apt:
           sources: ['ubuntu-toolchain-r-test']
           packages: ['g++-7', 'lcov']
-      env: COMPILER='g++-7'
+      env: COMPILER='g++-7' COVERAGE=1
 
     - os: linux
       compiler: gcc
@@ -36,7 +36,7 @@ matrix:
         apt:
           sources: ['ubuntu-toolchain-r-test']
           packages: ['g++-8', 'lcov']
-      env: COMPILER='g++-8'
+      env: COMPILER='g++-8' COVERAGE=1
 
 
 before_script:
@@ -45,7 +45,13 @@ before_script:
   - ./autogen.sh
 
 script:
-  - ./configure --prefix=/home/travis/fuxbin --enable-code-coverage
+  - # Coverage linking fails with clang
+  - |
+    if [[ "${COVERAGE}" == "1" ]]; then
+    	./configure --prefix=/home/travis/fuxbin --enable-code-coverage CXXFLAGS="-O0 -g"
+    else
+    	./configure --prefix=/home/travis/fuxbin
+    fi
   - make && make check
   - make install && make installcheck
 
