@@ -1,8 +1,8 @@
 ACLOCAL_AMFLAGS = -I m4
 
-if GCOV
-gcov_flags = -fprofile-arcs -ftest-coverage
-AM_LFLAGS = -lgcov
+if CODE_COVERAGE_ENABLED 
+gcov_flags = -fprofile-arcs -ftest-coverage --coverage
+gcov_ldflags = -lgcov
 endif
 
 AM_CXXFLAGS = -g -Wall -Wextra $(gcov_flags) \
@@ -11,6 +11,7 @@ AM_CXXFLAGS = -g -Wall -Wextra $(gcov_flags) \
               -I$(top_srcdir)/third_party/clara \
               -I$(top_srcdir)/third_party/GSL
 
+AM_LDFLAGS = $(gcov_ldflags)
 
 include_HEADERS = include/atmi.h include/xatmi.h \
                   include/fml32.h \
