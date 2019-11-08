@@ -14,6 +14,7 @@ TEST_CASE("tpalloc", "[tp-memory]") {
       THEN("error is returned") {
         REQUIRE(ptr == nullptr);
         REQUIRE(tperrno == TPEINVAL);
+        REQUIRE(strlen(tpstrerror(tperrno)) > 1);
       }
     }
   }
@@ -49,6 +50,7 @@ TEST_CASE("tpalloc", "[tp-memory]") {
       THEN("error is returned") {
         REQUIRE(ptr == nullptr);
         REQUIRE(tperrno == TPENOENT);
+        REQUIRE(strlen(tpstrerror(tperrno)) > 1);
       }
     }
   }
@@ -63,6 +65,7 @@ TEST_CASE("tptypes", "[tp-memory]") {
       THEN("error is returned") {
         REQUIRE(tptypes(ptr, type, subtype) == -1);
         REQUIRE(tperrno == TPEINVAL);
+        REQUIRE(strlen(tpstrerror(tperrno)) > 1);
       }
     }
   }

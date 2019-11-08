@@ -9,49 +9,6 @@
 #include "fux.h"
 #include "mib.h"
 
-static void tm(fux::fml32buf &buf) {
-  auto func = buf.get<long>(fux::tm::FUX_XAFUNC, 0);
-  auto xids = buf.get<std::string>(fux::tm::FUX_XAXID, 0);
-  int rmid = buf.get<long>(fux::tm::FUX_XARMID, 0);
-  long flags = buf.get<long>(fux::tm::FUX_XAFLAGS, 0);
-
-  XID xid;
-  std::copy_n(&xids[0], xids.size(), reinterpret_cast<char *>(&xid));
-  int ret;
-  switch (func) {
-    case fux::tm::prepare:
-      ret = fux::glob::xaswitch()->xa_prepare_entry(&xid, rmid, flags);
-      break;
-    case fux::tm::commit:
-      ret = fux::glob::xaswitch()->xa_commit_entry(&xid, rmid, flags);
-      break;
-    case fux::tm::rollback:
-      ret = fux::glob::xaswitch()->xa_rollback_entry(&xid, rmid, flags);
-      break;
-    default:
-      ret = XAER_INVAL;
-  }
-  buf.put(fux::tm::FUX_XARET, 0, ret);
-}
-
-extern "C" void TMIB(TPSVCINFO *svcinfo) {
-  fux::fml32buf buf(svcinfo);
-  tm(buf);
-
-  mib &m = getmib();
-  auto now = std::chrono::steady_clock::now();
-  auto accessers = m.accessers();
-  for (size_t i = 0; i < accessers->len; i++) {
-    auto &acc = accessers[i];
-    if (acc.rpid_timeout < now) {
-      fux::ipc::msg req;
-      req->cat = fux::ipc::unblock;
-      fux::ipc::qsend(acc.rpid, req, 0, fux::ipc::flags::notime);
-    }
-  }
-
-  fux::tpreturn(TPSUCCESS, 0, buf);
-}
 #include <atmi.h>
 #include <stdio.h>
 #include <xa.h>
@@ -67,10 +24,12 @@ extern int _tmbuilt_with_thread_option;
 }
 #endif
 
+static int bblrunserver(int);
+
 static struct tmdsptchtbl_t _tmdsptchtbl[] = {
     {".TMIB", "TMIB", TMIB, 0, 0, NULL}, {NULL, NULL, NULL, 0, 0, NULL}};
 static struct tmsvrargs_t tmsvrargs = {
-    &tmnull_switch, _tmdsptchtbl, 0,    tpsvrinit, tpsvrdone, _tmrunserver,
+    &tmnull_switch, _tmdsptchtbl, 0,    tpsvrinit, tpsvrdone, bblrunserver,
     NULL,           NULL,         NULL, NULL,      tprminit,  tpsvrthrinit,
     tpsvrthrdone,   NULL};
 
@@ -81,4 +40,75 @@ struct tmsvrargs_t *_tmgetsvrargs() {
 int main(int argc, char **argv) {
   _tmbuilt_with_thread_option = 0;
   return _tmstartserver(argc, argv, _tmgetsvrargs());
+}
+
+static void handle_blocktime() {
+  mib &m = getmib();
+  auto now = std::chrono::steady_clock::now();
+
+  auto accessers = m.accessers();
+  for (size_t i = 0; i < accessers->len; i++) {
+    auto &acc = accessers[i];
+    if (acc.rpid_timeout < now) {
+      fux::ipc::msg req;
+      req->cat = fux::ipc::unblock;
+      fux::ipc::qsend(acc.rpid, req, 0, fux::ipc::flags::notime);
+    }
+  }
+}
+
+static void monitor_servers() {
+  mib &m = getmib();
+  auto servers = m.servers();
+
+  for (int i = servers->len - 1; i >= 0; i--) {
+    auto &server = servers[i];
+    if (server.pid == 0) {
+      continue;
+    }
+    if (!alive(server.pid)) {
+      server.pid = 0;
+    }
+  }
+}
+
+static void monitor_clients() {
+  mib &m = getmib();
+  auto accessers = m.accessers();
+
+  for (int i = accessers->len - 1; i >= 0; i--) {
+    auto &accesser = accessers[i];
+    if (accesser.pid == 0) {
+      continue;
+    }
+    if (!alive(accesser.pid)) {
+      accesser.pid = 0;
+      if (accesser.rpid != 0) {
+        fux::ipc::qdelete(accesser.rpid);
+        accesser.rpid = 0;
+      }
+    }
+  }
+}
+
+static void run_watchdog() {
+  while (true) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    handle_blocktime();
+    monitor_servers();
+    monitor_clients();
+  }
+}
+
+static int bblrunserver(int x) {
+  std::thread t(run_watchdog);
+  t.detach();
+  return _tmrunserver(x);
+}
+
+extern "C" void TMIB(TPSVCINFO *svcinfo) {
+  fux::fml32buf buf(svcinfo);
+
+  fux::tpreturn(TPSUCCESS, 0, buf);
 }

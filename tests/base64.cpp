@@ -23,6 +23,20 @@ static std::string b64decode(const std::string &s) {
   return result;
 }
 
+TEST_CASE("insufficient space raises exception", "[base64]") {
+  std::string input = "does not matter how large";
+  std::string output;
+  output.resize(4);  // clearly too little
+
+  REQUIRE_THROWS_AS(
+      base64encode(input.data(), input.size(), &output[0], output.size()),
+      std::range_error);
+
+  REQUIRE_THROWS_AS(
+      base64decode(input.data(), input.size(), &output[0], output.size()),
+      std::range_error);
+}
+
 TEST_CASE("encode strings", "[base64]") {
   REQUIRE(b64encode("fuxedo.io") == "ZnV4ZWRvLmlv");
   REQUIRE(b64encode("a") == "YQ==");

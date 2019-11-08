@@ -39,5 +39,6 @@ int main(int argc, char *argv[]) {
     std::cout << command << std::endl;
   }
 
-  return std::system(command);
+  int rc = std::system(command);
+  return WEXITSTATUS(rc);
 }

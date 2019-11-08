@@ -25,6 +25,10 @@ void reset_Ferror32() {
 }  // namespace fml32
 }  // namespace fux
 
+#define FERROR(err, fmt, args...)                                          \
+  fux::fml32::set_Ferror32(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
+                           __LINE__, ##args)
+
 int *_tls_Ferror32() { return &fux::fml32::Ferror32_; }
 
 static const char *Fstrerror32_(int err) {
@@ -116,11 +120,11 @@ FBFR32 *Falloc32(FLDOCC32 F, FLDLEN32 V) {
 #define FBFR32_CHECK(err, fbfr)                              \
   do {                                                       \
     if (fbfr == nullptr) {                                   \
-      Ferror32 = FNOTFLD;                                    \
+      FERROR(FNOTFLD, "fbfr is NULL");                       \
       return err;                                            \
     }                                                        \
     if ((reinterpret_cast<intptr_t>(fbfr) & (8 - 1)) != 0) { \
-      Ferror32 = FNOTFLD;                                    \
+      FERROR(FNOTFLD, "fbfr is aligned");                    \
       return err;                                            \
     }                                                        \
   } while (false)
@@ -129,10 +133,11 @@ FBFR32 *Falloc32(FLDOCC32 F, FLDLEN32 V) {
   do {                                                                      \
     if (!Fbfr32fields::valid_fldtype32(Fbfr32fields::Fldtype32(fieldid))) { \
       Ferror32 = FTYPERR;                                                   \
+      FERROR(FTYPERR, "fldid of unknown type");                             \
       return err;                                                           \
     }                                                                       \
     if (fldid == BADFLDID) {                                                \
-      Ferror32 = FBADFLD;                                                   \
+      FERROR(FBADFLD, "fldid is 0");                                        \
       return err;                                                           \
     }                                                                       \
   } while (false)
@@ -140,7 +145,7 @@ FBFR32 *Falloc32(FLDOCC32 F, FLDLEN32 V) {
 int Finit32(FBFR32 *fbfr, FLDLEN32 buflen) {
   FBFR32_CHECK(-1, fbfr);
   if (buflen < Fneeded32(0, 0)) {
-    Ferror32 = FNOSPACE;
+    FERROR(FNOSPACE, "%d is less than minimum requirement", buflen);
   }
   return fbfr->init(buflen);
 }
@@ -150,7 +155,7 @@ FBFR32 *Frealloc32(FBFR32 *fbfr, FLDOCC32 F, FLDLEN32 V) {
 
   long buflen = Fneeded32(F, V);
   if (buflen < Fused32(fbfr)) {
-    Ferror32 = FMALLOC;
+    FERROR(FNOSPACE, "%d is less than current size", buflen);
     return nullptr;
   }
 

@@ -197,6 +197,39 @@ TEST_CASE("Ffindocc32", "[fml32]") {
   Ffree32(fbfr);
 }
 
+TEST_CASE("CFfindocc32", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  REQUIRE(fbfr != nullptr);
+
+  auto fld_long = Fmkfldid32(FLD_LONG, 10);
+  for (long i = 10; i < 13; i++) {
+    REQUIRE(Fchg32(fbfr, fld_long, i - 10, reinterpret_cast<char *>(&i), 0) !=
+            -1);
+  }
+
+  REQUIRE(CFfindocc32(fbfr, fld_long, const_cast<char *>("9"), 0, FLD_STRING) ==
+          -1);
+  REQUIRE(Ferror32 == FNOTPRES);
+  REQUIRE(strlen(Fstrerror32(Ferror32)) > 1);
+
+  REQUIRE(CFfindocc32(fbfr, fld_long, const_cast<char *>("10"), 0,
+                      FLD_STRING) == 0);
+
+  Ffree32(fbfr);
+}
+
+TEST_CASE("indexing stubs work", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  REQUIRE(fbfr != nullptr);
+
+  REQUIRE(Fidxused32(fbfr) != -1);
+  REQUIRE(Findex32(fbfr, 16) != -1);
+  REQUIRE(Funindex32(fbfr) != -1);
+  REQUIRE(Frstrindex32(fbfr, 16) != -1);
+
+  Ffree32(fbfr);
+}
+
 TEST_CASE("Ftypcvt32", "[fml32]") {
   char c;
   double d;
@@ -282,15 +315,46 @@ TEST_CASE_METHOD(FieldFixture, "CFfind32", "[fml32]") {
               CFfind32(fbfr, fld_short, 0, nullptr, FLD_FLOAT)) == f);
   REQUIRE(reinterpret<double>(
               CFfind32(fbfr, fld_long, 0, nullptr, FLD_DOUBLE)) == d);
-  REQUIRE(reinterpret_cast<char *>(CFfind32(
-              fbfr, fld_char, 0, nullptr, FLD_STRING)) == std::string("\x0d"));
+
+  REQUIRE(CFfind32(fbfr, fld_char, 0, nullptr, FLD_STRING) ==
+          std::string("\x0d"));
+
   REQUIRE(reinterpret<long>(CFfind32(fbfr, fld_float, 0, nullptr, FLD_LONG)) ==
           l);
-  REQUIRE(reinterpret_cast<char *>(CFfind32(fbfr, fld_double, 0, nullptr,
-                                            FLD_STRING)) == str + ".000000");
+
+  REQUIRE(CFfind32(fbfr, fld_double, 0, nullptr, FLD_STRING) ==
+          str + ".000000");
 
   REQUIRE(reinterpret<char>(CFfind32(fbfr, fld_string, 0, nullptr, FLD_CHAR)) ==
           '1');
+
+  Ffree32(fbfr);
+}
+
+TEST_CASE_METHOD(FieldFixture, "Ffinds32", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  REQUIRE(fbfr != nullptr);
+
+  set_fields(fbfr);
+
+  REQUIRE(Ffinds32(fbfr, fld_char, 0) == std::string("\x0d"));
+  REQUIRE(Ffinds32(fbfr, fld_double, 0) == str + ".000000");
+
+  Ffree32(fbfr);
+}
+
+TEST_CASE_METHOD(FieldFixture, "Fgets32", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  REQUIRE(fbfr != nullptr);
+
+  set_fields(fbfr);
+
+  char buf[100];
+  REQUIRE(Fgets32(fbfr, fld_char, 0, buf) != -1);
+  REQUIRE(buf == std::string("\x0d"));
+
+  REQUIRE(Fgets32(fbfr, fld_double, 0, buf) != -1);
+  REQUIRE(buf == str + ".000000");
 
   Ffree32(fbfr);
 }

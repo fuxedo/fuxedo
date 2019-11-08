@@ -12,6 +12,12 @@
 #include <string>
 #include <vector>
 
+#include <signal.h>
+#include <sys/types.h>
+
+std::string string_format(const char *fmt, ...)
+    __attribute__((format(printf, 1, 2)));
+
 #define TPERROR(err, fmt, args...)                                       \
   fux::atmi::set_tperrno(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
                          __LINE__, ##args)
@@ -39,7 +45,8 @@ void reset_tperrno();
 template <unsigned int N>
 void checked_copy(const std::string &src, char (&dst)[N]) {
   if (src.size() >= N) {
-    throw std::length_error(src + " too long");
+    throw std::length_error(string_format(
+        "%s too long for destination of %d bytes", src.c_str(), N));
   }
   std::copy_n(src.c_str(), src.size(), dst);
 }
@@ -142,3 +149,5 @@ static constexpr size_t nearest(size_t n, size_t what, size_t mult = 1) {
 }
 
 static constexpr size_t nearest64(size_t n) { return nearest(n, 64); }
+
+inline bool alive(pid_t pid) { return kill(pid, 0) == 0; }

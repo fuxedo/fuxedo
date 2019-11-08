@@ -74,48 +74,6 @@ int main(int argc, char *argv[]) {
     tuxcfg.maxqueues = require(config.resources, "MAXQUEUES", 1, 8192, 50);
     tuxcfg.maxaccessers =
         require(config.resources, "MAXACCESSERS", 1, 32768, 100);
-    /*
-    TUXCONFIG = string_value[2..256] (up to 64 bytes for Oracle Tuxedo 8.0 or
-    earlier)
-      This is the absolute pathname of the file or device where the binary
-    TUXCONFIG file is found on this machine. The administrator need only
-    maintain one TUXCONFIG file, namely the one that is pointed to by the
-    TUXCONFIG environment variable on the MASTER machine. Copies on other
-    machines of this master TUXCONFIG file are synchronized with the MASTER
-    machine automatically when the system is booted. This parameter must be
-    specified for each machine. If TUXOFFSET is specified, the Oracle Tuxedo
-    filesystem starts at that number of blocks from the beginning of the
-    TUXCONFIG device (see TUXOFFSET below). See ENVFILE in the MACHINES section
-    for a discussion of how this value is used in the environment.
-      Note:
-      The pathname specified for this parameter must match exactly (including
-    case) the pathname specified for the TUXCONFIG environment variable.
-    Otherwise, tmloadcf(1) cannot be run successfully. To use the Shared
-    Applications Staging feature in MP mode, users must set different TUXCONFIG
-    values on different nodes.
-      TUXDIR = string_value[2..256] (up to 78 bytes for Oracle Tuxedo 8.0 or
-    earlier)
-      This is the absolute pathname of the directory where the Oracle Tuxedo
-    system software is found on this machine. This parameter must be specified
-    for each machine and the pathname should be local to each machine; in other
-    words, TUXDIR should not be on a remote filesystem. If the machines of a
-    multiprocessor application have different Oracle Tuxedo system releases
-    installed, check the Oracle Tuxedo Release Notes for the higher level
-    release to make sure you will get the functionality you expect. See ENVFILE
-    in the MACHINES section for a discussion of how this value is used in the
-    environment.
-      APPDIR = string_value[2..256] (up to 78 bytes for Oracle Tuxedo 8.0 or
-    earlier)
-      The value specified for this parameter is the absolute pathname of the
-    application directory and is the current directory for all application and
-    administrative servers booted on this machine. The absolute pathname can
-    optionally be followed by a colon-separated list of other pathnames. In a
-    configuration where SECURITY is set while neither EXALOGIC option nor MP
-    mode is set, each application must have its own distinct APPDIR. See ENVFILE
-    in the MACHINES section for a discussion of how this value is used in the
-    environment.
-
-      */
 
     std::ofstream fout(outfile, std::ios::binary);
     fout.write(reinterpret_cast<char *>(&tuxcfg), sizeof(tuxcfg));

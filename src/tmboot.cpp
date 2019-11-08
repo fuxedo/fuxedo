@@ -8,16 +8,12 @@
 #include <string>
 #include <vector>
 
-#include <signal.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <cstdlib>
 
 #include "mib.h"
 #include "misc.h"
-
-bool alive(pid_t pid) { return kill(pid, 0) == 0; }
 
 static void start(server &srv) {
   std::cout << "exec " << srv.servername << " " << srv.clopt << " :"
@@ -78,9 +74,21 @@ static void start(server &srv) {
 int main(int argc, char *argv[]) {
   bool show_help = false;
   bool yes = false;
+  std::string grpname;
+  int srvid = -1;
 
-  auto parser = clara::Help(show_help) |
-                clara::Opt(yes)["-y"]("answer Yes to all questions");
+  /*
+  Usage: tmboot [-w(ait)] [-n(oexec)] [-q(uiet)] [-y] [-c(heck)] [-d1]
+               [{-A | -B loc | -M}] [{-S | [-l lmid] | -s aout |
+               [-g grpname | -i srvid | -g grpname -i srvid]]} [-m minsrvs]]
+               [-o sequence-#] [-T group-name] [-E envlabel] [-e errcmd] [-t
+  timeout]
+     */
+  auto parser =
+      clara::Help(show_help) |
+      clara::Opt(yes)["-y"]("answer Yes to all questions") |
+      clara::Opt(srvid, "srvid")["-i"]("server's SRVID in TUXCONFIG") |
+      clara::Opt(grpname, "grpname")["-g"]("server's SRVGRP in TUXCONFIG");
 
   auto result = parser.parse(clara::Args(argc, argv));
   if (!result) {
