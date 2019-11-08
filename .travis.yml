@@ -45,12 +45,14 @@ before_script:
   - ./autogen.sh
 
 script:
-  - ./configure --prefix=/home/travis/fuxbin --enable-gcov=yes
+  - ./configure --prefix=/home/travis/fuxbin --enable-code-coverage
   - make && make check
   - make install && make installcheck
 
 after_success:
   - lcov --capture --directory . --output-file coverage.info
-  - lcov --remove coverage.info '/usr/*' --output-file coverage.info # filter system-files
-  - lcov --list coverage.info # debug info
+  - lcov --remove coverage.info '/usr/*' --output-file coverage.info
+  - lcov --remove coverage.info 'tests/*' --output-file coverage.info
+  - lcov --remove coverage.info 'third_party/*' --output-file coverage.info
+  - lcov --list coverage.info
   - bash <(curl -s https://codecov.io/bash) -f coverage.info || echo "Codecov did not collect coverage reports"
