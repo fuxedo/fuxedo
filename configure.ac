@@ -6,6 +6,17 @@ AM_SILENT_RULES([yes])
 
 AC_PROG_CXX
 
+AC_ARG_ENABLE(gcov,
+AS_HELP_STRING([--enable-gcov],
+               [enable gcovging, default: no]),
+[case "${enableval}" in
+             yes) gcov=true ;;
+             no)  gcov=false ;;
+             *)   AC_MSG_ERROR([bad value ${enableval} for --enable-gcov]) ;;
+esac],
+[gcov=false])
+AM_CONDITIONAL(GCOV, test x"$gcov" = x"true")
+
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT([shared])
 AC_LANG([C++])

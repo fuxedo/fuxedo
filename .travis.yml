@@ -9,7 +9,7 @@ matrix:
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-xenial-5.0']
-          packages: ['clang-5.0', 'libstdc++-8-dev']
+          packages: ['clang-5.0', 'libstdc++-8-dev', 'lcov']
       env: COMPILER='clang++-5.0'
 
 
@@ -19,7 +19,7 @@ matrix:
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-xenial-6.0']
-          packages: ['clang-6.0', 'libstdc++-8-dev']
+          packages: ['clang-6.0', 'libstdc++-8-dev', 'lcov']
       env: COMPILER='clang++-6.0'
 
     - os: linux
@@ -27,7 +27,7 @@ matrix:
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
-          packages: ['g++-7']
+          packages: ['g++-7', 'lcov']
       env: COMPILER='g++-7'
 
     - os: linux
@@ -35,7 +35,7 @@ matrix:
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
-          packages: ['g++-8']
+          packages: ['g++-8', 'lcov']
       env: COMPILER='g++-8'
 
 
@@ -45,10 +45,12 @@ before_script:
   - ./autogen.sh
 
 script:
-  - ./configure --prefix=/home/travis/fuxbin
+  - ./configure --prefix=/home/travis/fuxbin --enable-gcov=yes
   - make && make check
   - make install && make installcheck
 
-branches:
-  only:
-    - master
+after_success:
+  - lcov --capture --directory . --output-file coverage.info
+  - lcov --remove coverage.info '/usr/*' --output-file coverage.info # filter system-files
+  - lcov --list coverage.info # debug info
+  - bash <(curl -s https://codecov.io/bash) -f coverage.info || echo "Codecov did not collect coverage reports"

@@ -1,10 +1,14 @@
 ACLOCAL_AMFLAGS = -I m4
-AM_CXXFLAGS = -g -Wall -Wextra \
+AM_CXXFLAGS = -g -Wall -Wextra \ #-Weffc++
               -I$(top_srcdir)/include \
               -I$(top_srcdir)/third_party/catch \
               -I$(top_srcdir)/third_party/clara \
               -I$(top_srcdir)/third_party/GSL
-#AM_CFLAGS = -I$(top_srcdir)/include
+
+if GCOV
+AM_CXXFLAGS += -fprofile-arcs -ftest-coverage
+AM_LFLAGS = -lgcov
+endif
 
 include_HEADERS = include/atmi.h include/xatmi.h \
                   include/fml32.h \
@@ -28,7 +32,7 @@ src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/ipc.cpp \
                            src/xa.cpp src/tx.cpp src/trx.cpp \
                            src/misc.cpp src/base64.cpp src/fields.cpp \
-                           src/tpadmcall.cpp src/todo.cpp
+                           src/tpadmcall.cpp src/tmq.cpp
 
 src_libfuxedo_la_LDFLAGS = -lpthread
 
@@ -51,7 +55,7 @@ src_TMS_SOURCES = src/tmserver.cpp src/TMS.cpp
 src_TMS_LDADD = src/libfuxedo.la
 
 src_BBL_SOURCES = src/BBL.cpp
-src_BBL_LDADD = src/libfuxedo.la
+src_BBL_LDADD = src/libfuxedo.la -lpthread
 
 src_tmshutdown_SOURCES = src/tmshutdown.cpp
 src_tmshutdown_LDADD = src/libfuxedo.la
