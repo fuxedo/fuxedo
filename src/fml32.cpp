@@ -155,7 +155,7 @@ FBFR32 *Frealloc32(FBFR32 *fbfr, FLDOCC32 F, FLDLEN32 V) {
 
   long buflen = Fneeded32(F, V);
   if (buflen < Fused32(fbfr)) {
-    FERROR(FNOSPACE, "%d is less than current size", buflen);
+    FERROR(FNOSPACE, "%ld is less than current size", buflen);
     return nullptr;
   }
 

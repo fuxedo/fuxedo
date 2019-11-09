@@ -58,18 +58,10 @@ static const char *tpstrerror_(int err) {
       return "TPETIME";
     case TPETRAN:
       return "TPETRAN";
-    case TPGOTSIG:
-      return "TPGOTSIG";
-    case TPEITYPE:
-      return "TPEITYPE";
-    case TPEOTYPE:
-      return "TPEOTYPE";
-    case TPEEVENT:
-      return "TPEEVENT";
     case TPEMATCH:
       return "TPEMATCH";
     default:
-      return "?";
+      return "";
   }
 }
 char *tpstrerror(int err) { return const_cast<char *>(tpstrerror_(err)); }

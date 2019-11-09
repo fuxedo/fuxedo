@@ -121,6 +121,7 @@ clang-format:
                             $(top_srcdir)/install-tests/*/*.c
 
 installcheck-local:
+	TUXDIR=$(prefix) make -C install-tests/build
 	TUXDIR=$(prefix) make -C install-tests/server
 	TUXDIR=$(prefix) make -C install-tests/tpcall
 	TUXDIR=$(prefix) make -C install-tests/tpacall

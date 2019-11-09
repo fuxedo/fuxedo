@@ -1,2 +1,2 @@
-Oracle_XA:xaosw:-lclntsh
-XAOSW:xaosw:
+Oracle_XA:xaosw:-L$(ORACLE_HOME)/lib -lclntsh
+NONE:tmnull_switch:

@@ -17,8 +17,7 @@ static std::map<std::string, rminfo> parse_rm(const std::string &filename) {
   std::map<std::string, rminfo> rms;
   std::ifstream fin(filename);
   std::string line;
-  while (fin) {
-    fin >> line;
+  while (getline(fin, line)) {
     if (line.empty() || line.at(0) == '#') {
       continue;
     }
