@@ -6,7 +6,7 @@ export PATH:=$(TUXDIR)/bin:$(PATH)
 export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
 export TUXCONFIG:=$(CURDIR)/tuxconfig
 
-check: server client
+check:
 	buildserver -h
 	buildclient -h
 	buildtms -h
