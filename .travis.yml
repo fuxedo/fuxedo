@@ -54,7 +54,7 @@ before_script:
   - pip install --user cpp-coveralls
 
 script:
-  - # Coverage linking fails with clang
+  - pwd
   - |
     if [[ "${COVERAGE}" == "1" ]]; then
     	./configure --prefix=/home/travis/fuxbin --enable-code-coverage CXXFLAGS="-O0 -g"
@@ -65,6 +65,7 @@ script:
   - make install && make installcheck
 
 after_success:
+  - pwd
   - |
     if [[ "${COVERAGE}" == "1" ]]; then
       lcov --gcov-tool gcov-8 --capture --directory . --output-file coverage.info
