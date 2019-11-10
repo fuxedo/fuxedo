@@ -17,3 +17,12 @@ NAME 205 string
 
 ARGS 206 fml32
 VALUE 207 string
+
+*base 0
+fld_short 10 short
+fld_long 11 long
+fld_char 12 char
+fld_double 13 double
+fld_float 14 float
+fld_string 15 string
+fld_carray 16 carray

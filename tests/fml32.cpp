@@ -1083,6 +1083,161 @@ TEST_CASE_METHOD(FieldSetFixture, "Fprojcpy32", "[fml32]") {
   Ffree32(dest);
 }
 
+TEST_CASE_METHOD(FieldSetFixture, "Fupdate32", "[fml32]") {
+  auto src = Falloc32(100, 100);
+  REQUIRE(src != nullptr);
+
+  auto dest = Falloc32(100, 100);
+  REQUIRE(dest != nullptr);
+
+  short s;
+
+  s = 100;
+  REQUIRE(Fchg32(dest, fld1, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 201;
+  REQUIRE(Fchg32(dest, fld2, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 202;
+  REQUIRE(Fchg32(dest, fld2, 1, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 203;
+  REQUIRE(Fchg32(dest, fld2, 2, reinterpret_cast<char *>(&s), 0) != -1);
+
+  s = 210;
+  REQUIRE(Fchg32(src, fld2, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 220;
+  REQUIRE(Fchg32(src, fld2, 1, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 310;
+  REQUIRE(Fchg32(src, fld3, 0, reinterpret_cast<char *>(&s), 0) != -1);
+
+  REQUIRE(Fupdate32(dest, src) != -1);
+
+  REQUIRE(Foccur32(dest, fld1) == 1);
+  REQUIRE(Foccur32(dest, fld2) == 3);
+  REQUIRE(Foccur32(dest, fld3) == 1);
+
+  char *ptr;
+
+  ptr = Ffind32(dest, fld1, 0, nullptr);
+  REQUIRE(ptr != nullptr);
+  REQUIRE(reinterpret<short>(ptr) == 100);
+
+  ptr = Ffind32(dest, fld2, 0, nullptr);
+  REQUIRE(ptr != nullptr);
+  REQUIRE(reinterpret<short>(ptr) == 210);
+
+  ptr = Ffind32(dest, fld2, 1, nullptr);
+  REQUIRE(ptr != nullptr);
+  REQUIRE(reinterpret<short>(ptr) == 220);
+
+  ptr = Ffind32(dest, fld2, 2, nullptr);
+  REQUIRE(ptr != nullptr);
+  REQUIRE(reinterpret<short>(ptr) == 203);
+
+  ptr = Ffind32(dest, fld3, 0, nullptr);
+  REQUIRE(ptr != nullptr);
+  REQUIRE(reinterpret<short>(ptr) == 310);
+
+  Ffree32(src);
+  Ffree32(dest);
+}
+
+TEST_CASE_METHOD(FieldSetFixture, "Fjoin32", "[fml32]") {
+  auto src = Falloc32(100, 100);
+  REQUIRE(src != nullptr);
+
+  auto dest = Falloc32(100, 100);
+  REQUIRE(dest != nullptr);
+
+  short s;
+
+  s = 100;
+  REQUIRE(Fchg32(dest, fld1, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 201;
+  REQUIRE(Fchg32(dest, fld2, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 202;
+  REQUIRE(Fchg32(dest, fld2, 1, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 203;
+  REQUIRE(Fchg32(dest, fld2, 2, reinterpret_cast<char *>(&s), 0) != -1);
+
+  s = 210;
+  REQUIRE(Fchg32(src, fld2, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 220;
+  REQUIRE(Fchg32(src, fld2, 1, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 310;
+  REQUIRE(Fchg32(src, fld3, 0, reinterpret_cast<char *>(&s), 0) != -1);
+
+  REQUIRE(Fjoin32(dest, src) != -1);
+
+  REQUIRE(Foccur32(dest, fld1) == 0);
+  REQUIRE(Foccur32(dest, fld2) == 2);
+  REQUIRE(Foccur32(dest, fld3) == 0);
+
+  char *ptr;
+
+  ptr = Ffind32(dest, fld2, 0, nullptr);
+  REQUIRE(ptr != nullptr);
+  REQUIRE(reinterpret<short>(ptr) == 210);
+
+  ptr = Ffind32(dest, fld2, 1, nullptr);
+  REQUIRE(ptr != nullptr);
+  REQUIRE(reinterpret<short>(ptr) == 220);
+
+  Ffree32(src);
+  Ffree32(dest);
+}
+
+TEST_CASE_METHOD(FieldSetFixture, "Fojoin32", "[fml32]") {
+  auto src = Falloc32(100, 100);
+  REQUIRE(src != nullptr);
+
+  auto dest = Falloc32(100, 100);
+  REQUIRE(dest != nullptr);
+
+  short s;
+
+  s = 100;
+  REQUIRE(Fchg32(dest, fld1, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 201;
+  REQUIRE(Fchg32(dest, fld2, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 202;
+  REQUIRE(Fchg32(dest, fld2, 1, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 203;
+  REQUIRE(Fchg32(dest, fld2, 2, reinterpret_cast<char *>(&s), 0) != -1);
+
+  s = 210;
+  REQUIRE(Fchg32(src, fld2, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 220;
+  REQUIRE(Fchg32(src, fld2, 1, reinterpret_cast<char *>(&s), 0) != -1);
+  s = 310;
+  REQUIRE(Fchg32(src, fld3, 0, reinterpret_cast<char *>(&s), 0) != -1);
+
+  REQUIRE(Fojoin32(dest, src) != -1);
+
+  REQUIRE(Foccur32(dest, fld1) == 1);
+  REQUIRE(Foccur32(dest, fld2) == 3);
+  REQUIRE(Foccur32(dest, fld3) == 0);
+
+  char *ptr;
+
+  ptr = Ffind32(dest, fld1, 0, nullptr);
+  REQUIRE(ptr != nullptr);
+  REQUIRE(reinterpret<short>(ptr) == 100);
+
+  ptr = Ffind32(dest, fld2, 0, nullptr);
+  REQUIRE(ptr != nullptr);
+  REQUIRE(reinterpret<short>(ptr) == 210);
+
+  ptr = Ffind32(dest, fld2, 1, nullptr);
+  REQUIRE(ptr != nullptr);
+  REQUIRE(reinterpret<short>(ptr) == 220);
+
+  ptr = Ffind32(dest, fld2, 2, nullptr);
+  REQUIRE(ptr != nullptr);
+  REQUIRE(reinterpret<short>(ptr) == 203);
+
+  Ffree32(src);
+  Ffree32(dest);
+}
+
 static std::string read_file(const std::string &fname) {
   std::ifstream file(fname, std::ios::binary | std::ios::ate);
   std::streamsize size = file.tellg();
@@ -1162,6 +1317,14 @@ TEST_CASE("Fget32 for nested fml32 does not change param size", "[fml32]") {
   tpfree((char *)fbfr);
 }
 
+TEST_CASE("Fextread32 error", "[fml32]") {
+  auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
+
+  REQUIRE(Fextread32(fbfr, stdout) == -1);
+  //  REQUIRE(Ferror32 == FEUNIX);
+  REQUIRE(strlen(Fstrerror32(Ferror32)) > 1);
+}
+
 TEST_CASE("Fextread32 empty buffer is OK", "[fml32]") {
   auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
 
@@ -1212,6 +1375,27 @@ TEST_CASE("Fextread32", "[fml32]") {
           "\t\tVALUE\tNESTED^2\n\n"
           "\n"
           "\n");
+
+  tpfree((char *)fbfr);
+}
+
+TEST_CASE_METHOD(FieldFixture, "Ffprint32", "[fml32]") {
+  auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
+
+  tempfile file(__LINE__);
+
+  set_fields(fbfr);
+  REQUIRE((file.f = fopen(file.name.c_str(), "w")) != nullptr);
+  Ffprint32(fbfr, file.f);
+  fclose(file.f);
+
+  Finit32(fbfr, Fsizeof32(fbfr));
+
+  REQUIRE((file.f = fopen(file.name.c_str(), "r")) != nullptr);
+  REQUIRE(Fextread32(fbfr, file.f) != -1);
+  fclose(file.f);
+
+  get_fields(fbfr);
 
   tpfree((char *)fbfr);
 }

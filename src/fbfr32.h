@@ -594,11 +594,21 @@ struct Fbfr32 {
       auto it = reinterpret_cast<fieldhead *>(data_);
       auto end = reinterpret_cast<fieldhead *>(data_ + len_);
 
+      FLDOCC32 oc = 0;
+      FLDID32 prev = BADFLDID;
+
       while (it != nullptr && it < end) {
-        if (src->pres(it->fieldid, 0)) {
+        if (it->fieldid != prev) {
+          oc = 0;
+          prev = it->fieldid;
+        } else {
+          oc++;
+        }
+
+        if (src->pres(it->fieldid, oc)) {
           it = next_(it);
         } else {
-          delall(it->fieldid);
+          del(it->fieldid, oc);
           end = reinterpret_cast<fieldhead *>(data_ + len_);
         }
       }
@@ -617,7 +627,7 @@ struct Fbfr32 {
         } else {
           oc++;
         }
-        if (pres(it->fieldid, 0)) {
+        if (pres(it->fieldid, oc)) {
           if (chg(it->fieldid, oc, src->fvalue(it), src->flength(it)) == -1) {
             return -1;
           }
