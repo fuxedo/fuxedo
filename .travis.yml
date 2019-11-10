@@ -68,7 +68,7 @@ after_success:
   - pwd
   - |
     if [[ "${COVERAGE}" == "1" ]]; then
-      lcov --gcov-tool gcov-8 --capture --directory . --output-file coverage.info
+      lcov --gcov-tool gcov-8 --capture --base-directory `pwd` --directory `pwd` --output-file coverage.info
       lcov --gcov-tool gcov-8 --remove coverage.info '*/install-tests/*' '/usr/*' '*/tests/*' '*/third_party/*' --output-file coverage.info
       lcov --gcov-tool gcov-8 --list coverage.info
       bash <(curl -s https://codecov.io/bash) -f coverage.info || echo "Codecov did not collect coverage reports"
