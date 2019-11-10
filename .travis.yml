@@ -43,18 +43,19 @@ matrix:
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
-          packages: ['g++-8', 'lcov']
+          packages: ['g++-8']
       env: COMPILER='g++-8' COVERAGE=1
 
 
 
 before_script:
+  - # Looks like we need newer lcov
+  - (cd ~ && git clone https://github.com/linux-test-project/lcov.git && cd lcov && sudo make install)
   - export CXX=${COMPILER}
   - ./autogen.sh
   - pip install --user cpp-coveralls
 
 script:
-  - pwd
   - |
     if [[ "${COVERAGE}" == "1" ]]; then
     	./configure --prefix=/home/travis/fuxbin --enable-code-coverage CXXFLAGS="-O0 -g"
@@ -65,12 +66,14 @@ script:
   - make install && make installcheck
 
 after_success:
-  - pwd
   - |
     if [[ "${COVERAGE}" == "1" ]]; then
       lcov --gcov-tool gcov-8 --capture --base-directory `pwd` --directory `pwd` --output-file coverage.info
       lcov --gcov-tool gcov-8 --remove coverage.info '*/install-tests/*' '/usr/*' '*/tests/*' '*/third_party/*' --output-file coverage.info
       lcov --gcov-tool gcov-8 --list coverage.info
       bash <(curl -s https://codecov.io/bash) -f coverage.info || echo "Codecov did not collect coverage reports"
+    fi
+  - |
+    if [[ "${COVERAGE}" == "1" ]]; then
       coveralls --gcov gcov-8 --build-root=`pwd` --exclude install-tests --exclude third_party --exclude tests --gcov-options '\-lp'
     fi
