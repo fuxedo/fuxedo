@@ -72,5 +72,5 @@ after_success:
       lcov --gcov-tool gcov-8 --remove coverage.info '*/install-tests/*' '/usr/*' '*/tests/*' '*/third_party/*' --output-file coverage.info
       lcov --gcov-tool gcov-8 --list coverage.info
       bash <(curl -s https://codecov.io/bash) -f coverage.info || echo "Codecov did not collect coverage reports"
-      coveralls --gcov gcov-8 --exclude install-tests --exclude third_party --exclude tests --gcov-options '\-lp'
+      coveralls --gcov gcov-8 --build-root=`pwd` --exclude install-tests --exclude third_party --exclude tests --gcov-options '\-lp'
     fi
