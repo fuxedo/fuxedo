@@ -43,14 +43,14 @@ matrix:
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
-          packages: ['g++-8']
+          packages: ['g++-8', 'lcov']
       env: COMPILER='g++-8' COVERAGE=1
 
 
 
 before_script:
   - # Looks like we need newer lcov
-  - (cd ~ && git clone https://github.com/linux-test-project/lcov.git && cd lcov && sudo make install)
+  - (cd ~ && git clone https://github.com/linux-test-project/lcov.git && cd lcov && sudo make PREFIX=/usr install)
   - export CXX=${COMPILER}
   - ./autogen.sh
   - pip install --user cpp-coveralls
