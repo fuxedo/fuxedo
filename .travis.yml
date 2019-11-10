@@ -43,7 +43,7 @@ matrix:
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
-          packages: ['g++-8', 'lcov']
+          packages: ['g++-8', 'lcov', 'libperlio-gzip-perl']
       env: COMPILER='g++-8' COVERAGE=1
 
 
