@@ -51,6 +51,7 @@ matrix:
 before_script:
   - export CXX=${COMPILER}
   - ./autogen.sh
+  - pip install --user cpp-coveralls
 
 script:
   - # Coverage linking fails with clang
@@ -70,4 +71,5 @@ after_success:
       lcov --remove coverage.info '/usr/*' '*/tests/*' '*/third_party/*' --output-file coverage.info
       lcov --list coverage.info
       bash <(curl -s https://codecov.io/bash) -f coverage.info || echo "Codecov did not collect coverage reports"
+      coveralls --exclude third_party --exclude tests --gcov-options '\-lp'
     fi
