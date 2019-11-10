@@ -25,10 +25,6 @@ void reset_Ferror32() {
 }  // namespace fml32
 }  // namespace fux
 
-#define FERROR(err, fmt, args...)                                          \
-  fux::fml32::set_Ferror32(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
-                           __LINE__, ##args)
-
 int *_tls_Ferror32() { return &fux::fml32::Ferror32_; }
 
 static const char *Fstrerror32_(int err) {
@@ -132,7 +128,6 @@ FBFR32 *Falloc32(FLDOCC32 F, FLDLEN32 V) {
 #define FLDID32_CHECK(err, fldid)                                           \
   do {                                                                      \
     if (!Fbfr32fields::valid_fldtype32(Fbfr32fields::Fldtype32(fieldid))) { \
-      Ferror32 = FTYPERR;                                                   \
       FERROR(FTYPERR, "fldid of unknown type");                             \
       return err;                                                           \
     }                                                                       \
@@ -356,7 +351,7 @@ char *Ftypcvt32(FLDLEN32 *tolen, int totype, char *fromval, int fromtype,
     toval = std::to_string(from);                            \
     *tolen = toval.size() + 1;                               \
   } else {                                                   \
-    Ferror32 = FEBADOP;                                      \
+    FERROR(FEBADOP, "");                                     \
     return nullptr;                                          \
   }
 
@@ -375,7 +370,7 @@ char *Ftypcvt32(FLDLEN32 *tolen, int totype, char *fromval, int fromtype,
     toval = from;                                            \
     *tolen = from.size() + 1;                                \
   } else {                                                   \
-    Ferror32 = FEBADOP;                                      \
+    FERROR(FEBADOP, "");                                     \
     return nullptr;                                          \
   }
 
@@ -402,7 +397,7 @@ char *Ftypcvt32(FLDLEN32 *tolen, int totype, char *fromval, int fromtype,
     auto from = std::string(fromval, fromlen);
     TYPCVTS;
   } else {
-    Ferror32 = FEBADOP;
+    FERROR(FEBADOP, "");
     return nullptr;
   }
   return &toval[0];
@@ -492,7 +487,7 @@ int CFget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf,
     return -1;
   }
   if (rlen != 0 && *len > rlen) {
-    Ferror32 = FNOSPACE;
+    FERROR(FNOSPACE, "");
     return -1;
   }
   std::copy_n(res, *len, buf);

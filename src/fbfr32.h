@@ -22,6 +22,17 @@
 #include "fbfr32fld.h"
 #include "misc.h"
 
+namespace fux {
+namespace fml32 {
+void set_Ferror32(int err, const char *fmt, ...);
+void reset_Ferror32();
+}  // namespace fml32
+}  // namespace fux
+
+#define FERROR(err, fmt, args...)                                          \
+  fux::fml32::set_Ferror32(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
+                           __LINE__, ##args)
+
 static unsigned int crc32b(unsigned char *data, size_t len) {
   unsigned crc = 0xFFFFFFFF;
   for (size_t i = 0; i < len; i++) {
@@ -91,7 +102,7 @@ struct Fbfr32 {
 
   int init(FLDLEN32 buflen) {
     if (buflen < min_size()) {
-      Ferror32 = FNOSPACE;
+      FERROR(FNOSPACE, "");
       return -1;
     }
     size_ = buflen - min_size();
@@ -113,7 +124,7 @@ struct Fbfr32 {
 
   int cpy(FBFR32 *src) {
     if (size() < src->used()) {
-      Ferror32 = FNOSPACE;
+      FERROR(FNOSPACE, "");
       return -1;
     }
     len_ = src->len_;
@@ -126,7 +137,7 @@ struct Fbfr32 {
     // Writes out everything starting with len
     auto n = used() - sizeof(size_);
     if (fwrite(&len_, 1, n, iop) != n) {
-      Ferror32 = FEUNIX;
+      FERROR(FEUNIX, "");
       return -1;
     }
     return 0;
@@ -135,18 +146,18 @@ struct Fbfr32 {
   int read(FILE *iop) {
     uint32_t len;
     if (fread(&len, 1, sizeof(len), iop) != sizeof(len)) {
-      Ferror32 = FEUNIX;
+      FERROR(FEUNIX, "");
       return -1;
     }
     if (len > size_) {
-      Ferror32 = FNOSPACE;
+      FERROR(FNOSPACE, "");
       return -1;
     }
 
     len_ = len;
     auto n = used() - sizeof(size_) - sizeof(len_);
     if (fread(reinterpret_cast<char *>(&len_) + sizeof(len_), 1, n, iop) != n) {
-      Ferror32 = FEUNIX;
+      FERROR(FEUNIX, "");
       return -1;
     }
     return 0;
@@ -187,7 +198,7 @@ struct Fbfr32 {
 
     if (need != 0) {
       if (len_ + need > size_) {
-        Ferror32 = FNOSPACE;
+        FERROR(FNOSPACE, "");
         return -1;
       }
 
@@ -236,7 +247,7 @@ struct Fbfr32 {
     std::unique_ptr<regex_t, decltype(&::regfree)> guard(nullptr, &::regfree);
     if (type == FLD_STRING && len != 0) {
       if (regcomp(&re, value, REG_EXTENDED | REG_NOSUB) != 0) {
-        Ferror32 = FEINVAL;
+        FERROR(FEINVAL, "");
         return -1;
       }
       guard = std::unique_ptr<regex_t, decltype(&::regfree)>(&re, &::regfree);
@@ -289,14 +300,14 @@ struct Fbfr32 {
       oc++;
       it = next_(it);
     }
-    Ferror32 = FNOTPRES;
+    FERROR(FNOTPRES, "");
     return -1;
   }
 
   char *find(FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *flen) {
     auto field = where(fieldid, oc);
     if (field == nullptr || field->fieldid != fieldid) {
-      Ferror32 = FNOTPRES;
+      FERROR(FNOTPRES, "");
       return nullptr;
     }
 
@@ -309,7 +320,7 @@ struct Fbfr32 {
   char *findlast(FLDID32 fieldid, FLDOCC32 *oc, FLDLEN32 *flen) {
     auto lastoc = occur(fieldid);
     if (lastoc == 0) {
-      Ferror32 = FNOTPRES;
+      FERROR(FNOTPRES, "");
       return nullptr;
     }
 
@@ -345,7 +356,7 @@ struct Fbfr32 {
 
   int next(FLDID32 *fieldid, FLDOCC32 *oc, char *value, FLDLEN32 *len) {
     if (fieldid == nullptr || oc == nullptr) {
-      Ferror32 = FEINVAL;
+      FERROR(FEINVAL, "");
       return -1;
     }
 
@@ -372,7 +383,7 @@ struct Fbfr32 {
 
         if (*len < flen) {
           *len = flen;
-          Ferror32 = FNOSPACE;
+          FERROR(FNOSPACE, "");
           return -1;
         } else if (value != nullptr) {
           std::copy_n(fvalue(it), flen, value);
@@ -387,7 +398,7 @@ struct Fbfr32 {
   long len(FLDID32 fieldid, FLDOCC32 oc) {
     auto field = where(fieldid, oc);
     if (field == nullptr || field->fieldid != fieldid) {
-      Ferror32 = FNOTPRES;
+      FERROR(FNOTPRES, "");
       return -1;
     }
 
@@ -448,7 +459,7 @@ struct Fbfr32 {
     auto field = where(fieldid, oc);
 
     while (field == nullptr || field->fieldid != fieldid) {
-      Ferror32 = FNOTPRES;
+      FERROR(FNOTPRES, "");
       return -1;
     }
 
@@ -461,7 +472,7 @@ struct Fbfr32 {
     auto field = where(fieldid, 0);
 
     while (field == nullptr || field->fieldid != fieldid) {
-      Ferror32 = FNOTPRES;
+      FERROR(FNOTPRES, "");
       return -1;
     }
 
@@ -477,7 +488,7 @@ struct Fbfr32 {
     auto field = where(fieldid, oc);
 
     while (field == nullptr || field->fieldid != fieldid) {
-      Ferror32 = FNOTPRES;
+      FERROR(FNOTPRES, "");
       return -1;
     }
 
@@ -485,7 +496,7 @@ struct Fbfr32 {
     if (maxlen != nullptr) {
       if (*maxlen < len) {
         *maxlen = len;
-        Ferror32 = FNOSPACE;
+        FERROR(FNOSPACE, "");
         return -1;
       }
       *maxlen = len;
@@ -640,7 +651,7 @@ struct Fbfr32 {
 
   int concat(FBFR32 *src) {
     if (unused() < src->used()) {
-      Ferror32 = FNOSPACE;
+      FERROR(FNOSPACE, "");
       return -1;
     }
 
@@ -685,7 +696,7 @@ struct Fbfr32 {
     auto field = where(fieldid, oc);
 
     while (field == nullptr || field->fieldid != fieldid) {
-      Ferror32 = FNOTPRES;
+      FERROR(FNOTPRES, "");
       return nullptr;
     }
 

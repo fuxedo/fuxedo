@@ -76,7 +76,8 @@ TEST_CASE("boolean expression occurances", "[fml32]") {
   REQUIRE(Fboolev32(fbfr, tree) == 1);
   free(tree);
 
-  REQUIRE((tree = Fboolco32(DECONST("NAME[0] == 'name1' && VALUE[0] == '000001'"))) != nullptr);
+  REQUIRE((tree = Fboolco32(DECONST(
+               "NAME[0] == 'name1' && VALUE[0] == '000001'"))) != nullptr);
   REQUIRE(Fboolev32(fbfr, tree) == 1);
   free(tree);
 
@@ -299,7 +300,7 @@ TEST_CASE("Fboolpr32", "[fml32]") {
   tempfile f(__LINE__);
   Fboolpr32(tree, f.f);
   fclose(f.f);
-  
+
   REQUIRE(read_file(f.name) == "( ( 1 ) == ( 1 ) ) \n");
   free(tree);
 }
