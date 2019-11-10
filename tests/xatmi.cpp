@@ -7,6 +7,34 @@
 #include <cstring>
 #define DECONST(x) const_cast<char *>(x)
 
+TEST_CASE("tpstrerror", "[xatmi]") {
+  REQUIRE(strlen(tpstrerror(TPEABORT)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEBADDESC)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEBLOCK)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEINVAL)) > 1);
+  REQUIRE(strlen(tpstrerror(TPELIMIT)) > 1);
+  REQUIRE(strlen(tpstrerror(TPENOENT)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEOS)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEPERM)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEPROTO)) > 1);
+  REQUIRE(strlen(tpstrerror(TPESVCERR)) > 1);
+  REQUIRE(strlen(tpstrerror(TPESVCFAIL)) > 1);
+  REQUIRE(strlen(tpstrerror(TPESYSTEM)) > 1);
+  REQUIRE(strlen(tpstrerror(TPETIME)) > 1);
+  REQUIRE(strlen(tpstrerror(TPETRAN)) > 1);
+  REQUIRE(strlen(tpstrerror(TPGOTSIG)) > 1);
+  REQUIRE(strlen(tpstrerror(TPERMERR)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEITYPE)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEOTYPE)) > 1);
+  REQUIRE(strlen(tpstrerror(TPERELEASE)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEHAZARD)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEHEURISTIC)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEEVENT)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEMATCH)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEDIAGNOSTIC)) > 1);
+  REQUIRE(strlen(tpstrerror(TPEMIB)) > 1);
+}
+
 TEST_CASE("tpalloc", "[tp-memory]") {
   GIVEN("NULL type") {
     WHEN("tpalloc is called") {

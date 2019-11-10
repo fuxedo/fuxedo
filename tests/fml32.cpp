@@ -39,6 +39,33 @@ TEST_CASE("fldid32", "[fml32]") {
   }
 }
 
+TEST_CASE("Fstrerror32", "[fml32]") {
+  REQUIRE(strlen(Fstrerror32(FALIGN)) > 1);
+  REQUIRE(strlen(Fstrerror32(FNOTFLD)) > 1);
+  REQUIRE(strlen(Fstrerror32(FNOSPACE)) > 1);
+  REQUIRE(strlen(Fstrerror32(FNOTPRES)) > 1);
+  REQUIRE(strlen(Fstrerror32(FBADFLD)) > 1);
+  REQUIRE(strlen(Fstrerror32(FTYPERR)) > 1);
+  REQUIRE(strlen(Fstrerror32(FEUNIX)) > 1);
+  REQUIRE(strlen(Fstrerror32(FBADNAME)) > 1);
+  REQUIRE(strlen(Fstrerror32(FMALLOC)) > 1);
+  REQUIRE(strlen(Fstrerror32(FSYNTAX)) > 1);
+  REQUIRE(strlen(Fstrerror32(FFTOPEN)) > 1);
+  REQUIRE(strlen(Fstrerror32(FFTSYNTAX)) > 1);
+  REQUIRE(strlen(Fstrerror32(FEINVAL)) > 1);
+  REQUIRE(strlen(Fstrerror32(FBADTBL)) > 1);
+  REQUIRE(strlen(Fstrerror32(FBADVIEW)) > 1);
+  REQUIRE(strlen(Fstrerror32(FVFSYNTAX)) > 1);
+  REQUIRE(strlen(Fstrerror32(FVFOPEN)) > 1);
+  REQUIRE(strlen(Fstrerror32(FBADACM)) > 1);
+  REQUIRE(strlen(Fstrerror32(FNOCNAME)) > 1);
+  REQUIRE(strlen(Fstrerror32(FEBADOP)) > 1);
+  REQUIRE(strlen(Fstrerror32(FNOTRECORD)) > 1);
+  REQUIRE(strlen(Fstrerror32(FRFSYNTAX)) > 1);
+  REQUIRE(strlen(Fstrerror32(FRFOPEN)) > 1);
+  REQUIRE(strlen(Fstrerror32(FBADRECORD)) > 1);
+}
+
 TEST_CASE("Finit32-Fsizeof32", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   REQUIRE(fbfr != nullptr);
@@ -51,6 +78,10 @@ TEST_CASE("Finit32-Fsizeof32", "[fml32]") {
 
   REQUIRE(Finit32(fbfr, Fsizeof32(fbfr)) != -1);
   REQUIRE(Fsizeof32(fbfr) == size);
+
+  REQUIRE(Finit32(fbfr, 2) == -1);
+  REQUIRE(Ferror32 == FNOSPACE);
+  REQUIRE(strlen(Fstrerror32(Ferror32)) > 1);
 
   Ffree32(fbfr);
 }
@@ -69,6 +100,19 @@ TEST_CASE("Frealloc32", "[fml32]") {
   fbfr = Frealloc32(fbfr, 1, 1);
   REQUIRE(fbfr != nullptr);
   REQUIRE(Fsizeof32(fbfr) < size);
+
+  fbfr = Frealloc32(fbfr, 100, 100);
+  REQUIRE(fbfr != nullptr);
+  auto fld_string = Fmkfldid32(FLD_STRING, 10);
+  REQUIRE(
+      Fchg32(fbfr, fld_string, 0,
+             const_cast<char *>(
+                 "just some rather long string to mess with size calculation"),
+             0) != -1);
+
+  REQUIRE(Frealloc32(fbfr, 0, 0) == nullptr);
+  REQUIRE(Ferror32 == FNOSPACE);
+  REQUIRE(strlen(Fstrerror32(Ferror32)) > 1);
 
   Ffree32(fbfr);
 }

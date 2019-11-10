@@ -34,6 +34,8 @@ long *_tls_tpurcode() { return &fux::atmi::tpurcode_; }
 
 static const char *tpstrerror_(int err) {
   switch (err) {
+    case TPEABORT:
+      return "TPEABORT";
     case TPEBADDESC:
       return "TPEBADDESC";
     case TPEBLOCK:
@@ -46,6 +48,8 @@ static const char *tpstrerror_(int err) {
       return "TPENOENT";
     case TPEOS:
       return "TPEOS";
+    case TPEPERM:
+      return "TPEPERM";
     case TPEPROTO:
       return "TPEPROTO";
     case TPESVCERR:
@@ -58,6 +62,26 @@ static const char *tpstrerror_(int err) {
       return "TPETIME";
     case TPETRAN:
       return "TPETRAN";
+    case TPGOTSIG:
+      return "TPGOTSIG";
+    case TPERMERR:
+      return "TPERMERR";
+    case TPEITYPE:
+      return "TPEITYPE";
+    case TPEOTYPE:
+      return "TPEOTYPE";
+    case TPERELEASE:
+      return "TPERELEASE";
+    case TPEHAZARD:
+      return "TPEHAZARD";
+    case TPEHEURISTIC:
+      return "TPEHEURISTIC";
+    case TPEEVENT:
+      return "TPEEVENT";
+    case TPEDIAGNOSTIC:
+      return "TPEDIAGNOSTIC";
+    case TPEMIB:
+      return "TPEMIB";
     case TPEMATCH:
       return "TPEMATCH";
     default:
