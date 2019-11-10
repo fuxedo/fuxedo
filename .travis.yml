@@ -67,9 +67,9 @@ script:
 after_success:
   - |
     if [[ "${COVERAGE}" == "1" ]]; then
-      lcov --capture --directory . --output-file coverage.info
-      lcov --remove coverage.info '/usr/*' '*/tests/*' '*/third_party/*' --output-file coverage.info
-      lcov --list coverage.info
+      lcov --gcov-tool gcov-8 --capture --directory . --output-file coverage.info
+      lcov --gcov-tool gcov-8 --remove coverage.info '*/install-tests/*' '/usr/*' '*/tests/*' '*/third_party/*' --output-file coverage.info
+      lcov --gcov-tool gcov-8 --list coverage.info
       bash <(curl -s https://codecov.io/bash) -f coverage.info || echo "Codecov did not collect coverage reports"
-      coveralls --exclude third_party --exclude tests --gcov-options '\-lp'
+      coveralls --gcov gcov-8 --exclude install-tests --exclude third_party --exclude tests --gcov-options '\-lp'
     fi
