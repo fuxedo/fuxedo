@@ -33,6 +33,8 @@ TEST_CASE("tpstrerror", "[xatmi]") {
   REQUIRE(strlen(tpstrerror(TPEMATCH)) > 1);
   REQUIRE(strlen(tpstrerror(TPEDIAGNOSTIC)) > 1);
   REQUIRE(strlen(tpstrerror(TPEMIB)) > 1);
+
+  REQUIRE(strlen(tpstrerror(666)) == 0);
 }
 
 TEST_CASE("tpalloc", "[tp-memory]") {

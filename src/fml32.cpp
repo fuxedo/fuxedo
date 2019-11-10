@@ -78,35 +78,58 @@ static const char *Fstrerror32_(int err) {
     case FBADRECORD:
       return "Cannot find or get record";
     default:
-      return "?";
+      return "";
   }
 }
 
 char *Fstrerror32(int err) { return const_cast<char *>(Fstrerror32_(err)); }
 
 FLDID32 Fmkfldid32(int type, FLDID32 num) {
+  fux::fml32::reset_Ferror32();
   return Fbfr32fields::Fmkfldid32(type, num);
 }
 
-int Fldtype32(FLDID32 fieldid) { return Fbfr32fields::Fldtype32(fieldid); }
+int Fldtype32(FLDID32 fieldid) {
+  fux::fml32::reset_Ferror32();
+  return Fbfr32fields::Fldtype32(fieldid);
+}
 
-long Fldno32(FLDID32 fieldid) { return Fbfr32fields::Fldno32(fieldid); }
+long Fldno32(FLDID32 fieldid) {
+  fux::fml32::reset_Ferror32();
+  return Fbfr32fields::Fldno32(fieldid);
+}
 
 static Fbfr32fields Fbfr32fields_;
 
-char *Fname32(FLDID32 fieldid) { return Fbfr32fields_.name(fieldid); }
+char *Fname32(FLDID32 fieldid) {
+  fux::fml32::reset_Ferror32();
+  return Fbfr32fields_.name(fieldid);
+}
 
-FLDID32 Fldid32(char *name) { return Fbfr32fields_.fldid(name); }
+FLDID32 Fldid32(char *name) {
+  fux::fml32::reset_Ferror32();
+  return Fbfr32fields_.fldid(name);
+}
 
-void Fidnm_unload32() { return Fbfr32fields_.idnm_unload(); }
+void Fidnm_unload32() {
+  fux::fml32::reset_Ferror32();
+  return Fbfr32fields_.idnm_unload();
+}
 
-void Fnmid_unload32() { return Fbfr32fields_.nmid_unload(); }
+void Fnmid_unload32() {
+  fux::fml32::reset_Ferror32();
+  return Fbfr32fields_.nmid_unload();
+}
 
 ////////////////////////////////////////////////////////////////////////////
 
-long Fneeded32(FLDOCC32 F, FLDLEN32 V) { return Fbfr32::needed(F, V); }
+long Fneeded32(FLDOCC32 F, FLDLEN32 V) {
+  fux::fml32::reset_Ferror32();
+  return Fbfr32::needed(F, V);
+}
 
 FBFR32 *Falloc32(FLDOCC32 F, FLDLEN32 V) {
+  fux::fml32::reset_Ferror32();
   long buflen = Fneeded32(F, V);
   FBFR32 *fbfr = (FBFR32 *)malloc(buflen);
   Finit32(fbfr, buflen);
@@ -142,6 +165,7 @@ int Finit32(FBFR32 *fbfr, FLDLEN32 buflen) {
   if (buflen < Fneeded32(0, 0)) {
     FERROR(FNOSPACE, "%d is less than minimum requirement", buflen);
   }
+  fux::fml32::reset_Ferror32();
   return fbfr->init(buflen);
 }
 
@@ -154,6 +178,7 @@ FBFR32 *Frealloc32(FBFR32 *fbfr, FLDOCC32 F, FLDLEN32 V) {
     return nullptr;
   }
 
+  fux::fml32::reset_Ferror32();
   fbfr = (FBFR32 *)realloc(fbfr, buflen);
   fbfr->reinit(buflen);
   return fbfr;
@@ -161,42 +186,50 @@ FBFR32 *Frealloc32(FBFR32 *fbfr, FLDOCC32 F, FLDLEN32 V) {
 
 int Ffree32(FBFR32 *fbfr) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   free(fbfr);
   return 0;
 }
 
 long Fsizeof32(FBFR32 *fbfr) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return fbfr->size();
 }
 
 long Fused32(FBFR32 *fbfr) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return fbfr->used();
 }
 
 long Funused32(FBFR32 *fbfr) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return fbfr->unused();
 }
 
 long Fidxused32(FBFR32 *fbfr) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return 0;
 }
 
 int Findex32(FBFR32 *fbfr, FLDOCC32 intvl __attribute__((unused))) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return 0;
 }
 
 int Funindex32(FBFR32 *fbfr) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return 0;
 }
 
 int Frstrindex32(FBFR32 *fbfr, FLDOCC32 numidx __attribute__((unused))) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return 0;
 }
 
@@ -204,12 +237,14 @@ int Fchg32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *value,
            FLDLEN32 len) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);
+  fux::fml32::reset_Ferror32();
   return fbfr->chg(fieldid, oc, value, len);
 }
 
 int Fadd32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);
+  fux::fml32::reset_Ferror32();
   auto oc = fbfr->occur(fieldid);
   return fbfr->chg(fieldid, oc, value, len);
 }
@@ -217,50 +252,59 @@ int Fadd32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len) {
 char *Ffind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len) {
   FBFR32_CHECK(nullptr, fbfr);
   FLDID32_CHECK(nullptr, fieldid);
+  fux::fml32::reset_Ferror32();
   return fbfr->find(fieldid, oc, len);
 }
 char *Ffindlast32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 *oc, FLDLEN32 *len) {
   FBFR32_CHECK(nullptr, fbfr);
   FLDID32_CHECK(nullptr, fieldid);
+  fux::fml32::reset_Ferror32();
   return fbfr->findlast(fieldid, oc, len);
 }
 int Fpres32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);
+  fux::fml32::reset_Ferror32();
   return fbfr->pres(fieldid, oc);
 }
 
 FLDOCC32 Foccur32(FBFR32 *fbfr, FLDID32 fieldid) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);
+  fux::fml32::reset_Ferror32();
   return fbfr->occur(fieldid);
 }
 
 long Flen32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);
+  fux::fml32::reset_Ferror32();
   return fbfr->len(fieldid, oc);
 }
 
 int Fprint32(FBFR32 *fbfr) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return fbfr->fprint(stdout);
 }
 
 int Ffprint32(FBFR32 *fbfr, FILE *iop) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return fbfr->fprint(iop);
 }
 
 int Fdel32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);
+  fux::fml32::reset_Ferror32();
   return fbfr->del(fieldid, oc);
 }
 
 int Fdelall32(FBFR32 *fbfr, FLDID32 fieldid) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);
+  fux::fml32::reset_Ferror32();
   return fbfr->delall(fieldid);
 }
 
@@ -268,55 +312,66 @@ int Fget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *loc,
            FLDLEN32 *maxlen) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);
+  fux::fml32::reset_Ferror32();
   return fbfr->get(fieldid, oc, loc, maxlen);
 }
 
 int Fnext32(FBFR32 *fbfr, FLDID32 *fieldid, FLDOCC32 *oc, char *value,
             FLDLEN32 *len) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return fbfr->next(fieldid, oc, value, len);
 }
 int Fcpy32(FBFR32 *dest, FBFR32 *src) {
   FBFR32_CHECK(-1, dest);
   FBFR32_CHECK(-1, src);
+  fux::fml32::reset_Ferror32();
   return dest->cpy(src);
 }
 char *Fgetalloc32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc,
                   FLDLEN32 *extralen) {
   FBFR32_CHECK(nullptr, fbfr);
   FLDID32_CHECK(nullptr, fieldid);
+  fux::fml32::reset_Ferror32();
   return fbfr->getalloc(fieldid, oc, extralen);
 }
 int Fdelete32(FBFR32 *fbfr, FLDID32 *fieldid) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return fbfr->xdelete(fieldid);
 }
 int Fproj32(FBFR32 *fbfr, FLDID32 *fieldid) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return fbfr->proj(fieldid);
 }
 int Fprojcpy32(FBFR32 *dest, FBFR32 *src, FLDID32 *fieldid) {
   FBFR32_CHECK(-1, dest);
   FBFR32_CHECK(-1, src);
+  fux::fml32::reset_Ferror32();
   return dest->projcpy(src, fieldid);
 }
 int Fupdate32(FBFR32 *dest, FBFR32 *src) {
   FBFR32_CHECK(-1, dest);
   FBFR32_CHECK(-1, src);
+  fux::fml32::reset_Ferror32();
   return dest->update(src);
 }
 int Fjoin32(FBFR32 *dest, FBFR32 *src) {
   FBFR32_CHECK(-1, dest);
   FBFR32_CHECK(-1, src);
+  fux::fml32::reset_Ferror32();
   return dest->join(src);
 }
 int Fojoin32(FBFR32 *dest, FBFR32 *src) {
   FBFR32_CHECK(-1, dest);
   FBFR32_CHECK(-1, src);
+  fux::fml32::reset_Ferror32();
   return dest->ojoin(src);
 }
 long Fchksum32(FBFR32 *fbfr) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return fbfr->chksum();
 }
 
@@ -406,12 +461,14 @@ char *Ftypcvt32(FLDLEN32 *tolen, int totype, char *fromval, int fromtype,
 FLDOCC32 Ffindocc32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);
+  fux::fml32::reset_Ferror32();
   return fbfr->findocc(fieldid, value, len);
 }
 
 int Fconcat32(FBFR32 *dest, FBFR32 *src) {
   FBFR32_CHECK(-1, dest);
   FBFR32_CHECK(-1, src);
+  fux::fml32::reset_Ferror32();
   return dest->concat(src);
 }
 
@@ -419,6 +476,7 @@ int CFadd32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len,
             int type) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);
+  fux::fml32::reset_Ferror32();
 
   FLDLEN32 flen;
   auto cvtvalue = Ftypcvt32(&flen, Fldtype32(fieldid), value, type, len);
@@ -433,6 +491,7 @@ int CFchg32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *value,
             FLDLEN32 len, int type) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);
+  fux::fml32::reset_Ferror32();
 
   FLDLEN32 flen;
   auto cvtvalue = Ftypcvt32(&flen, Fldtype32(fieldid), value, type, len);
@@ -441,11 +500,13 @@ int CFchg32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *value,
   }
   return fbfr->chg(fieldid, oc, cvtvalue, flen);
 }
-FLDOCC32
-CFfindocc32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len,
-            int type) {
+
+FLDOCC32 CFfindocc32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len,
+                     int type) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);
+  fux::fml32::reset_Ferror32();
+
   FLDLEN32 flen;
   auto cvtvalue = Ftypcvt32(&flen, Fldtype32(fieldid), value, type, len);
   if (cvtvalue == nullptr) {
@@ -458,6 +519,7 @@ char *CFfind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len,
                int type) {
   FBFR32_CHECK(nullptr, fbfr);
   FLDID32_CHECK(nullptr, fieldid);
+  fux::fml32::reset_Ferror32();
 
   FLDLEN32 local_flen;
   if (len == nullptr) {
@@ -474,6 +536,7 @@ int CFget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf,
             FLDLEN32 *len, int type) {
   FBFR32_CHECK(-1, fbfr);
   FLDID32_CHECK(-1, fieldid);
+  fux::fml32::reset_Ferror32();
 
   FLDLEN32 rlen = 0;
   FLDLEN32 local_flen;
@@ -496,6 +559,7 @@ int CFget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf,
 
 int Fextread32(FBFR32 *fbfr, FILE *iop) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   auto p = extreader(iop);
   auto f = p.parse();
   if (!f) {
@@ -506,11 +570,13 @@ int Fextread32(FBFR32 *fbfr, FILE *iop) {
 
 int Fwrite32(FBFR32 *fbfr, FILE *iop) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return fbfr->write(iop);
 }
 
 int Fread32(FBFR32 *fbfr, FILE *iop) {
   FBFR32_CHECK(-1, fbfr);
+  fux::fml32::reset_Ferror32();
   return fbfr->read(iop);
 }
 

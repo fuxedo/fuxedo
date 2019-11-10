@@ -64,6 +64,8 @@ TEST_CASE("Fstrerror32", "[fml32]") {
   REQUIRE(strlen(Fstrerror32(FRFSYNTAX)) > 1);
   REQUIRE(strlen(Fstrerror32(FRFOPEN)) > 1);
   REQUIRE(strlen(Fstrerror32(FBADRECORD)) > 1);
+
+  REQUIRE(strlen(Fstrerror32(666)) == 0);
 }
 
 TEST_CASE("Finit32-Fsizeof32", "[fml32]") {
@@ -184,6 +186,22 @@ struct FieldFixture {
                 bytes.size()) == bytes);
   }
 };
+
+TEST_CASE_METHOD(FieldFixture, "Ffindocc32 basic", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  set_fields(fbfr);
+
+  REQUIRE(Ffindocc32(fbfr, fld_short, reinterpret_cast<char *>(&s), 0) == 0);
+  REQUIRE(Ffindocc32(fbfr, fld_long, reinterpret_cast<char *>(&l), 0) == 0);
+  REQUIRE(Ffindocc32(fbfr, fld_char, reinterpret_cast<char *>(&c), 0) == 0);
+  REQUIRE(Ffindocc32(fbfr, fld_float, reinterpret_cast<char *>(&f), 0) == 0);
+  REQUIRE(Ffindocc32(fbfr, fld_double, reinterpret_cast<char *>(&d), 0) == 0);
+  REQUIRE(Ffindocc32(fbfr, fld_string, DECONST(str.c_str()), 0) == 0);
+  REQUIRE(Ffindocc32(fbfr, fld_carray, DECONST(bytes.data()), bytes.size()) ==
+          0);
+
+  Ffree32(fbfr);
+}
 
 TEST_CASE("Ffindocc32", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
@@ -1342,7 +1360,7 @@ TEST_CASE("Fextread32 error", "[fml32]") {
 
   REQUIRE(Fextread32(fbfr, stdout) == -1);
   //  REQUIRE(Ferror32 == FEUNIX);
-  REQUIRE(strlen(Fstrerror32(Ferror32)) > 1);
+  // REQUIRE(strlen(Fstrerror32(Ferror32)) > 1);
 }
 
 TEST_CASE("Fextread32 empty buffer is OK", "[fml32]") {
@@ -1406,8 +1424,9 @@ TEST_CASE_METHOD(FieldFixture, "Ffprint32", "[fml32]") {
 
   set_fields(fbfr);
   REQUIRE((file.f = fopen(file.name.c_str(), "w")) != nullptr);
-  Ffprint32(fbfr, file.f);
+  REQUIRE(Ffprint32(fbfr, file.f) != -1);
   fclose(file.f);
+  REQUIRE(Fprint32(fbfr) != -1);
 
   Finit32(fbfr, Fsizeof32(fbfr));
 
