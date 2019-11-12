@@ -72,11 +72,13 @@ struct queue {
 struct service {
   char servicename[XATMI_SERVICE_NAME_LENGTH];
   uint64_t revision;
+  void modified() { revision++; }
 };
 
 struct advertisement {
   size_t service;
   size_t queue;
+  size_t server;
 };
 
 template <typename T>
@@ -193,8 +195,8 @@ class mib {
                                                   mem_->transactions_off);
   }
 
-  void advertise(const std::string &servicename, size_t queue);
-  void unadvertise(const std::string &servicename, size_t queue);
+  void advertise(const std::string &servicename, size_t queue, size_t server);
+  void unadvertise(const std::string &servicename, size_t queue, size_t server);
 
   size_t find_queue(const std::string &rqaddr);
   size_t make_queue(const std::string &rqaddr);
@@ -224,7 +226,7 @@ class mib {
   constexpr static size_t badoff = std::numeric_limits<size_t>::max();
 
  private:
-  size_t find_advertisement(size_t service, size_t queue);
+  size_t find_advertisement(size_t service, size_t queue, size_t server);
   void init_memory();
 
   tuxconfig cfg_;

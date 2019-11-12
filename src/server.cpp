@@ -102,7 +102,7 @@ struct server_main {
     } else {
       try {
         auto lock = m_.data_lock();
-        m_.advertise(svcname, mib_queue);
+        m_.advertise(svcname, mib_queue, mib_server);
       } catch (const std::out_of_range &e) {
         TPERROR(TPELIMIT, "%s", e.what());
         return -1;
@@ -124,8 +124,10 @@ struct server_main {
       auto freeme = it->first;
       advertisements.erase(it);
       free(const_cast<char *>(freeme));
+      m_.unadvertise(svcname, mib_queue, mib_server);
     } else {
       TPERROR(TPENOENT, "svcname not advertised");
+      return -1;
     }
     return 0;
   }

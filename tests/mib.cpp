@@ -7,6 +7,25 @@
 #include "../src/mib.h"
 #include "../src/ubbreader.h"
 
+TEST_CASE("services can be advertised", "[mib]") {
+  tuxconfig tuxcfg;
+  tuxcfg.size = 0;
+  tuxcfg.ipckey = 0;
+  tuxcfg.maxservers = 5;
+  tuxcfg.maxservices = 5;
+  tuxcfg.maxgroups = 5;
+  tuxcfg.maxqueues = 5;
+
+  mib m(tuxcfg, fux::mib::in_heap());
+  auto srv = m.make_server(1, 1, "server", "clopt", "rqaddr");
+  auto q = m.servers().at(srv).rqaddr;
+
+  m.advertise("service", q, srv);
+  REQUIRE_THROWS_AS(m.advertise("service", q, srv), std::logic_error);
+  m.unadvertise("service", q, srv);
+  REQUIRE_THROWS_AS(m.unadvertise("service", q, srv), std::logic_error);
+}
+
 SCENARIO("servers can be added", "[mib]") {
   GIVEN("configuration with max 1 server") {
     tuxconfig tuxcfg;

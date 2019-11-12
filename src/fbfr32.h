@@ -600,6 +600,29 @@ struct Fbfr32 {
     return 0;
   }
 
+  int ojoin(FBFR32 *src) {
+    auto it = reinterpret_cast<fieldhead *>(src->data_);
+    auto end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
+
+    FLDOCC32 oc = 0;
+    FLDID32 prev = BADFLDID;
+    while (it != nullptr && it < end) {
+      if (it->fieldid != prev) {
+        oc = 0;
+        prev = it->fieldid;
+      } else {
+        oc++;
+      }
+      if (pres(it->fieldid, oc)) {
+        if (chg(it->fieldid, oc, src->fvalue(it), src->flength(it)) == -1) {
+          return -1;
+        }
+      }
+      it = src->next_(it);
+    }
+    return 0;
+  }
+
   int join(FBFR32 *src) {
     {
       auto it = reinterpret_cast<fieldhead *>(data_);
@@ -663,29 +686,6 @@ struct Fbfr32 {
 
       if (chg(it->fieldid, oc, src->fvalue(it), src->flength(it)) == -1) {
         return -1;
-      }
-      it = src->next_(it);
-    }
-    return 0;
-  }
-
-  int ojoin(FBFR32 *src) {
-    auto it = reinterpret_cast<fieldhead *>(src->data_);
-    auto end = reinterpret_cast<fieldhead *>(src->data_ + src->len_);
-
-    FLDOCC32 oc = 0;
-    FLDID32 prev = BADFLDID;
-    while (it != nullptr && it < end) {
-      if (it->fieldid != prev) {
-        oc = 0;
-        prev = it->fieldid;
-      } else {
-        oc++;
-      }
-      if (pres(it->fieldid, oc)) {
-        if (chg(it->fieldid, oc, src->fvalue(it), src->flength(it)) == -1) {
-          return -1;
-        }
       }
       it = src->next_(it);
     }

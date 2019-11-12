@@ -117,39 +117,59 @@ void mib::init_memory() {
                                              transactions().max_participants));
 }
 
-size_t mib::find_advertisement(size_t service, size_t queue) {
+size_t mib::find_advertisement(size_t service, size_t queue, size_t server) {
   for (size_t i = 0; i < advertisements()->len; i++) {
     auto &advertisement = advertisements().at(i);
-    if (advertisement.service == service && advertisement.queue == queue) {
+    if (advertisement.service == service && advertisement.queue == queue &&
+        advertisement.server == server) {
       return i;
     }
   }
   return badoff;
 }
 
-void mib::advertise(const std::string &servicename, size_t queue) {
+void mib::advertise(const std::string &servicename, size_t queue,
+                    size_t server) {
   auto service = find_service(servicename);
   if (service == badoff) {
     service = make_service(servicename);
   }
-  if (find_advertisement(service, queue) == badoff) {
-    auto &advertisement = advertisements().at(advertisements()->len);
-    advertisement.service = service;
-    advertisement.queue = queue;
-    services().at(service).revision++;
+
+  if (find_advertisement(service, queue, server) != badoff) {
+    throw std::logic_error("Already advertised");
+  }
+
+  auto i = find_advertisement(badoff, badoff, badoff);
+  if (i == badoff) {
+    i = advertisements()->len;
+  }
+
+  auto &advertisement = advertisements().at(i);
+
+  advertisement.service = service;
+  advertisement.queue = queue;
+  advertisement.server = server;
+
+  if (i == advertisements()->len) {
     advertisements()->len++;
   }
+  services().at(service).modified();
 }
 
-void mib::unadvertise(const std::string &servicename, size_t queue) {
+void mib::unadvertise(const std::string &servicename, size_t queue,
+                      size_t server) {
   auto service = find_service(servicename);
   if (service == badoff) {
     throw std::logic_error("Unknown service");
   }
-  auto advertisement = find_advertisement(service, queue);
-  if (advertisement != badoff) {
+
+  auto i = find_advertisement(service, queue, server);
+  if (i == badoff) {
+    throw std::logic_error("Service not advertised");
   }
-  throw std::logic_error("Service not advertised");
+  auto &advertisement = advertisements().at(i);
+  advertisement.service = advertisement.queue = advertisement.server = badoff;
+  services().at(service).modified();
 }
 
 size_t mib::find_queue(const std::string &rqaddr) {
