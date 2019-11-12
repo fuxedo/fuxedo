@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+void SERVICE(TPSVCINFO *svcinfo) {
+}
+
 int main(int argc, char *argv[]) {
   char *sndbuf = tpalloc("STRING", NULL, 6);
   assert(sndbuf != NULL);
@@ -27,6 +30,9 @@ int main(int argc, char *argv[]) {
   ret = tpcall("SERVICE", sndbuf, 0, &rcvbuf, &rcvlen, 0);
   assert(ret == -1);
   assert(tperrno == TPENOENT);
+
+  assert(tpadvertise("SERVICE", SERVICE) == -1 && tperrno == TPEPROTO);
+  assert(tpunadvertise("SERVICE") == -1 && tperrno == TPEPROTO);
 
   tpfree(sndbuf);
   tpfree(rcvbuf);

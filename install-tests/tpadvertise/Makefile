@@ -23,7 +23,7 @@ tuxconfig: ubbconfig
 	tmloadcf -y $<
 
 server: server.c
-	buildserver -o $@ -f $< -s :SERVICE -v -f "-Wl,--no-as-needed"
+	buildserver -o $@ -f $< -s :SERVICE -s :SERVICE2 -v -f "-Wl,--no-as-needed"
 
 client: client.c
 	buildclient -o $@ -f $< -v -f "-Wl,--no-as-needed"
