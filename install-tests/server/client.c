@@ -22,10 +22,18 @@ int main(int argc, char *argv[]) {
   assert(strcmp(rcvbuf, "HELLO") == 0);
 
   memset(rcvbuf, 0, rcvlen);
-
   ret = tpcall("MTSERVICE", sndbuf, 0, &rcvbuf, &rcvlen, 0);
   assert(ret != -1);
+  assert(strcmp(rcvbuf, "HELLO") == 0);
 
+  memset(rcvbuf, 0, rcvlen);
+  ret = tpcall("DEFSERVICE", sndbuf, 0, &rcvbuf, &rcvlen, 0);
+  assert(ret != -1);
+  assert(strcmp(rcvbuf, "HELLO") == 0);
+
+  memset(rcvbuf, 0, rcvlen);
+  ret = tpcall("DEFMTSERVICE", sndbuf, 0, &rcvbuf, &rcvlen, 0);
+  assert(ret != -1);
   assert(strcmp(rcvbuf, "HELLO") == 0);
 
   memset(rcvbuf, 0, rcvlen);

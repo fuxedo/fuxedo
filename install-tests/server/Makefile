@@ -6,7 +6,7 @@ export PATH:=$(TUXDIR)/bin:$(PATH)
 export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
 export TUXCONFIG:=$(CURDIR)/tuxconfig
 
-check: server mtserver failserver client tuxconfig
+check: server mtserver failserver client defserver defmtserver tuxconfig
 	-rm -f ULOG.*
 	tmboot -y
 	./client
@@ -20,6 +20,8 @@ check: server mtserver failserver client tuxconfig
 	grep -q ':mtserver\..*:TEST: tpsvrthrinit called' ULOG.*
 	grep -q ':server\..*:TEST: SERVICE called' ULOG.*
 	grep -q ':mtserver\..*:TEST: MTSERVICE called' ULOG.*
+	grep -q ':defserver\..*:TEST: DEFSERVICE called' ULOG.*
+	grep -q ':defmtserver\..*:TEST: DEFMTSERVICE called' ULOG.*
 	grep -q ':mtserver\..*:TEST: tpsvrdone called' ULOG.*
 	grep -q ':mtserver\..*:TEST: tpsvrthrdone called' ULOG.*
 	grep -q ':failserver\..*:TEST: tpsvrinit called' ULOG.*
@@ -39,14 +41,20 @@ tuxconfig: ubbconfig
 server: server.c
 	buildserver -o $@ -f $< -s SERVICE -v -f "-Wl,--no-as-needed"
 
+defserver: defserver.c
+	buildserver -o $@ -f $< -s DEFSERVICE -v -f "-Wl,--no-as-needed"
+
 failserver: failserver.c
 	buildserver -o $@ -f $< -s FAILSERVICE -v -f "-Wl,--no-as-needed"
 
 mtserver: mtserver.c
 	buildserver -t -o $@ -f $< -s MTSERVICE -v -f "-Wl,--no-as-needed"
 
+defmtserver: defmtserver.c
+	buildserver -t -o $@ -f $< -s DEFMTSERVICE -v -f "-Wl,--no-as-needed"
+
 client: client.c
 	buildclient -o $@ -f $< -v -f "-Wl,--no-as-needed"
 
 clean:
-	-rm -f *.o ubbconfig tuxconfig client server mtserver failserver ULOG.* stdout stderr access.*
+	-rm -f *.o ubbconfig tuxconfig client server mtserver failserver defserver defmtserver ULOG.* stdout stderr access.*

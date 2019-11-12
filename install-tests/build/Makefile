@@ -19,6 +19,9 @@ check:
 	buildserver -o server -f server.c -s SERVICE -v -f "-Wl,--no-as-needed"
 	buildserver -o server -f server.c -s ANOTHER:SERVICE -v -f "-Wl,--no-as-needed"
 	buildclient -o client -f client.c -v -f "-Wl,--no-as-needed"
+	./server -h
+	./server -v
+	!(./server -zinvalid_option)
 
 clean:
 	-rm -f *.o client server ULOG.* stdout stderr access.*
