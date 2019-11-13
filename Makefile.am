@@ -123,6 +123,7 @@ clang-format:
 installcheck-local:
 	TUXDIR=$(prefix) make -C install-tests/build
 	TUXDIR=$(prefix) make -C install-tests/server
+	TUXDIR=$(prefix) make -C install-tests/tpinit
 	TUXDIR=$(prefix) make -C install-tests/tpcall
 	TUXDIR=$(prefix) make -C install-tests/tpacall
 	TUXDIR=$(prefix) make -C install-tests/tpadvertise
@@ -131,6 +132,7 @@ installcheck-local:
 iclean:
 	TUXDIR=$(prefix) make -C install-tests/build clean
 	TUXDIR=$(prefix) make -C install-tests/server clean
+	TUXDIR=$(prefix) make -C install-tests/tpinit clean
 	TUXDIR=$(prefix) make -C install-tests/tpcall clean
 	TUXDIR=$(prefix) make -C install-tests/tpacall clean
 	TUXDIR=$(prefix) make -C install-tests/tpadvertise clean

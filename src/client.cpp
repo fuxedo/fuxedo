@@ -19,6 +19,11 @@
 #include "mib.h"
 #include "misc.h"
 
+
+namespace fux {
+  bool is_server();
+}
+
 struct service_entry {
   std::vector<int> queues;
   size_t current_queue;
@@ -269,12 +274,20 @@ static client &getclient() {
 }
 
 int tpinit(TPINIT *tpinfo) {
+  if (fux::is_server()) {
+    TPERROR(TPEPROTO, "%s called from server", __func__);
+    return -1;
+  }
   getclient();
   fux::atmi::reset_tperrno();
   return 0;
 }
 
 int tpterm() {
+  if (fux::is_server()) {
+    TPERROR(TPEPROTO, "%s called from server", __func__);
+    return -1;
+  }
   current_client.reset();
   fux::atmi::reset_tperrno();
   return 0;

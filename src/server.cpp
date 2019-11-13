@@ -161,6 +161,12 @@ struct server_main {
 
 static std::unique_ptr<server_main> main_ptr;
 
+namespace fux {
+  bool is_server() {
+    return main_ptr.get() != nullptr;
+  }
+}
+
 int _tmrunserver(int) {
   // Just a placeholder
   return 0;
