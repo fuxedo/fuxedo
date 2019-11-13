@@ -53,6 +53,16 @@ int main(int argc, char *argv[]) {
     assert(strcmp(rcvbuf, "0000X") == 0);
   }
 
+  assert(tpcancel(666) == -1);
+  assert(tperrno == TPEBADDESC);
+
+  int cd = tpacall("SERVICE", sndbuf, 0, 0);
+  assert(cd != -1);
+  assert(tpcancel(cd) != -1);
+  rc = tpgetrply(&cd, &rcvbuf, &rcvlen, 0);
+  assert(rc == -1);
+  assert(tperrno == TPEBADDESC);
+
   tpfree(sndbuf);
   tpfree(rcvbuf);
   return 0;

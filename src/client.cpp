@@ -134,6 +134,9 @@ class client {
     if (flags & TPGETANY) {
       fux::ipc::qrecv(rpid, res, 0, 0);
     } else {
+      if (fux::glob::calldescs()->check(*cd) == -1) {
+        return -1;
+      }
       fux::ipc::qrecv(rpid, res, *cd, 0);
     }
     if (res->cat == fux::ipc::unblock) {

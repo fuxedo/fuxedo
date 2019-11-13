@@ -4,8 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void SERVICE(TPSVCINFO *svcinfo) {
-}
+void SERVICE(TPSVCINFO *svcinfo) {}
 
 int main(int argc, char *argv[]) {
   char *sndbuf = tpalloc("STRING", NULL, 6);

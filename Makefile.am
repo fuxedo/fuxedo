@@ -127,3 +127,11 @@ installcheck-local:
 	TUXDIR=$(prefix) make -C install-tests/tpacall
 	TUXDIR=$(prefix) make -C install-tests/tpadvertise
 	TUXDIR=$(prefix) make -C install-tests/tpforward
+
+iclean:
+	TUXDIR=$(prefix) make -C install-tests/build clean
+	TUXDIR=$(prefix) make -C install-tests/server clean
+	TUXDIR=$(prefix) make -C install-tests/tpcall clean
+	TUXDIR=$(prefix) make -C install-tests/tpacall clean
+	TUXDIR=$(prefix) make -C install-tests/tpadvertise clean
+	TUXDIR=$(prefix) make -C install-tests/tpforward clean

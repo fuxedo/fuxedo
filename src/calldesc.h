@@ -31,7 +31,9 @@ class call_descriptors {
   }
 
   auto find_cd(int cd) {
-    return std::upper_bound(std::begin(cds_), std::end(cds_), cd);
+    auto last = std::end(cds_);
+    auto first = std::lower_bound(std::begin(cds_), last, cd);
+    return first != last && *first == cd ? first : last;
   }
 
   auto lock() { return fux::scoped_fuxlock(mutex); }
@@ -40,6 +42,16 @@ class call_descriptors {
   call_descriptors() : seq_(0) {}
 
   call_descriptor_trx allocate();
+
+  int check(int cd) {
+    auto l = lock();
+    auto it = find_cd(cd);
+    if (it == cds_.end()) {
+      TPERROR(TPEBADDESC, "Not allocated");
+      return -1;
+    }
+    return 0;
+  }
 
   int release(int cd) {
     auto l = lock();
@@ -61,6 +73,12 @@ class call_descriptor_trx {
     if (!released_ && cd_ != -1) {
       cds_.release(cd_);
     }
+  }
+  call_descriptor_trx(const call_descriptor_trx &) = delete;
+  call_descriptor_trx(call_descriptor_trx &other)
+      : cds_(other.cds_), cd_(-1), released_(true) {
+    std::swap(released_, other.released_);
+    std::swap(cd_, other.cd_);
   }
   void commit() { released_ = true; }
   int cd() { return cd_; }

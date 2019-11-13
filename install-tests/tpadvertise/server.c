@@ -1,7 +1,7 @@
-#include <atmi.h>
-#include <userlog.h>
-#include <stddef.h>
 #include <assert.h>
+#include <atmi.h>
+#include <stddef.h>
+#include <userlog.h>
 
 void SERVICE(TPSVCINFO *svcinfo) {
   userlog(":TEST: %s called", __func__);
@@ -9,8 +9,7 @@ void SERVICE(TPSVCINFO *svcinfo) {
   assert(tpunadvertise("SERVICE") == -1 && tperrno == TPENOENT);
   tpreturn(TPSUCCESS, 1, svcinfo->data, 0, 0);
 }
-void SERVICE2(TPSVCINFO *svcinfo) {
-}
+void SERVICE2(TPSVCINFO *svcinfo) {}
 
 int tpsvrinit(int argc, char *argv[]) {
   assert(tpadvertise(NULL, SERVICE) == -1 && tperrno == TPEINVAL);
