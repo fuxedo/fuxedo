@@ -18,6 +18,18 @@
 std::string string_format(const char *fmt, ...)
     __attribute__((format(printf, 1, 2)));
 
+namespace fux {
+namespace fml32 {
+void set_Ferror32(int err, const char *fmt, ...);
+void reset_Ferror32();
+}  // namespace fml32
+}  // namespace fux
+
+#define FERROR(err, fmt, args...)                                          \
+  fux::fml32::set_Ferror32(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
+                           __LINE__, ##args)
+
+
 #define TPERROR(err, fmt, args...)                                       \
   fux::atmi::set_tperrno(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
                          __LINE__, ##args)

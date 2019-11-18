@@ -291,6 +291,22 @@ TEST_CASE("boolean eval", "[fml32]") {
   Ffree32(fbfr);
 }
 
+TEST_CASE("invalid inputs", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  char *tree = nullptr;
+
+  REQUIRE(Fboolev32(nullptr, tree) == -1);
+  REQUIRE(Ferror32 == FNOTFLD);
+  REQUIRE(Fboolev32(fbfr, tree) == -1);
+  REQUIRE(Ferror32 == FNOTFLD);
+  REQUIRE(Ffloatev32(nullptr, tree) == -1);
+  REQUIRE(Ferror32 == FNOTFLD);
+  REQUIRE(Ffloatev32(fbfr, tree) == -1);
+  REQUIRE(Ferror32 == FNOTFLD);
+
+  Ffree32(fbfr);
+}
+
 TEST_CASE("Fboolpr32", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   char *tree;
@@ -302,5 +318,14 @@ TEST_CASE("Fboolpr32", "[fml32]") {
   fclose(f.f);
 
   REQUIRE(read_file(f.name) == "( ( 1 ) == ( 1 ) ) \n");
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("FIRSTNAME %% 'J.*n' && SEX == 'M'"))) != nullptr);
+
+  tempfile ff(__LINE__);
+  Fboolpr32(tree, ff.f);
+  fclose(ff.f);
+
+  REQUIRE(read_file(ff.name) == "( ( ( FIRSTNAME[0] ) %% ( 'J.*n' ) ) && ( ( SEX[0] ) == ( 'M' ) ) ) \n");
   free(tree);
 }

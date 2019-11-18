@@ -11,11 +11,6 @@
 // TX_FAIL => TPESYSTEM
 
 int tpopen() {
-  if (false) {
-    TPERROR(TPEPROTO, "tx_open called from client");
-    return -1;
-  }
-
   int rc = tx_open();
 
   if (rc == TX_OK) {
@@ -32,11 +27,6 @@ int tpopen() {
 }
 
 int tpclose() {
-  if (false) {
-    TPERROR(TPEPROTO, "tx_close called from client");
-    return -1;
-  }
-
   int rc = tx_close();
 
   if (rc == TX_OK) {

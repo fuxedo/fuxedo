@@ -22,17 +22,6 @@
 #include "fbfr32fld.h"
 #include "misc.h"
 
-namespace fux {
-namespace fml32 {
-void set_Ferror32(int err, const char *fmt, ...);
-void reset_Ferror32();
-}  // namespace fml32
-}  // namespace fux
-
-#define FERROR(err, fmt, args...)                                          \
-  fux::fml32::set_Ferror32(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
-                           __LINE__, ##args)
-
 static unsigned int crc32b(unsigned char *data, size_t len) {
   unsigned crc = 0xFFFFFFFF;
   for (size_t i = 0; i < len; i++) {

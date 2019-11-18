@@ -14,9 +14,10 @@ AGE 202 short
 DEPT 203 long
 SALARY 204 float
 NAME 205 string
+FIRSTNAME 206 string
 
-ARGS 206 fml32
-VALUE 207 string
+ARGS 207 fml32
+VALUE 208 string
 
 *base 0
 fld_short 10 short

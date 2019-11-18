@@ -12,6 +12,7 @@
 
 #include <fml32.h>
 #include "basic_parser.h"
+#include "misc.h"
 
 #include <iostream>
 
@@ -678,8 +679,12 @@ eval_value boolev(FBFR32 *fbfr, char *tree) {
 }
 
 int Fboolev32(FBFR32 *fbfr, char *tree) {
+  if (fbfr == nullptr) {
+    FERROR(FNOTFLD, "fbfr is NULL");
+    return -1;
+  }
   if (tree == nullptr) {
-    Ferror32 = FEINVAL;
+    FERROR(FNOTFLD, "tree is NULL");
     return -1;
   }
   auto v = boolev(fbfr, tree + 4);
@@ -687,8 +692,12 @@ int Fboolev32(FBFR32 *fbfr, char *tree) {
 }
 
 double Ffloatev32(FBFR32 *fbfr, char *tree) {
+  if (fbfr == nullptr) {
+    FERROR(FNOTFLD, "fbfr is NULL");
+    return -1;
+  }
   if (tree == nullptr) {
-    Ferror32 = FEINVAL;
+    FERROR(FNOTFLD, "tree is NULL");
     return -1;
   }
   auto v = boolev(fbfr, tree + 4);
