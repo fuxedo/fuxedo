@@ -320,12 +320,15 @@ TEST_CASE("Fboolpr32", "[fml32]") {
   REQUIRE(read_file(f.name) == "( ( 1 ) == ( 1 ) ) \n");
   free(tree);
 
-  REQUIRE((tree = Fboolco32(DECONST("FIRSTNAME %% 'J.*n' && SEX == 'M'"))) != nullptr);
+  REQUIRE((tree = Fboolco32(DECONST("FIRSTNAME %% 'J.*n' && SEX == 'M'"))) !=
+          nullptr);
 
   tempfile ff(__LINE__);
   Fboolpr32(tree, ff.f);
   fclose(ff.f);
 
-  REQUIRE(read_file(ff.name) == "( ( ( FIRSTNAME[0] ) %% ( 'J.*n' ) ) && ( ( SEX[0] ) == ( 'M' ) ) ) \n");
+  REQUIRE(
+      read_file(ff.name) ==
+      "( ( ( FIRSTNAME[0] ) %% ( 'J.*n' ) ) && ( ( SEX[0] ) == ( 'M' ) ) ) \n");
   free(tree);
 }

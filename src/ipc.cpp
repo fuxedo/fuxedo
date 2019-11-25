@@ -161,6 +161,7 @@ static bool msgsnd_timed(int msqid, void *ptr, size_t len, enum flags flag,
       if (n != -1) {
         return true;
       } else if (errno != EAGAIN) {
+        fprintf(stderr, "ERROR %d %s\n", errno, strerror(errno));
         throw std::system_error(errno, std::system_category());
       }
       if (i == 0) {
@@ -170,10 +171,12 @@ static bool msgsnd_timed(int msqid, void *ptr, size_t len, enum flags flag,
 
       struct timespec req = {0, interval_msec * 1000000};
       if (nanosleep(&req, nullptr) == -1) {
+        fprintf(stderr, "!!ERROR %d %s\n", errno, strerror(errno));
         throw std::system_error(errno, std::system_category());
       }
     }
   }
+  return false;
 }
 
 bool qsend(int msqid, msg &data, long timeout, enum flags flags) {

@@ -29,7 +29,6 @@ void reset_Ferror32();
   fux::fml32::set_Ferror32(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
                            __LINE__, ##args)
 
-
 #define TPERROR(err, fmt, args...)                                       \
   fux::atmi::set_tperrno(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
                          __LINE__, ##args)

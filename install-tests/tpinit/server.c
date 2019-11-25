@@ -1,7 +1,7 @@
-#include <atmi.h>
-#include <userlog.h>
-#include <stddef.h>
 #include <assert.h>
+#include <atmi.h>
+#include <stddef.h>
+#include <userlog.h>
 
 int tpsvrinit(int argc, char *argv[]) {
   assert(tpinit(NULL) == -1);

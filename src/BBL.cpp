@@ -11,6 +11,7 @@
 
 #include <atmi.h>
 #include <stdio.h>
+#include <userlog.h>
 #include <xa.h>
 
 #if defined(__cplusplus)
@@ -24,12 +25,10 @@ extern int _tmbuilt_with_thread_option;
 }
 #endif
 
-static int bblrunserver(int);
-
 static struct tmdsptchtbl_t _tmdsptchtbl[] = {
     {".TMIB", "TMIB", TMIB, 0, 0, NULL}, {NULL, NULL, NULL, 0, 0, NULL}};
 static struct tmsvrargs_t tmsvrargs = {
-    &tmnull_switch, _tmdsptchtbl, 0,    tpsvrinit, tpsvrdone, bblrunserver,
+    &tmnull_switch, _tmdsptchtbl, 0,    tpsvrinit, tpsvrdone, _tmrunserver,
     NULL,           NULL,         NULL, NULL,      tprminit,  tpsvrthrinit,
     tpsvrthrdone,   NULL};
 
@@ -49,9 +48,14 @@ static void handle_blocktime() {
   auto accessers = m.accessers();
   for (size_t i = 0; i < accessers->len; i++) {
     auto &acc = accessers[i];
+    if (!acc.valid()) {
+      continue;
+    }
     if (acc.rpid_timeout < now) {
       fux::ipc::msg req;
       req->cat = fux::ipc::unblock;
+      userlog("Sending unblock message to client=%d queue=%0x", int(i),
+              acc.rpid);
       fux::ipc::qsend(acc.rpid, req, 0, fux::ipc::flags::notime);
     }
   }
@@ -101,10 +105,10 @@ static void run_watchdog() {
   }
 }
 
-static int bblrunserver(int x) {
+int tpsvrinit(int argc, char *argv[]) {
   std::thread t(run_watchdog);
   t.detach();
-  return _tmrunserver(x);
+  return 0;
 }
 
 extern "C" void TMIB(TPSVCINFO *svcinfo) {

@@ -276,6 +276,7 @@ size_t mib::make_accesser(pid_t pid) {
     at = accessers()->len++;
   }
   auto &accesser = accessers().at(at);
+  accesser.rpid_timeout = INVALID_TIME;
   accesser.pid = pid;
   return at;
 }

@@ -56,6 +56,26 @@ void ubb2mib(ubbconfig &u, mib &m) {
   checked_copy(mach.second["ULOGPFX"], m.mach().ulogpfx);
   checked_copy(mach.second["TLOGDEVICE"], m.mach().tlogdevice);
 
+  std::string blocktime = u.resources["BLOCKTIME"];
+  if (blocktime.empty()) {
+    blocktime = "15";
+  }
+  std::string scanunit = u.resources["SCANUNIT"];
+  if (scanunit.empty()) {
+    scanunit = "1000MS";
+  }
+
+  // scanunit to milliseconds
+  std::transform(scanunit.begin(), scanunit.end(), scanunit.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+  if (scanunit.compare(scanunit.size() - 2, 2, "ms")) {
+    scanunit = scanunit.substr(0, scanunit.size() - 2);
+  } else {
+    scanunit += "000";
+  }
+
+  m.mach().blocktime = std::stol(blocktime) * std::stol(scanunit);
+
   std::map<std::string, uint16_t> group_ids;
   auto groups = m.groups();
   auto servers = m.servers();

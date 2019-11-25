@@ -22,10 +22,17 @@ struct transaction_table;
 
 constexpr auto INVALID_TIME =
     std::chrono::time_point<std::chrono::steady_clock>::max();
+
 struct accesser {
   pid_t pid;
   int rpid;
   std::chrono::steady_clock::time_point rpid_timeout;
+
+  bool valid() const { return pid != 0; }
+  void invalidate() {
+    pid = 0;
+    rpid = -1;
+  }
 };
 
 struct machine {
@@ -39,6 +46,7 @@ struct machine {
   char appdir[256];
   char ulogpfx[256];
   char tlogdevice[256];
+  long blocktime;
 };
 
 struct group {

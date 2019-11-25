@@ -1,11 +1,11 @@
 // This file is part of Fuxedo
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
+#include <userlog.h>
 #include <xa.h>
 #include <xatmi.h>
 
 #include <algorithm>
-#include <clara.hpp>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -13,80 +13,19 @@
 #include <memory>
 #include <vector>
 
-#include "calldesc.h"
 #include "ctxt.h"
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
 
+#include "resp.h"
+#include "svcrepo.h"
+
+#include <thread>
 
 namespace fux {
-  bool is_server();
+bool is_server();
 }
-
-struct service_entry {
-  std::vector<int> queues;
-  size_t current_queue;
-  uint64_t cached_revision;
-  uint64_t *mib_revision;
-  size_t mib_service;
-
-  service_entry() : current_queue(0) {}
-};
-
-class service_repository {
- public:
-  service_repository(mib &m) : m_(m) {}
-  int get_queue(const char *svc) {
-    auto &entry = get_entry(svc);
-    refresh(entry);
-    return load_balance(entry);
-  }
-
- private:
-  service_entry &get_entry(const char *service_name) {
-    auto it = services_.find(service_name);
-    if (it == services_.end()) {
-      auto lock = m_.data_lock();
-      service_entry entry;
-      entry.mib_service = m_.find_service(service_name);
-      if (entry.mib_service == m_.badoff) {
-        throw std::out_of_range(service_name);
-      }
-      entry.mib_revision = &(m_.services().at(entry.mib_service).revision);
-      entry.cached_revision = 0;
-      it = services_.insert(std::make_pair(service_name, entry)).first;
-    }
-    return it->second;
-  }
-
-  void refresh(service_entry &entry) {
-    if (entry.cached_revision != *(entry.mib_revision)) {
-      entry.queues.clear();
-      auto lock = m_.data_lock();
-      auto adv = m_.advertisements();
-      for (size_t i = 0; i < adv->len; i++) {
-        auto &a = adv.at(i);
-        if (a.service == entry.mib_service) {
-          auto msqid = m_.queues().at(a.queue).msqid;
-          entry.queues.push_back(msqid);
-        }
-      }
-      entry.cached_revision = *(entry.mib_revision);
-    }
-  }
-
-  int load_balance(service_entry &entry) {
-    if (entry.queues.empty()) {
-      throw std::out_of_range("no queue");
-    }
-    entry.current_queue = (entry.current_queue + 1) % entry.queues.size();
-    return entry.queues[entry.current_queue];
-  }
-
-  mib &m_;
-  std::map<std::string, service_entry, std::less<void>> services_;
-};
 
 class client {
  public:
@@ -100,33 +39,39 @@ class client {
   ~client() {
     auto lock = mibcon_.data_lock();
     fux::ipc::qdelete(mibcon_.accessers().at(client_).rpid);
-    mibcon_.accessers().at(client_).rpid = -1;
+    mibcon_.accessers().at(client_).invalidate();
   }
 
   int tpacall(const char *svc, char *data, long len, long flags) try {
     int msqid = repo_.get_queue(svc);
 
-    auto trx = fux::glob::calldescs()->allocate();
-    if (trx.cd() == -1) {
-      return -1;
-    }
-
     rq.set_data(data, len);
     checked_copy(svc, rq->servicename);
-    rq->mtype = trx.cd();
-    rq->cd = trx.cd();
     if (flags & TPNOREPLY) {
       rq->replyq = -1;
+      rq->cd = 0;
     } else {
       rq->replyq = rpid;
+      rq->cd = cds.allocate();
+      if (rq->cd == -1) {
+        return -1;
+      }
     }
 
     if (fux::ipc::qsend(msqid, rq, next_blocktime(), to_flags(flags))) {
-      trx.commit();
       fux::atmi::reset_tperrno();
-      return trx.cd();
+      return rq->cd;
     }
 
+    if (flags & TPNOBLOCK) {
+      TPERROR(TPEBLOCK, "Request queue is full");
+    } else {
+      TPERROR(TPETIME, "Failed to send within timeout");
+    }
+
+    if (rq->cd != 0) {
+      cds.release(rq->cd);
+    }
     return -1;
   } catch (const std::out_of_range &e) {
     TPERROR(TPENOENT, "Service %s does not exist", svc);
@@ -134,38 +79,72 @@ class client {
   }
 
   int tpgetrply(int *cd, char **data, long *len, long flags) {
-    fux::ipc::msg res;
+    while (true) {
+      fux::ipc::msg res;
 
-    if (flags & TPGETANY) {
-      fux::ipc::qrecv(rpid, res, 0, 0);
-    } else {
-      if (fux::glob::calldescs()->check(*cd) == -1) {
+      // Lookup buffered responses first
+      bool has_res = false;
+      if (flags & TPGETANY) {
+        int c = cds.any_buffered();
+        if (c != -1) {
+          res = std::move(cds.buffered(c));
+          has_res = true;
+        }
+      } else {
+        if (cds.check(*cd) == -1) {
+          return -1;
+        }
+        if (cds.is_buffered(*cd)) {
+          res = std::move(cds.buffered(*cd));
+          has_res = true;
+        }
+      }
+
+      if (!has_res) {
+        mibcon_.accessers().at(client_).rpid_timeout =
+            std::chrono::steady_clock::now() +
+            std::chrono::milliseconds(next_blocktime());
+        fux::ipc::qrecv(rpid, res, 0, 0);
+        mibcon_.accessers().at(client_).rpid_timeout = INVALID_TIME;
+        userlog("%s received on %0x", __func__, rpid);
+      }
+
+      if (res->cat == fux::ipc::unblock) {
+        if (flags & TPGETANY) {
+          *cd = 0;
+        } else {
+          userlog("Received time-out for cd=%d", res->cd);
+        }
+        TPERROR(TPETIME, "Timeout message received");
         return -1;
       }
-      fux::ipc::qrecv(rpid, res, *cd, 0);
-    }
-    if (res->cat == fux::ipc::unblock) {
-      TPERROR(TPETIME, "Timeout message received");
+
+      // Did not receive the correct response, try again
+      if (!(flags & TPGETANY)) {
+        if (*cd != res->cd) {
+          cds.buffer(std::move(res));
+          continue;
+        }
+      }
+
+      res.get_data(data);
+      tpurcode = res->rcode;
+      *cd = res->cd;
+      cds.release(*cd);
+      if (len != nullptr) {
+        *len = res.size_data();
+      }
+      if (res->rval == TPMINVAL) {
+        fux::atmi::reset_tperrno();
+        return 0;
+      }
+      TPERROR(res->rval, "Service failed with %d", res->rval);
       return -1;
     }
-
-    res.get_data(data);
-    tpurcode = res->rcode;
-    *cd = res->cd;
-    fux::glob::calldescs()->release(*cd);
-    if (len != nullptr) {
-      *len = res.size_data();
-    }
-    if (res->rval == TPMINVAL) {
-      fux::atmi::reset_tperrno();
-      return 0;
-    }
-    TPERROR(res->rval, "Service failed with %d", res->rval);
-    return -1;
   }
 
   int tpcancel(int cd) {
-    if (fux::glob::calldescs()->release(cd) == -1) {
+    if (cds.release(cd) == -1) {
       return -1;
     }
     // TPETRAN
@@ -237,7 +216,7 @@ class client {
     } else if (blocktime_all != 0) {
       blocktime = blocktime_all;
     } else {
-      blocktime = 15 * 1000;
+      blocktime = mibcon_.mach().blocktime;
     }
     return blocktime;
   }
@@ -259,10 +238,10 @@ class client {
   size_t client_;
   service_repository repo_;
   fux::ipc::msg rq;
-  std::vector<fux::ipc::msg> responses;
   int rpid;
   long blocktime_next;
   long blocktime_all;
+  responses cds;
 };
 
 static thread_local std::shared_ptr<client> current_client;

@@ -10,6 +10,5 @@ class call_descriptors;
 namespace glob {
 
 xa_switch_t *xaswitch();
-fux::call_descriptors *calldescs();
 }  // namespace glob
 }  // namespace fux

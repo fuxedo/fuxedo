@@ -71,8 +71,12 @@ struct msgmem : msgbase {
 
 class msg {
  public:
-  msg() { bytes_.resize(sizeof(msgmem)); }
-  auto &as_msgfile() { return *reinterpret_cast<msgfile *>(buf()); }
+  msg() {
+    bytes_.resize(sizeof(msgmem));
+    as_msgmem().mtype = 1;
+  }
+  msgfile &as_msgfile() { return *reinterpret_cast<msgfile *>(buf()); }
+  msgmem &as_msgmem() { return *reinterpret_cast<msgmem *>(buf()); }
   msgmem *operator->() { return reinterpret_cast<msgmem *>(buf()); }
   char *buf() { return &bytes_[0]; }
   size_t size() { return bytes_.size(); }

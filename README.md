@@ -79,6 +79,13 @@ Currently implemented:
   - Fboolev32
   - Ffloatev32
 
+## Compatibility with Oracle Tuxedo
+
+Fuxedo tries to be compatible with Oracle Tuxedo for all functionality implemented so far. That is ensured by executing the same tests cases against both Fuxedo and Oracle Tuxedo:
+
+- Running `make` from `install-tests` folder will execute all "intergration tests" with whatever `TUXDIR` points to. That is done for every change in Fuxedo and time-to-time with Oracle Tuxedo 12.2
+- Unittests needs some extra work to run, but FML32 tests pass against Oracle Tuxedo 12.2
+
 ## More
 
 If you need more information, support or features contact us at info@fuxedo.io
