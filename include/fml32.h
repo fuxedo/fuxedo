@@ -21,7 +21,7 @@ typedef struct Fbfr32 FBFR32;
 #define BADFLDID ((FLDID32)0)
 #define FIRSTFLDID ((FLDID32)0)
 
-#define FALIGN 1
+#define FALIGNERR 1
 #define FNOTFLD 2
 #define FNOSPACE 3
 #define FNOTPRES 4

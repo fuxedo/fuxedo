@@ -29,7 +29,7 @@ int *_tls_Ferror32() { return &fux::fml32::Ferror32_; }
 
 static const char *Fstrerror32_(int err) {
   switch (err) {
-    case FALIGN:
+    case FALIGNERR:
       return "Fielded buffer not aligned";
     case FNOTFLD:
       return "Buffer not fielded";
@@ -171,6 +171,11 @@ int Finit32(FBFR32 *fbfr, FLDLEN32 buflen) {
 
 FBFR32 *Frealloc32(FBFR32 *fbfr, FLDOCC32 F, FLDLEN32 V) {
   FBFR32_CHECK(nullptr, fbfr);
+
+  if (F == 0 || V == 0) {
+    FERROR(FEINVAL, "Invalid arguments %d %d", F, V);
+    return nullptr;
+  }
 
   long buflen = Fneeded32(F, V);
   if (buflen < Fused32(fbfr)) {

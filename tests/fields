@@ -19,11 +19,11 @@ FIRSTNAME 206 string
 ARGS 207 fml32
 VALUE 208 string
 
-*base 0
-fld_short 10 short
-fld_long 11 long
-fld_char 12 char
-fld_double 13 double
-fld_float 14 float
-fld_string 15 string
-fld_carray 16 carray
+*base 100
+fld_short 0 short
+fld_long 1 long
+fld_char 2 char
+fld_double 3 double
+fld_float 4 float
+fld_string 5 string
+fld_carray 6 carray

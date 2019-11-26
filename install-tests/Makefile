@@ -4,6 +4,7 @@ default:
 	make clean
 
 check:
+	make -C unit
 	make -C build
 	make -C server
 	make -C tpinit
@@ -14,6 +15,7 @@ check:
 	make -C blocktime
 
 clean:
+	make -C unit clean
 	make -C build clean
 	make -C server clean
 	make -C tpinit clean

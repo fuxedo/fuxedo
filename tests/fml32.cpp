@@ -15,6 +15,15 @@
 
 #include "misc.h"
 
+struct client_init {
+  client_init() {
+    // Otherwise Oracle Tuxedo tpimport fails due to tpenvelope(?) errors
+    tpinit(nullptr);
+  }
+};
+
+static client_init ci;
+
 static void fldid32_check(int type) {
   long num = 13;
   FLDID32 id = Fmkfldid32(type, num);
@@ -40,7 +49,7 @@ TEST_CASE("fldid32", "[fml32]") {
 }
 
 TEST_CASE("Fstrerror32", "[fml32]") {
-  REQUIRE(strlen(Fstrerror32(FALIGN)) > 1);
+  REQUIRE(strlen(Fstrerror32(FALIGNERR)) > 1);
   REQUIRE(strlen(Fstrerror32(FNOTFLD)) > 1);
   REQUIRE(strlen(Fstrerror32(FNOSPACE)) > 1);
   REQUIRE(strlen(Fstrerror32(FNOTPRES)) > 1);
@@ -81,7 +90,7 @@ TEST_CASE("Finit32-Fsizeof32", "[fml32]") {
   REQUIRE(Finit32(fbfr, Fsizeof32(fbfr)) != -1);
   REQUIRE(Fsizeof32(fbfr) == size);
 
-  REQUIRE(Finit32(fbfr, 2) == -1);
+  REQUIRE(Finit32(fbfr, 16) == -1);
   REQUIRE(Ferror32 == FNOSPACE);
   REQUIRE(strlen(Fstrerror32(Ferror32)) > 1);
 
@@ -113,7 +122,7 @@ TEST_CASE("Frealloc32", "[fml32]") {
              0) != -1);
 
   REQUIRE(Frealloc32(fbfr, 0, 0) == nullptr);
-  REQUIRE(Ferror32 == FNOSPACE);
+  REQUIRE(Ferror32 == FEINVAL);
   REQUIRE(strlen(Fstrerror32(Ferror32)) > 1);
 
   Ffree32(fbfr);
@@ -154,13 +163,13 @@ struct FieldFixture {
   std::string str = "13";
   std::string bytes = "1\003";
 
-  FLDID32 fld_short = Fmkfldid32(FLD_SHORT, 10);
-  FLDID32 fld_long = Fmkfldid32(FLD_LONG, 11);
-  FLDID32 fld_char = Fmkfldid32(FLD_CHAR, 12);
-  FLDID32 fld_double = Fmkfldid32(FLD_DOUBLE, 13);
-  FLDID32 fld_float = Fmkfldid32(FLD_FLOAT, 14);
-  FLDID32 fld_string = Fmkfldid32(FLD_STRING, 15);
-  FLDID32 fld_carray = Fmkfldid32(FLD_CARRAY, 16);
+  FLDID32 fld_short = Fmkfldid32(FLD_SHORT, 100);
+  FLDID32 fld_long = Fmkfldid32(FLD_LONG, 101);
+  FLDID32 fld_char = Fmkfldid32(FLD_CHAR, 102);
+  FLDID32 fld_double = Fmkfldid32(FLD_DOUBLE, 103);
+  FLDID32 fld_float = Fmkfldid32(FLD_FLOAT, 104);
+  FLDID32 fld_string = Fmkfldid32(FLD_STRING, 105);
+  FLDID32 fld_carray = Fmkfldid32(FLD_CARRAY, 106);
 
   void set_fields(FBFR32 *fbfr) {
     REQUIRE(Fchg32(fbfr, fld_short, 0, reinterpret_cast<char *>(&s), 0) != -1);
@@ -444,9 +453,10 @@ TEST_CASE_METHOD(FieldFixture, "Fcpy32", "[fml32]") {
 
   get_fields(fbfr2);
 
-  auto fbfr3 = Falloc32(2, 10);
+  auto fbfr3 = Falloc32(2, 2);
   REQUIRE(fbfr3 != nullptr);
-  REQUIRE((Fcpy32(fbfr3, fbfr) == -1 && Ferror32 == FNOSPACE));
+  REQUIRE(Fcpy32(fbfr3, fbfr) == -1);
+  REQUIRE(Ferror32 == FNOSPACE);
 
   Ffree32(fbfr);
   Ffree32(fbfr2);
@@ -1476,6 +1486,8 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport string", "[fml32]") {
                    TPEX_STRING) != -1);
 
   olen = 0;
+  tpimport(ostr, 0, reinterpret_cast<char **>(&copy), &olen,
+                   TPEX_STRING);
   REQUIRE(tpimport(ostr, 0, reinterpret_cast<char **>(&copy), &olen,
                    TPEX_STRING) != -1);
 
@@ -1507,10 +1519,10 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport string into smaller buffer",
   auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 4 * 1024);
   REQUIRE(fbfr != nullptr);
 
-  auto copy = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1 * 1024);
+  auto copy = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 2 * 1024);
   REQUIRE(copy != nullptr);
 
-  for (FLDOCC32 oc = 0; Fused32(fbfr) < 2 * 1024; oc++) {
+  for (FLDOCC32 oc = 0; Fused32(fbfr) < 1 * 1024; oc++) {
     std::string s = "foobar" + std::to_string(oc);
     REQUIRE(Fchg32(fbfr, fld_string, oc, DECONST(s.c_str()), 0) != -1);
   }

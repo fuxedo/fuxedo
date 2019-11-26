@@ -69,7 +69,6 @@ int main(int argc, char *argv[]) {
       break;
     }
   }
-
   tpfree(sndbuf);
   tpfree(rcvbuf);
   return 0;
