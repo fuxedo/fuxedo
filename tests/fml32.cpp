@@ -15,15 +15,6 @@
 
 #include "misc.h"
 
-struct client_init {
-  client_init() {
-    // Otherwise Oracle Tuxedo tpimport fails due to tpenvelope(?) errors
-    tpinit(nullptr);
-  }
-};
-
-static client_init ci;
-
 static void fldid32_check(int type) {
   long num = 13;
   FLDID32 id = Fmkfldid32(type, num);

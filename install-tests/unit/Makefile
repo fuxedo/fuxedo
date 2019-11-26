@@ -19,20 +19,20 @@ ubbconfig: ubbconfig.in
 tuxconfig: ubbconfig
 	tmloadcf -y $<
 
-CFLAGS=-I../../third_party/catch/ -I$(TUXDIR)/include
+CFLAGS=-I../../third_party/catch/ -I$(TUXDIR)/include -std=c++11
 
 fml32.o: ../../tests/fml32.cpp
-	c++ -c -o $@ $< $(CFLAGS)
+	$(CXX) -c -o $@ $< $(CFLAGS)
 tests-main.o: ../../tests/tests-main.cpp
-	c++ -c -o $@ $< $(CFLAGS)
+	$(CXX) -c -o $@ $< $(CFLAGS)
 client.o: client.cpp
-	c++ -c -o $@ $< $(CFLAGS)
+	$(CXX) -c -o $@ $< $(CFLAGS)
 
 test-fml32: fml32.o tests-main.o
-	CC=c++ buildclient -o $@ -f "tests-main.o fml32.o" -v -f "-Wl,--no-as-needed"
+	CC=$(CXX) buildclient -o $@ -f "tests-main.o fml32.o" -v -f "-Wl,--no-as-needed"
 
 test-client: client.o tests-main.o
-	CC=c++ buildclient -o $@ -f "tests-main.o client.o" -v -f "-Wl,--no-as-needed"
+	CC=$(CXX) buildclient -o $@ -f "tests-main.o client.o" -v -f "-Wl,--no-as-needed"
 
 clean:
 	-rm -f *.o ubbconfig tuxconfig test-client ULOG.* stdout stderr access.* *.o test-fml32
