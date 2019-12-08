@@ -9,6 +9,8 @@ TEST_CASE("blocktime seconds", "[xatmi]") {
   REQUIRE(tpgblktime(TPBLK_NEXT) == 20);
 }
 TEST_CASE("blocktime milliseconds", "[xatmi]") {
+  int rc = tpsblktime(10, TPBLK_ALL | TPBLK_MILLISECOND);
+  printf("rc %d %s\n", rc, tpstrerror(tperrno));
   REQUIRE(tpsblktime(10, TPBLK_ALL | TPBLK_MILLISECOND) != -1);
   REQUIRE(tpsblktime(20, TPBLK_NEXT | TPBLK_MILLISECOND) != -1);
   REQUIRE(tpgblktime(TPBLK_ALL | TPBLK_MILLISECOND) == 10);

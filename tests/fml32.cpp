@@ -286,39 +286,48 @@ TEST_CASE("Ftypcvt32", "[fml32]") {
   long l;
   std::string s;
   char *p;
+  FLDLEN32 tolen;
 
   c = 1;
   REQUIRE((p = Ftypcvt32(nullptr, FLD_DOUBLE, reinterpret_cast<char *>(&c),
+                         FLD_CHAR, 0)) == nullptr);
+  REQUIRE(Ferror32 == FEINVAL);
+  REQUIRE((p = Ftypcvt32(&tolen, FLD_DOUBLE, nullptr, FLD_CHAR, 0)) == nullptr);
+  REQUIRE(Ferror32 == FEINVAL);
+
+  REQUIRE((p = Ftypcvt32(&tolen, FLD_DOUBLE, reinterpret_cast<char *>(&c),
                          FLD_CHAR, 0)) != nullptr);
   REQUIRE(reinterpret<double>(p) == 1);
 
   l = 2;
-  REQUIRE((p = Ftypcvt32(nullptr, FLD_DOUBLE, reinterpret_cast<char *>(&l),
+  p = Ftypcvt32(&tolen, FLD_DOUBLE, reinterpret_cast<char *>(&l),
+                         FLD_LONG, 0);
+  REQUIRE((p = Ftypcvt32(&tolen, FLD_DOUBLE, reinterpret_cast<char *>(&l),
                          FLD_LONG, 0)) != nullptr);
   REQUIRE(reinterpret<double>(p) == 2);
 
   d = 3;
-  REQUIRE((p = Ftypcvt32(nullptr, FLD_CHAR, reinterpret_cast<char *>(&d),
+  REQUIRE((p = Ftypcvt32(&tolen, FLD_CHAR, reinterpret_cast<char *>(&d),
                          FLD_DOUBLE, 0)) != nullptr);
   REQUIRE(reinterpret<char>(p) == 3);
 
   l = 4;
-  REQUIRE((p = Ftypcvt32(nullptr, FLD_CHAR, reinterpret_cast<char *>(&l),
+  REQUIRE((p = Ftypcvt32(&tolen, FLD_CHAR, reinterpret_cast<char *>(&l),
                          FLD_LONG, 0)) != nullptr);
   REQUIRE(reinterpret<char>(p) == 4);
 
   c = 5;
-  REQUIRE((p = Ftypcvt32(nullptr, FLD_STRING, reinterpret_cast<char *>(&c),
+  REQUIRE((p = Ftypcvt32(&tolen, FLD_STRING, reinterpret_cast<char *>(&c),
                          FLD_CHAR, 0)) != nullptr);
   REQUIRE(reinterpret_cast<char *>(p) == std::string("\x05"));
 
   s = "6";
-  REQUIRE((p = Ftypcvt32(nullptr, FLD_CHAR, reinterpret_cast<char *>(&s[0]),
+  REQUIRE((p = Ftypcvt32(&tolen, FLD_CHAR, reinterpret_cast<char *>(&s[0]),
                          FLD_STRING, 0)) != nullptr);
   REQUIRE(reinterpret<char>(p) == '6');
 
   s = "7.8";
-  REQUIRE((p = Ftypcvt32(nullptr, FLD_DOUBLE, reinterpret_cast<char *>(&s[0]),
+  REQUIRE((p = Ftypcvt32(&tolen, FLD_DOUBLE, reinterpret_cast<char *>(&s[0]),
                          FLD_STRING, 0)) != nullptr);
   REQUIRE(reinterpret<double>(p) == 7.8);
 }
@@ -372,8 +381,7 @@ TEST_CASE_METHOD(FieldFixture, "CFfind32", "[fml32]") {
   REQUIRE(reinterpret<long>(CFfind32(fbfr, fld_float, 0, nullptr, FLD_LONG)) ==
           l);
 
-  REQUIRE(CFfind32(fbfr, fld_double, 0, nullptr, FLD_STRING) ==
-          str + ".000000");
+  REQUIRE(std::stof(CFfind32(fbfr, fld_double, 0, nullptr, FLD_STRING)) == std::stof(str));
 
   REQUIRE(reinterpret<char>(CFfind32(fbfr, fld_string, 0, nullptr, FLD_CHAR)) ==
           '1');
@@ -388,7 +396,7 @@ TEST_CASE_METHOD(FieldFixture, "Ffinds32", "[fml32]") {
   set_fields(fbfr);
 
   REQUIRE(Ffinds32(fbfr, fld_char, 0) == std::string("\x0d"));
-  REQUIRE(Ffinds32(fbfr, fld_double, 0) == str + ".000000");
+  REQUIRE(std::stof(Ffinds32(fbfr, fld_double, 0)) == std::stof(str));
 
   Ffree32(fbfr);
 }
@@ -404,7 +412,7 @@ TEST_CASE_METHOD(FieldFixture, "Fgets32", "[fml32]") {
   REQUIRE(buf == std::string("\x0d"));
 
   REQUIRE(Fgets32(fbfr, fld_double, 0, buf) != -1);
-  REQUIRE(buf == str + ".000000");
+  REQUIRE(std::stof(buf) == std::stof(str));
 
   Ffree32(fbfr);
 }
@@ -543,21 +551,22 @@ TEST_CASE_METHOD(FieldFixture, "Fget32", "[fml32]") {
   len = 1;
   REQUIRE(
       (Fget32(fbfr, fld_short, 0, buf, &len) == -1 && Ferror32 == FNOSPACE));
-  //  REQUIRE(len == sizeof(short));
   len = sizeof(buf);
   REQUIRE(Fget32(fbfr, fld_short, 0, buf, &len) != -1);
   REQUIRE(reinterpret<short>(buf) == s);
 
   len = 1;
   REQUIRE((Fget32(fbfr, fld_long, 0, buf, &len) == -1 && Ferror32 == FNOSPACE));
-  //  REQUIRE(len == sizeof(long));
   len = sizeof(buf);
   REQUIRE(Fget32(fbfr, fld_long, 0, buf, &len) != -1);
   REQUIRE(reinterpret<long>(buf) == l);
 
   len = 0;
-  REQUIRE((Fget32(fbfr, fld_char, 0, buf, &len) == -1 && Ferror32 == FNOSPACE));
-  REQUIRE(len == sizeof(char));
+  // FIXME
+  // Tuxedo does not check len==0 for FLD_CHAR
+//  REQUIRE(Fget32(fbfr, fld_char, 0, buf, &len) == -1);
+//  REQUIRE(Ferror32 == FNOSPACE);
+//  REQUIRE(len == sizeof(char));
   len = sizeof(buf);
   REQUIRE(Fget32(fbfr, fld_char, 0, buf, &len) != -1);
   REQUIRE(reinterpret<char>(buf) == c);
@@ -565,7 +574,6 @@ TEST_CASE_METHOD(FieldFixture, "Fget32", "[fml32]") {
   len = 1;
   REQUIRE(
       (Fget32(fbfr, fld_float, 0, buf, &len) == -1 && Ferror32 == FNOSPACE));
-  REQUIRE(len == sizeof(float));
   len = sizeof(buf);
   REQUIRE(Fget32(fbfr, fld_float, 0, buf, &len) != -1);
   REQUIRE(reinterpret<float>(buf) == f);
@@ -573,7 +581,6 @@ TEST_CASE_METHOD(FieldFixture, "Fget32", "[fml32]") {
   len = 1;
   REQUIRE(
       (Fget32(fbfr, fld_double, 0, buf, &len) == -1 && Ferror32 == FNOSPACE));
-  REQUIRE(len == sizeof(double));
   len = sizeof(buf);
   REQUIRE(Fget32(fbfr, fld_double, 0, buf, &len) != -1);
   REQUIRE(reinterpret<double>(buf) == d);
@@ -581,7 +588,6 @@ TEST_CASE_METHOD(FieldFixture, "Fget32", "[fml32]") {
   len = 1;
   REQUIRE(
       (Fget32(fbfr, fld_string, 0, buf, &len) == -1 && Ferror32 == FNOSPACE));
-  REQUIRE(len == str.size() + 1);
   len = sizeof(buf);
   REQUIRE(Fget32(fbfr, fld_string, 0, buf, &len) != -1);
   REQUIRE(reinterpret_cast<char *>(buf) == str);
@@ -589,7 +595,6 @@ TEST_CASE_METHOD(FieldFixture, "Fget32", "[fml32]") {
   len = 1;
   REQUIRE(
       (Fget32(fbfr, fld_carray, 0, buf, &len) == -1 && Ferror32 == FNOSPACE));
-  REQUIRE(len == bytes.size());
   len = sizeof(buf);
   REQUIRE(Fget32(fbfr, fld_carray, 0, buf, &len) != -1);
   REQUIRE(std::string(reinterpret_cast<char *>(buf), bytes.size()) == bytes);
@@ -1479,17 +1484,19 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport string", "[fml32]") {
   olen = 0;
   tpimport(ostr, 0, reinterpret_cast<char **>(&copy), &olen,
                    TPEX_STRING);
-  REQUIRE(tpimport(ostr, 0, reinterpret_cast<char **>(&copy), &olen,
+  // FIXME: Oracle Tuxedo actually fails with TPESYSTEM if ilen=0 even whe TPEX_STRING in flags
+  long ilen = olen;
+  REQUIRE(tpimport(ostr, ilen, reinterpret_cast<char **>(&copy), &olen,
                    TPEX_STRING) != -1);
 
   REQUIRE(Fchksum32(copy) == Fchksum32(fbfr));
 }
 
 TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport binary", "[fml32]") {
-  auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 2 * 1024);
+  auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1 * 1024);
   REQUIRE(fbfr != nullptr);
 
-  auto copy = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 3 * 1024);
+  auto copy = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1 * 1024);
   REQUIRE(copy != nullptr);
 
   set_fields(fbfr);
@@ -1499,10 +1506,14 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport binary", "[fml32]") {
 
   REQUIRE(tpexport(reinterpret_cast<char *>(fbfr), 0, ostr, &olen, 0) != -1);
 
-  REQUIRE(tpimport(ostr, olen, reinterpret_cast<char **>(&copy), &olen, 0) !=
+  long ilen = olen;
+  REQUIRE(tpimport(ostr, ilen, reinterpret_cast<char **>(&copy), &olen, 0) !=
           -1);
 
+  // Expected to fail on Oracle Tuxedo, issue reported to Oracle support
+#ifndef ATMI_H
   REQUIRE(Fchksum32(copy) == Fchksum32(fbfr));
+#endif
 }
 
 TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport string into smaller buffer",
@@ -1510,10 +1521,10 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport string into smaller buffer",
   auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 4 * 1024);
   REQUIRE(fbfr != nullptr);
 
-  auto copy = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 2 * 1024);
+  auto copy = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1 * 1024);
   REQUIRE(copy != nullptr);
 
-  for (FLDOCC32 oc = 0; Fused32(fbfr) < 1 * 1024; oc++) {
+  for (FLDOCC32 oc = 0; Fused32(fbfr) < 3 * 1024; oc++) {
     std::string s = "foobar" + std::to_string(oc);
     REQUIRE(Fchg32(fbfr, fld_string, oc, DECONST(s.c_str()), 0) != -1);
   }
@@ -1524,8 +1535,10 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport string into smaller buffer",
   REQUIRE(tpexport(reinterpret_cast<char *>(fbfr), 0, ostr, &olen,
                    TPEX_STRING) != -1);
 
+  // FIXME: Oracle Tuxedo actually fails with TPESYSTEM if ilen=0 even whe TPEX_STRING in flags
+  long ilen = olen;
   olen = 0;
-  REQUIRE(tpimport(ostr, 0, reinterpret_cast<char **>(&copy), &olen,
+  REQUIRE(tpimport(ostr, ilen, reinterpret_cast<char **>(&copy), &olen,
                    TPEX_STRING) != -1);
 
   REQUIRE(Fchksum32(copy) == Fchksum32(fbfr));
@@ -1549,7 +1562,8 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport binary into smaller buffer",
 
   REQUIRE(tpexport(reinterpret_cast<char *>(fbfr), 0, ostr, &olen, 0) != -1);
 
-  REQUIRE(tpimport(ostr, olen, reinterpret_cast<char **>(&copy), &olen, 0) !=
+  long ilen = olen;
+  REQUIRE(tpimport(ostr, ilen, reinterpret_cast<char **>(&copy), &olen, 0) !=
           -1);
 
   REQUIRE(Fchksum32(copy) == Fchksum32(fbfr));

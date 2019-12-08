@@ -384,9 +384,13 @@ char *Ftypcvt32(FLDLEN32 *tolen, int totype, char *fromval, int fromtype,
                 FLDLEN32 fromlen) {
   thread_local std::string toval;
 
-  FLDLEN32 dummy;
   if (tolen == nullptr) {
-    tolen = &dummy;
+    FERROR(FEINVAL, "tolen is NULL");
+    return nullptr;
+  }
+  if (fromval == nullptr) {
+    FERROR(FEINVAL, "fromval is NULL");
+    return nullptr;
   }
 
 #define COPY_N(what)                                                 \
