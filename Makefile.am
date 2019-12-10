@@ -121,4 +121,4 @@ clang-format:
                             $(top_srcdir)/install-tests/*/*.c
 
 installcheck-local:
-	TUXDIR=$(prefix) CXX=$(CXX) CXXFLAGS=$(CXXFLAGS) make -C install-tests
+	TUXDIR=$(prefix) CXX="$(CXX)" CXXFLAGS="$(CXXFLAGS)" make -C install-tests
