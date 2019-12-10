@@ -61,7 +61,7 @@ static struct tmdsptchtbl_t _tmdsptchtbl[] = {
                                        tpsvrinit, tpsvrdone,
                                        _tmrunserver,
                                        NULL, NULL, NULL, NULL,
-                                       tprminit,
+                                       NULL,
                                        tpsvrthrinit, tpsvrthrdone, NULL };
 
 struct tmsvrargs_t *_tmgetsvrargs() {

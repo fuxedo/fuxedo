@@ -167,7 +167,7 @@ struct Fbfr32 {
     } else if (klass == FIELDN) {
       need = sizeof(fieldn) + fieldn::size(flen);
     } else {
-      __builtin_unreachable();
+      __builtin_unreachable(); // LCOV_EXCL_LINE
     }
 
     auto field = where(fieldid, oc);
@@ -181,7 +181,7 @@ struct Fbfr32 {
         used = sizeof(fieldn) + reinterpret_cast<fieldn *>(field)->size();
         need -= used;
       } else {
-        __builtin_unreachable();
+        __builtin_unreachable(); // LCOV_EXCL_LINE
       }
     }
 
@@ -219,7 +219,7 @@ struct Fbfr32 {
         fbfr->size_ = fbfr->len_;
       }
     } else {
-      __builtin_unreachable();
+      __builtin_unreachable(); // LCOV_EXCL_LINE
     }
 
     shift(type, need);
@@ -498,10 +498,7 @@ struct Fbfr32 {
   }
 
   int xdelete(FLDID32 *fieldid) {
-    FLDID32 *badfld;
-    if (sort(fieldid, &badfld) == -1) {
-      return -1;
-    }
+    FLDID32 *badfld = sort(fieldid);
 
     iterate([&](auto it, auto) {
       if (std::find(fieldid, badfld, it->fieldid) != badfld) {
@@ -514,10 +511,7 @@ struct Fbfr32 {
   }
 
   int projcpy(FBFR32 *src, FLDID32 *fieldid) {
-    FLDID32 *badfld;
-    if (sort(fieldid, &badfld) == -1) {
-      return -1;
-    }
+    FLDID32 *badfld = sort(fieldid);
     init(size());
 
     return src->iterate([&](auto it, auto) {
@@ -530,10 +524,7 @@ struct Fbfr32 {
   }
 
   int proj(FLDID32 *fieldid) {
-    FLDID32 *badfld;
-    if (sort(fieldid, &badfld) == -1) {
-      return -1;
-    }
+    FLDID32 *badfld = sort(fieldid);
 
     return iterate([&](auto it, auto) {
       if (std::find(fieldid, badfld, it->fieldid) == badfld) {
@@ -739,7 +730,7 @@ struct Fbfr32 {
       case FLD_FML32:
         return Fused32(reinterpret_cast<FBFR32 *>(data));
       default:
-        __builtin_unreachable();
+        __builtin_unreachable(); // LCOV_EXCL_LINE
     }
   }
 
@@ -756,7 +747,7 @@ struct Fbfr32 {
       auto field = reinterpret_cast<fieldn *>(head);
       next = reinterpret_cast<fieldn *>(field->data + field->size());
     } else {
-      __builtin_unreachable();
+      __builtin_unreachable(); // LCOV_EXCL_LINE
     }
 
     auto end = reinterpret_cast<fieldhead *>(data_ + len_);
@@ -783,7 +774,7 @@ struct Fbfr32 {
       case FLD_FML32:
         return reinterpret_cast<fieldn *>(field)->flen;
       default:
-        __builtin_unreachable();
+        __builtin_unreachable(); // LCOV_EXCL_LINE
     }
   }
 
@@ -796,7 +787,7 @@ struct Fbfr32 {
     } else if (klass == FIELDN) {
       return reinterpret_cast<fieldn *>(field)->data;
     }
-    __builtin_unreachable();
+    __builtin_unreachable(); // LCOV_EXCL_LINE
   }
 
   fieldhead *end(int type) {
@@ -814,7 +805,7 @@ struct Fbfr32 {
     } else if (klass == FIELDN) {
       return wheren(fieldid, oc, first_byte(type), last_byte(type));
     } else {
-      __builtin_unreachable();
+      __builtin_unreachable(); // LCOV_EXCL_LINE
     }
   }
 
@@ -869,16 +860,13 @@ struct Fbfr32 {
     return it;
   }
 
-  static int sort(FLDID32 *fieldid, FLDID32 **badfld = nullptr) {
+  static FLDID32 *sort(FLDID32 *fieldid) {
     auto end = fieldid;
     while (*end != BADFLDID) {
       end++;
     }
     std::sort(fieldid, end);
-    if (badfld != nullptr) {
-      *badfld = end;
-    }
-    return 0;
+    return end;
   }
 
   enum storage_class { FIELD8, FIELD16, FIELDN };
@@ -897,7 +885,7 @@ struct Fbfr32 {
       case FLD_FML32:
         return FIELDN;
       default:
-        __builtin_unreachable();
+        __builtin_unreachable(); // LCOV_EXCL_LINE
     }
   }
 };

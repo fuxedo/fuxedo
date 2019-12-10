@@ -14,7 +14,7 @@ check:
 	!(buildclient -zinvalid_option)
 	!(buildtms -zinvalid_option)
 	!(buildserver -o server -f server.c -s SERVICE -v -f "-Wl,--no-as-needed" -r does_not_exist)
-#	buildtms -o server -v -r NONE
+	CC=$(CXX) buildtms -o server -v -r NONE
 	buildserver -o server -f server.c -s SERVICE -v -f "-Wl,--no-as-needed" -r NONE
 	buildserver -o server -f server.c -s SERVICE -v -f "-Wl,--no-as-needed"
 	buildserver -o server -f server.c -s ANOTHER:SERVICE -v -f "-Wl,--no-as-needed"

@@ -1484,8 +1484,13 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport string", "[fml32]") {
   olen = 0;
   tpimport(ostr, 0, reinterpret_cast<char **>(&copy), &olen,
                    TPEX_STRING);
-  // FIXME: Oracle Tuxedo actually fails with TPESYSTEM if ilen=0 even whe TPEX_STRING in flags
+  // FIXME: Oracle Tuxedo actually fails with TPESYSTEM if ilen=0 even when TPEX_STRING in flags
+  // Expected to fail on Oracle Tuxedo, issue reported to Oracle support
+#ifndef ATMI_H
   long ilen = olen;
+#else
+  long ilen = 0;
+#endif
   REQUIRE(tpimport(ostr, ilen, reinterpret_cast<char **>(&copy), &olen,
                    TPEX_STRING) != -1);
 

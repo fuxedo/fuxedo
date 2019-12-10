@@ -6,7 +6,8 @@ FCHAR 1  char
 FLONG 1  long  - Some comments
 *base 30
 FFML32 1  fml32
-#
+
+# Tests of boolean expressions
 $
 EMPID 200 carray
 SEX 201 char
@@ -19,6 +20,7 @@ FIRSTNAME 206 string
 ARGS 207 fml32
 VALUE 208 string
 
+# Common fields used in tests
 *base 100
 fld_short 0 short
 fld_long 1 long

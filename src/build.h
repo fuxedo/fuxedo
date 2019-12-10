@@ -28,9 +28,6 @@ static std::map<std::string, rminfo> parse_rm(const std::string &filename) {
 }
 
 static std::map<std::string, rminfo> parse_rm() {
-  const char *tuxdir = std::getenv("TUXDIR");
-  if (tuxdir == nullptr) {
-    tuxdir = "";
-  }
-  return parse_rm(std::string(tuxdir) + "/share/RM");
+  auto tuxdir = fux::util::getenv("TUXDIR", "");
+  return parse_rm(tuxdir + "/share/RM");
 }

@@ -135,6 +135,6 @@ class basic_parser {
     if (c >= 'A' && c <= 'F') return 10 + c - 'A';
     if (c >= 'a' && c <= 'f') return 10 + c - 'a';
 
-    __builtin_unreachable();
+    __builtin_unreachable(); // LCOV_EXCL_LINE
   }
 };
