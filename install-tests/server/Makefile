@@ -8,7 +8,13 @@ export TUXCONFIG:=$(CURDIR)/tuxconfig
 
 check: server mtserver failserver client defserver defmtserver tuxconfig
 	-rm -f ULOG.*
+	!(tmboot -zinvalid_option)
+	!(tmshutdown -zinvalid_option)
+	!(tmipcrm -zinvalid_option)
+	!(tmloadcf -zinvalid_option)
 	-tmipcrm -y
+	echo "n" | tmipcrm
+	echo "y" | tmipcrm
 	tmboot -y
 	./client
 	tmshutdown -y
