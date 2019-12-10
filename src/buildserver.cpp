@@ -162,7 +162,7 @@ int main(int argc, char *argv[]) {
   cmd.push_back(outfile);
   cmd.insert(cmd.end(), lastfiles.begin(), lastfiles.end());
 
-  auto command = join(cmd, " ");
+  auto command = join(cmd, " ") + " " + cflags;
 
   if (verbose) {
     std::cout << command << std::endl;
