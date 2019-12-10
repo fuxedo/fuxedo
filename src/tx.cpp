@@ -15,6 +15,10 @@ extern "C" {
 extern struct xa_switch_t tmnull_switch;
 }
 
+namespace fux::tx {
+  uint16_t grpno;
+}
+
 static xa_switch_t *xasw = &tmnull_switch;
 
 enum class tx_state {
@@ -32,7 +36,9 @@ enum class tx_state {
 };
 
 struct tx_context {
-  tx_context(mib &mibcon) : mibcon_(mibcon) {}
+  tx_context(mib &mibcon) : mibcon_(mibcon) {
+    grpcfg = &mibcon_.groups().at(fux::tx::grpno);
+  }
   tx_state state;
   group *grpcfg = nullptr;
   TXINFO info;

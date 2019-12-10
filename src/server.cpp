@@ -37,10 +37,30 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs);
 static void dispatch();
 
 int tprminit(char *, void *) { return 0; }
-int tpsvrinit(int, char **) { return 0; }
-void tpsvrdone() {}
-int tpsvrthrinit(int, char **) { return 0; }
-void tpsvrthrdone() {}
+int tpsvrinit(int, char **) {
+  if (tpopen() == -1) {
+    userlog("tpopen() failed: %s", tpstrerror(tperrno));
+    return -1;
+  }
+  return 0;
+}
+void tpsvrdone() {
+  if (tpclose() == -1) {
+    userlog("tpclose() failed: %s", tpstrerror(tperrno));
+  }
+}
+int tpsvrthrinit(int, char **) {
+  if (tpopen() == -1) {
+    userlog("tpopen() failed: %s", tpstrerror(tperrno));
+    return -1;
+  }
+  return 0;
+}
+void tpsvrthrdone() {
+  if (tpclose() == -1) {
+    userlog("tpclose() failed: %s", tpstrerror(tperrno));
+  }
+}
 
 void ubb2mib(ubbconfig &u, mib &m);
 
@@ -360,6 +380,7 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
 
   main_ptr->srvid = srvid;
   main_ptr->grpno = grpno;
+  fux::tx::grpno = grpno;
 
   main_ptr->request_queue = m.make_service_rqaddr(main_ptr->mib_server);
   main_ptr->mib_queue = m.servers().at(main_ptr->mib_server).rqaddr;
