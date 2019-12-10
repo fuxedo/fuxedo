@@ -729,7 +729,7 @@ struct Fbfr32 {
         return flen;
       case FLD_FML32:
         return Fused32(reinterpret_cast<FBFR32 *>(data));
-      default:
+      default: // LCOV_EXCL_LINE
         __builtin_unreachable(); // LCOV_EXCL_LINE
     }
   }
@@ -773,7 +773,7 @@ struct Fbfr32 {
       case FLD_CARRAY:
       case FLD_FML32:
         return reinterpret_cast<fieldn *>(field)->flen;
-      default:
+      default: // LCOV_EXCL_LINE
         __builtin_unreachable(); // LCOV_EXCL_LINE
     }
   }
@@ -884,7 +884,7 @@ struct Fbfr32 {
       case FLD_CARRAY:
       case FLD_FML32:
         return FIELDN;
-      default:
+      default: // LCOV_EXCL_LINE
         __builtin_unreachable(); // LCOV_EXCL_LINE
     }
   }
