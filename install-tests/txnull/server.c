@@ -1,6 +1,7 @@
 #include <atmi.h>
 #include <userlog.h>
 #include <assert.h>
+#include <stddef.h>
 
 void SERVICE_COMMIT(TPSVCINFO *svcinfo) {
   userlog(":TEST: %s called", __func__);
@@ -35,4 +36,32 @@ void SERVICE_SUSPEND(TPSVCINFO *svcinfo) {
   assert(tpcommit(TPNOFLAGS) != -1);
   assert(!tpgetlev());
   tpreturn(TPSUCCESS, 3, svcinfo->data, 0, 0);
+}
+
+void SERVICE_INPUTS(TPSVCINFO *svcinfo) {
+  userlog(":TEST: %s called", __func__);
+
+  assert(tpbegin(30, 666) == -1);
+  assert(tperrno == TPEINVAL);
+
+  TPTRANID t;
+  assert(tpsuspend(NULL, 0) == -1);
+  assert(tperrno == TPEINVAL);
+
+  assert(tpsuspend(&t, 666) == -1);
+  assert(tperrno == TPEINVAL);
+
+  assert(tpresume(NULL, 0) == -1);
+  assert(tperrno == TPEINVAL);
+
+  assert(tpresume(&t, 666) == -1);
+  assert(tperrno == TPEINVAL);
+
+  assert(tpcommit(666) == -1);
+  assert(tperrno == TPEINVAL);
+
+  assert(tpabort(666) == -1);
+  assert(tperrno == TPEINVAL);
+
+  tpreturn(TPSUCCESS, 4, svcinfo->data, 0, 0);
 }

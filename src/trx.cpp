@@ -64,8 +64,7 @@ int tpgetlev() {
 
 int tpabort(long flags) {
   if (flags != 0) {
-    // or Participant
-    TPERROR(TPEPROTO, "flags!=0");
+    TPERROR(TPEINVAL, "flags!=0");
     return -1;
   }
 
@@ -95,8 +94,7 @@ int tpabort(long flags) {
 
 int tpcommit(long flags) {
   if (flags != 0) {
-    // or Participant
-    TPERROR(TPEPROTO, "flags!=0");
+    TPERROR(TPEINVAL, "flags!=0");
     return -1;
   }
 
@@ -127,11 +125,11 @@ int tpcommit(long flags) {
 int _tx_suspend(TXINFO *info);
 int tpsuspend(TPTRANID *tranid, long flags) {
   if (tranid == nullptr) {
-    TPERROR(TPEPROTO, "tranid==nullptr");
+    TPERROR(TPEINVAL, "tranid==nullptr");
     return -1;
   }
   if (flags != 0) {
-    TPERROR(TPEPROTO, "flags!=0");
+    TPERROR(TPEINVAL, "flags!=0");
     return -1;
   }
 
@@ -159,11 +157,11 @@ int tpsuspend(TPTRANID *tranid, long flags) {
 int _tx_resume(TXINFO *info);
 int tpresume(TPTRANID *tranid, long flags) {
   if (tranid == nullptr) {
-    TPERROR(TPEPROTO, "tranid==nullptr");
+    TPERROR(TPEINVAL, "tranid==nullptr");
     return -1;
   }
   if (flags != 0) {
-    TPERROR(TPEPROTO, "flags!=0");
+    TPERROR(TPEINVAL, "flags!=0");
     return -1;
   }
 
@@ -191,7 +189,7 @@ int tpresume(TPTRANID *tranid, long flags) {
 
 int tpbegin(unsigned long timeout, long flags) {
   if (flags != 0) {
-    TPERROR(TPEPROTO, "flags!=0");
+    TPERROR(TPEINVAL, "flags!=0");
     return -1;
   }
 
