@@ -167,7 +167,7 @@ struct Fbfr32 {
     } else if (klass == FIELDN) {
       need = sizeof(fieldn) + fieldn::size(flen);
     } else {
-      __builtin_unreachable(); // LCOV_EXCL_LINE
+      __builtin_unreachable();  // LCOV_EXCL_LINE
     }
 
     auto field = where(fieldid, oc);
@@ -181,7 +181,7 @@ struct Fbfr32 {
         used = sizeof(fieldn) + reinterpret_cast<fieldn *>(field)->size();
         need -= used;
       } else {
-        __builtin_unreachable(); // LCOV_EXCL_LINE
+        __builtin_unreachable();  // LCOV_EXCL_LINE
       }
     }
 
@@ -219,7 +219,7 @@ struct Fbfr32 {
         fbfr->size_ = fbfr->len_;
       }
     } else {
-      __builtin_unreachable(); // LCOV_EXCL_LINE
+      __builtin_unreachable();  // LCOV_EXCL_LINE
     }
 
     shift(type, need);
@@ -729,8 +729,8 @@ struct Fbfr32 {
         return flen;
       case FLD_FML32:
         return Fused32(reinterpret_cast<FBFR32 *>(data));
-      default: // LCOV_EXCL_LINE
-        __builtin_unreachable(); // LCOV_EXCL_LINE
+      default:                    // LCOV_EXCL_LINE
+        __builtin_unreachable();  // LCOV_EXCL_LINE
     }
   }
 
@@ -747,7 +747,7 @@ struct Fbfr32 {
       auto field = reinterpret_cast<fieldn *>(head);
       next = reinterpret_cast<fieldn *>(field->data + field->size());
     } else {
-      __builtin_unreachable(); // LCOV_EXCL_LINE
+      __builtin_unreachable();  // LCOV_EXCL_LINE
     }
 
     auto end = reinterpret_cast<fieldhead *>(data_ + len_);
@@ -773,8 +773,8 @@ struct Fbfr32 {
       case FLD_CARRAY:
       case FLD_FML32:
         return reinterpret_cast<fieldn *>(field)->flen;
-      default: // LCOV_EXCL_LINE
-        __builtin_unreachable(); // LCOV_EXCL_LINE
+      default:                    // LCOV_EXCL_LINE
+        __builtin_unreachable();  // LCOV_EXCL_LINE
     }
   }
 
@@ -787,7 +787,7 @@ struct Fbfr32 {
     } else if (klass == FIELDN) {
       return reinterpret_cast<fieldn *>(field)->data;
     }
-    __builtin_unreachable(); // LCOV_EXCL_LINE
+    __builtin_unreachable();  // LCOV_EXCL_LINE
   }
 
   fieldhead *end(int type) {
@@ -805,7 +805,7 @@ struct Fbfr32 {
     } else if (klass == FIELDN) {
       return wheren(fieldid, oc, first_byte(type), last_byte(type));
     } else {
-      __builtin_unreachable(); // LCOV_EXCL_LINE
+      __builtin_unreachable();  // LCOV_EXCL_LINE
     }
   }
 
@@ -884,8 +884,8 @@ struct Fbfr32 {
       case FLD_CARRAY:
       case FLD_FML32:
         return FIELDN;
-      default: // LCOV_EXCL_LINE
-        __builtin_unreachable(); // LCOV_EXCL_LINE
+      default:                    // LCOV_EXCL_LINE
+        __builtin_unreachable();  // LCOV_EXCL_LINE
     }
   }
 };

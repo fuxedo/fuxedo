@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
   assert(ret == -1);
   assert(tperrno == TPETIME);
   assert(time(NULL) - start >= 1);
-  assert(time(NULL) - start <  3);
+  assert(time(NULL) - start < 3);
 
   ret = tpgetrply(&cd, &rcvbuf, &rcvlen, 0);
   assert(ret == -1);

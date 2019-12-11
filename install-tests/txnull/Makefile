@@ -16,6 +16,7 @@ check: server client tuxconfig
 	grep -q ':TEST: SERVICE_COMMIT called' ULOG.*
 	grep -q ':TEST: SERVICE_ABORT called' ULOG.*
 	grep -q ':TEST: SERVICE_SUSPEND called' ULOG.*
+	grep -q ':TEST: SERVICE_TX called' ULOG.*
 
 ubbconfig: ubbconfig.in
 	cat $< \
@@ -27,7 +28,7 @@ tuxconfig: ubbconfig
 	tmloadcf -y $<
 
 server: server.c
-	buildserver -o $@ -f $< -s SERVICE_INPUTS -s SERVICE_COMMIT -s SERVICE_ABORT -s SERVICE_SUSPEND -v -f "-Wl,--no-as-needed"
+	buildserver -o $@ -f $< -s SERVICE_TX -s SERVICE_INPUTS -s SERVICE_COMMIT -s SERVICE_ABORT -s SERVICE_SUSPEND -v -f "-Wl,--no-as-needed"
 
 client: client.c
 	buildclient -o $@ -f $< -v -f "-Wl,--no-as-needed"

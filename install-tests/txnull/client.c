@@ -44,12 +44,23 @@ int main(int argc, char *argv[]) {
 
   assert(strcmp(rcvbuf, "HELLO") == 0);
 
+  memset(rcvbuf, 0, rcvlen);
   ret = tpcall("SERVICE_INPUTS", sndbuf, 0, &rcvbuf, &rcvlen, 0);
   if (ret == -1) {
     fprintf(stderr, "%s\n", tpstrerror(tperrno));
   }
   assert(ret != -1);
   assert(tpurcode == 4);
+
+  assert(strcmp(rcvbuf, "HELLO") == 0);
+
+  memset(rcvbuf, 0, rcvlen);
+  ret = tpcall("SERVICE_TX", sndbuf, 0, &rcvbuf, &rcvlen, 0);
+  if (ret == -1) {
+    fprintf(stderr, "%s\n", tpstrerror(tperrno));
+  }
+  assert(ret != -1);
+  assert(tpurcode == 5);
 
   assert(strcmp(rcvbuf, "HELLO") == 0);
 

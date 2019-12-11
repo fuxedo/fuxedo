@@ -467,7 +467,7 @@ class eval_value {
     } else if (type_ == eval_type::is_string) {
       return atof(s);
     }
-    __builtin_unreachable(); // LCOV_EXCL_LINE
+    __builtin_unreachable();  // LCOV_EXCL_LINE
   }
   long to_long() const {
     if (type_ == eval_type::is_long) {
@@ -477,7 +477,7 @@ class eval_value {
     } else if (type_ == eval_type::is_string) {
       return atol(s);
     }
-    __builtin_unreachable(); // LCOV_EXCL_LINE
+    __builtin_unreachable();  // LCOV_EXCL_LINE
   }
 
   const char *to_string(char *buf) const {

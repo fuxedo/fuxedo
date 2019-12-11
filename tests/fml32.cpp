@@ -300,8 +300,7 @@ TEST_CASE("Ftypcvt32", "[fml32]") {
   REQUIRE(reinterpret<double>(p) == 1);
 
   l = 2;
-  p = Ftypcvt32(&tolen, FLD_DOUBLE, reinterpret_cast<char *>(&l),
-                         FLD_LONG, 0);
+  p = Ftypcvt32(&tolen, FLD_DOUBLE, reinterpret_cast<char *>(&l), FLD_LONG, 0);
   REQUIRE((p = Ftypcvt32(&tolen, FLD_DOUBLE, reinterpret_cast<char *>(&l),
                          FLD_LONG, 0)) != nullptr);
   REQUIRE(reinterpret<double>(p) == 2);
@@ -381,7 +380,8 @@ TEST_CASE_METHOD(FieldFixture, "CFfind32", "[fml32]") {
   REQUIRE(reinterpret<long>(CFfind32(fbfr, fld_float, 0, nullptr, FLD_LONG)) ==
           l);
 
-  REQUIRE(std::stof(CFfind32(fbfr, fld_double, 0, nullptr, FLD_STRING)) == std::stof(str));
+  REQUIRE(std::stof(CFfind32(fbfr, fld_double, 0, nullptr, FLD_STRING)) ==
+          std::stof(str));
 
   REQUIRE(reinterpret<char>(CFfind32(fbfr, fld_string, 0, nullptr, FLD_CHAR)) ==
           '1');
@@ -564,9 +564,9 @@ TEST_CASE_METHOD(FieldFixture, "Fget32", "[fml32]") {
   len = 0;
   // FIXME
   // Tuxedo does not check len==0 for FLD_CHAR
-//  REQUIRE(Fget32(fbfr, fld_char, 0, buf, &len) == -1);
-//  REQUIRE(Ferror32 == FNOSPACE);
-//  REQUIRE(len == sizeof(char));
+  //  REQUIRE(Fget32(fbfr, fld_char, 0, buf, &len) == -1);
+  //  REQUIRE(Ferror32 == FNOSPACE);
+  //  REQUIRE(len == sizeof(char));
   len = sizeof(buf);
   REQUIRE(Fget32(fbfr, fld_char, 0, buf, &len) != -1);
   REQUIRE(reinterpret<char>(buf) == c);
@@ -1482,10 +1482,10 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport string", "[fml32]") {
                    TPEX_STRING) != -1);
 
   olen = 0;
-  tpimport(ostr, 0, reinterpret_cast<char **>(&copy), &olen,
-                   TPEX_STRING);
-  // FIXME: Oracle Tuxedo actually fails with TPESYSTEM if ilen=0 even when TPEX_STRING in flags
-  // Expected to fail on Oracle Tuxedo, issue reported to Oracle support
+  tpimport(ostr, 0, reinterpret_cast<char **>(&copy), &olen, TPEX_STRING);
+  // FIXME: Oracle Tuxedo actually fails with TPESYSTEM if ilen=0 even when
+  // TPEX_STRING in flags Expected to fail on Oracle Tuxedo, issue reported to
+  // Oracle support
 #ifndef ATMI_H
   long ilen = olen;
 #else
@@ -1540,7 +1540,8 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport string into smaller buffer",
   REQUIRE(tpexport(reinterpret_cast<char *>(fbfr), 0, ostr, &olen,
                    TPEX_STRING) != -1);
 
-  // FIXME: Oracle Tuxedo actually fails with TPESYSTEM if ilen=0 even whe TPEX_STRING in flags
+  // FIXME: Oracle Tuxedo actually fails with TPESYSTEM if ilen=0 even whe
+  // TPEX_STRING in flags
   long ilen = olen;
   olen = 0;
   REQUIRE(tpimport(ostr, ilen, reinterpret_cast<char **>(&copy), &olen,

@@ -245,5 +245,5 @@ class mib {
 mib &getmib();
 std::string getubb();
 namespace fux::tx {
-  extern uint16_t grpno;
+extern uint16_t grpno;
 }

@@ -3,8 +3,8 @@
 
 #include <atmi.h>
 #include <tx.h>
-#include <xa.h>
 #include <userlog.h>
+#include <xa.h>
 #include <cstdint>
 #include <memory>
 
@@ -17,7 +17,7 @@ extern struct xa_switch_t tmnull_switch;
 }
 
 namespace fux::tx {
-  uint16_t grpno;
+uint16_t grpno;
 }
 
 static xa_switch_t *xasw = &tmnull_switch;
@@ -42,9 +42,7 @@ struct tx_context {
     grpcfg = &mibcon_.groups().at(fux::tx::grpno);
     notrx();
   }
-  void notrx() {
-    info.xid.formatID = -1;
-  }
+  void notrx() { info.xid.formatID = -1; }
   tx_state state;
   group *grpcfg = nullptr;
   TXINFO info;
@@ -131,7 +129,7 @@ int tx_begin() {
   }
 
   if (TMREGISTER) {
-    //return TX_OK;
+    // return TX_OK;
   }
 
   genxid(&getctxt().info.xid);
@@ -165,12 +163,14 @@ int tx_begin() {
 }
 
 static bool tx_set1(int rc) {
-  return rc == TX_OK || rc == TX_ROLLBACK || rc == TX_MIXED || rc == TX_HAZARD || rc == TX_COMMITTED;
+  return rc == TX_OK || rc == TX_ROLLBACK || rc == TX_MIXED ||
+         rc == TX_HAZARD || rc == TX_COMMITTED;
 }
 
 static bool tx_set2(int rc) {
-  return rc == TX_NO_BEGIN || rc == TX_ROLLBACK_NO_BEGIN || rc == TX_MIXED_NO_BEGIN ||
-rc == TX_HAZARD_NO_BEGIN || rc == TX_COMMITTED_NO_BEGIN;
+  return rc == TX_NO_BEGIN || rc == TX_ROLLBACK_NO_BEGIN ||
+         rc == TX_MIXED_NO_BEGIN || rc == TX_HAZARD_NO_BEGIN ||
+         rc == TX_COMMITTED_NO_BEGIN;
 }
 
 static int change_state(int rc) {
@@ -178,7 +178,9 @@ static int change_state(int rc) {
     if (getctxt().state == tx_state::s3) {
       getctxt().state = tx_state::s1;
     } else if (getctxt().state == tx_state::s4) {
-      getctxt().state = tx_state::s4;
+      // Chained
+      getctxt().state = tx_state::s2;
+      return tx_begin();
     }
   } else if (tx_set2(rc)) {
     if (getctxt().state == tx_state::s4) {
