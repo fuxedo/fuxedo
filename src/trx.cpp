@@ -44,6 +44,34 @@ int tpclose() {
   return -1;
 }
 
+int tpbegin(unsigned long timeout, long flags) {
+  if (flags != 0) {
+    TPERROR(TPEINVAL, "flags!=0");
+    return -1;
+  }
+
+  int rc = tx_set_transaction_timeout(timeout);
+  if (rc == TX_OK) {
+    rc = tx_begin();
+  }
+
+  if (rc == TX_OK) {
+    fux::atmi::reset_tperrno();
+    return 0;
+  }
+
+  if (rc == TX_ERROR || rc == TX_FAIL) {
+    TPERROR(TPERMERR, "tx_begin()=%d", rc);
+  } else if (rc == TX_OUTSIDE) {
+    TPERROR(TPETRAN, "tx_begin()=%d", rc);
+  } else if (rc == TX_PROTOCOL_ERROR) {
+    TPERROR(TPEPROTO, "tx_begin()=%d", rc);
+  } else {
+    TPERROR(TPESYSTEM, "Unexpected tx_begin()=%d", rc);
+  }
+  return -1;
+}
+
 int tpgetlev() {
   int rc = tx_info(nullptr);
 
@@ -62,6 +90,21 @@ int tpgetlev() {
   return -1;
 }
 
+static int trx_err(int rc, const char *func) {
+  if (rc == TX_ERROR || rc == TX_FAIL) {
+    TPERROR(TPERMERR, "%s()=%d", func, rc);
+  } else if (rc == TX_MIXED) {
+    TPERROR(TPEHEURISTIC, "%s()=%d", func, rc);
+  } else if (rc == TX_HAZARD) {
+    TPERROR(TPEHAZARD, "%s()=%d", func, rc);
+  } else if (rc == TX_PROTOCOL_ERROR) {
+    TPERROR(TPEPROTO, "%s()=%d", func, rc);
+  } else {
+    TPERROR(TPESYSTEM, "Unexpected %s()=%d", func, rc);
+  }
+  return -1;
+}
+
 int tpabort(long flags) {
   if (flags != 0) {
     TPERROR(TPEINVAL, "flags!=0");
@@ -76,20 +119,11 @@ int tpabort(long flags) {
     return 0;
   }
 
-  if (rc == TX_ERROR || rc == TX_FAIL) {
-    TPERROR(TPERMERR, "tx_rollback()=%d", rc);
-  } else if (rc == TX_MIXED) {
-    TPERROR(TPEHEURISTIC, "tx_rollback()=%d", rc);
-  } else if (rc == TX_HAZARD) {
-    TPERROR(TPEHAZARD, "tx_rollback()=%d", rc);
-  } else if (rc == TX_COMMITTED) {
+  if (rc == TX_COMMITTED) {
     TPERROR(TPEPROTO, "Transaction was committed, tx_rollback()=%d", rc);
-  } else if (rc == TX_PROTOCOL_ERROR) {
-    TPERROR(TPEPROTO, "tx_rollback()=%d", rc);
-  } else {
-    TPERROR(TPESYSTEM, "Unexpected tx_rollback()=%d", rc);
+    return -1;
   }
-  return -1;
+  return trx_err(rc, "tx_rollback");
 }
 
 int tpcommit(long flags) {
@@ -106,20 +140,11 @@ int tpcommit(long flags) {
     return 0;
   }
 
-  if (rc == TX_ERROR || rc == TX_FAIL) {
-    TPERROR(TPERMERR, "tx_commit()=%d", rc);
-  } else if (rc == TX_MIXED) {
-    TPERROR(TPEHEURISTIC, "tx_commit()=%d", rc);
-  } else if (rc == TX_HAZARD) {
-    TPERROR(TPEHAZARD, "tx_commit()=%d", rc);
-  } else if (rc == TX_ROLLBACK) {
+  if (rc == TX_ROLLBACK) {
     TPERROR(TPEABORT, "Transaction was rolled back, tx_commit()=%d", rc);
-  } else if (rc == TX_PROTOCOL_ERROR) {
-    TPERROR(TPEPROTO, "tx_commit()=%d", rc);
-  } else {
-    TPERROR(TPESYSTEM, "Unexpected tx_commit()=%d", rc);
+    return -1;
   }
-  return -1;
+  return trx_err(rc, "tx_commit");
 }
 
 int _tx_suspend(TXINFO *info);
@@ -184,33 +209,5 @@ int tpresume(TPTRANID *tranid, long flags) {
     return 0;
   }
 
-  return -1;
-}
-
-int tpbegin(unsigned long timeout, long flags) {
-  if (flags != 0) {
-    TPERROR(TPEINVAL, "flags!=0");
-    return -1;
-  }
-
-  int rc = tx_set_transaction_timeout(timeout);
-  if (rc == TX_OK) {
-    rc = tx_begin();
-  }
-
-  if (rc == TX_OK) {
-    fux::atmi::reset_tperrno();
-    return 0;
-  }
-
-  if (rc == TX_ERROR || rc == TX_FAIL) {
-    TPERROR(TPERMERR, "tx_begin()=%d", rc);
-  } else if (rc == TX_OUTSIDE) {
-    TPERROR(TPETRAN, "tx_begin()=%d", rc);
-  } else if (rc == TX_PROTOCOL_ERROR) {
-    TPERROR(TPEPROTO, "tx_begin()=%d", rc);
-  } else {
-    TPERROR(TPESYSTEM, "Unexpected tx_begin()=%d", rc);
-  }
   return -1;
 }

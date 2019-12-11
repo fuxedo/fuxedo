@@ -57,6 +57,17 @@ static tx_context &getctxt() {
   return *txctxt;
 }
 
+static int rm_err(int xarc, const char *func) {
+  if (xarc == XAER_RMERR) {
+    return TX_ERROR;
+  } else if (xarc == XAER_INVAL) {
+    return TX_FAIL;
+  } else if (xarc == XAER_PROTO) {
+    return TX_FAIL;
+  }
+  return TX_FAIL;
+}
+
 int tx_open() {
   auto xarc = xasw->xa_open_entry(getctxt().grpcfg->openinfo,
                                   getctxt().grpcfg->grpno, TMNOFLAGS);
@@ -68,15 +79,7 @@ int tx_open() {
     return TX_OK;
   }
 
-  if (xarc == XAER_RMERR) {
-    return TX_ERROR;
-  } else if (xarc == XAER_INVAL) {
-    return TX_FAIL;
-  } else if (xarc == XAER_PROTO) {
-    return TX_FAIL;
-  }
-
-  return TX_FAIL;
+  return rm_err(xarc, "xa_open");
 }
 
 int tx_close() {
@@ -91,15 +94,7 @@ int tx_close() {
     return TX_OK;
   }
 
-  if (xarc == XAER_RMERR) {
-    return TX_ERROR;
-  } else if (xarc == XAER_INVAL) {
-    return TX_FAIL;
-  } else if (xarc == XAER_PROTO) {
-    return TX_FAIL;
-  }
-
-  return TX_FAIL;
+  return rm_err(xarc, "xa_close");
 }
 
 int tx_info(TXINFO *info) {
@@ -191,6 +186,18 @@ static int change_state(int rc) {
   return rc;
 }
 
+static int xa_end_err(int xarc) {
+  if (xarc == XAER_RMFAIL) {
+    return TX_FAIL;
+  } else if (xarc == XAER_INVAL) {
+    return TX_FAIL;
+  } else if (xarc == XAER_PROTO) {
+    return TX_FAIL;
+  } else {
+    return TX_FAIL;
+  }
+}
+
 int tx_commit() {
   if (!(getctxt().state == tx_state::s3 || getctxt().state == tx_state::s4)) {
     return TX_PROTOCOL_ERROR;
@@ -200,14 +207,8 @@ int tx_commit() {
                                  TMNOFLAGS);
   if (xarc == XA_OK) {
     // pass
-  } else if (xarc == XAER_RMFAIL) {
-    return change_state(TX_FAIL);
-  } else if (xarc == XAER_INVAL) {
-    return change_state(TX_FAIL);
-  } else if (xarc == XAER_PROTO) {
-    return change_state(TX_FAIL);
   } else {
-    return change_state(TX_FAIL);
+    return change_state(xa_end_err(xarc));
   }
 
   xarc = xasw->xa_commit_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
@@ -237,14 +238,8 @@ int tx_rollback() {
                                  TMNOFLAGS);
   if (xarc == XA_OK) {
     // pass
-  } else if (xarc == XAER_RMFAIL) {
-    return change_state(TX_FAIL);
-  } else if (xarc == XAER_INVAL) {
-    return change_state(TX_FAIL);
-  } else if (xarc == XAER_PROTO) {
-    return change_state(TX_FAIL);
   } else {
-    return change_state(TX_FAIL);
+    return change_state(xa_end_err(xarc));
   }
 
   xarc = xasw->xa_rollback_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
@@ -275,14 +270,8 @@ int _tx_suspend(TXINFO *info) {
   memcpy(info, &(getctxt().info), sizeof(*info));
   if (xarc == XA_OK) {
     // pass
-  } else if (xarc == XAER_RMFAIL) {
-    return TX_FAIL;
-  } else if (xarc == XAER_INVAL) {
-    return TX_FAIL;
-  } else if (xarc == XAER_PROTO) {
-    return TX_FAIL;
   } else {
-    return TX_FAIL;
+    return xa_end_err(xarc);
   }
 
   getctxt().notrx();
