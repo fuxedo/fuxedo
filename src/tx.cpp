@@ -4,6 +4,7 @@
 #include <atmi.h>
 #include <tx.h>
 #include <xa.h>
+#include <userlog.h>
 #include <cstdint>
 #include <memory>
 
@@ -37,7 +38,12 @@ enum class tx_state {
 
 struct tx_context {
   tx_context(mib &mibcon) : mibcon_(mibcon) {
+    state = tx_state::s0;
     grpcfg = &mibcon_.groups().at(fux::tx::grpno);
+    notrx();
+  }
+  void notrx() {
+    info.xid.formatID = -1;
   }
   tx_state state;
   group *grpcfg = nullptr;
@@ -58,6 +64,7 @@ int tx_open() {
                                   getctxt().grpcfg->grpno, TMNOFLAGS);
   if (xarc == XA_OK) {
     if (getctxt().state == tx_state::s0) {
+      getctxt().notrx();
       getctxt().state = tx_state::s1;
     }
     return TX_OK;
@@ -124,7 +131,7 @@ int tx_begin() {
   }
 
   if (TMREGISTER) {
-    return TX_OK;
+    //return TX_OK;
   }
 
   genxid(&getctxt().info.xid);
@@ -157,6 +164,31 @@ int tx_begin() {
   return TX_FAIL;
 }
 
+static bool tx_set1(int rc) {
+  return rc == TX_OK || rc == TX_ROLLBACK || rc == TX_MIXED || rc == TX_HAZARD || rc == TX_COMMITTED;
+}
+
+static bool tx_set2(int rc) {
+  return rc == TX_NO_BEGIN || rc == TX_ROLLBACK_NO_BEGIN || rc == TX_MIXED_NO_BEGIN ||
+rc == TX_HAZARD_NO_BEGIN || rc == TX_COMMITTED_NO_BEGIN;
+}
+
+static int change_state(int rc) {
+  if (tx_set1(rc)) {
+    if (getctxt().state == tx_state::s3) {
+      getctxt().state = tx_state::s1;
+    } else if (getctxt().state == tx_state::s4) {
+      getctxt().state = tx_state::s4;
+    }
+  } else if (tx_set2(rc)) {
+    if (getctxt().state == tx_state::s4) {
+      getctxt().state = tx_state::s2;
+    }
+  }
+  getctxt().notrx();
+  return rc;
+}
+
 int tx_commit() {
   if (!(getctxt().state == tx_state::s3 || getctxt().state == tx_state::s4)) {
     return TX_PROTOCOL_ERROR;
@@ -167,29 +199,31 @@ int tx_commit() {
   if (xarc == XA_OK) {
     // pass
   } else if (xarc == XAER_RMFAIL) {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   } else if (xarc == XAER_INVAL) {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   } else if (xarc == XAER_PROTO) {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   } else {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   }
 
   xarc = xasw->xa_commit_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
                                TMNOFLAGS);
-  if (xarc == XA_HEURHAZ) {
-    return TX_HAZARD;
+  if (xarc == XA_OK) {
+    return change_state(TX_OK);
+  } else if (xarc == XA_HEURHAZ) {
+    return change_state(TX_HAZARD);
   } else if (xarc == XA_HEURMIX) {
-    return TX_MIXED;
+    return change_state(TX_MIXED);
   } else if (xarc == XAER_RMFAIL) {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   } else if (xarc == XAER_INVAL) {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   } else if (xarc == XAER_PROTO) {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   }
-  return TX_FAIL;
+  return change_state(TX_FAIL);
 }
 
 int tx_rollback() {
@@ -202,31 +236,31 @@ int tx_rollback() {
   if (xarc == XA_OK) {
     // pass
   } else if (xarc == XAER_RMFAIL) {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   } else if (xarc == XAER_INVAL) {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   } else if (xarc == XAER_PROTO) {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   } else {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   }
 
   xarc = xasw->xa_rollback_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
                                  TMNOFLAGS);
-  if (xarc == XA_HEURHAZ) {
-    return TX_HAZARD;
+  if (xarc == XA_OK) {
+    return change_state(TX_OK);
+  } else if (xarc == XA_HEURHAZ) {
+    return change_state(TX_HAZARD);
   } else if (xarc == XA_HEURMIX) {
-    return TX_MIXED;
+    return change_state(TX_MIXED);
   } else if (xarc == XAER_RMFAIL) {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   } else if (xarc == XAER_INVAL) {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   } else if (xarc == XAER_PROTO) {
-    return TX_FAIL;
+    return change_state(TX_FAIL);
   }
-  return TX_FAIL;
-
-  return -1;
+  return change_state(TX_FAIL);
 }
 
 int _tx_suspend(TXINFO *info) {
@@ -236,6 +270,7 @@ int _tx_suspend(TXINFO *info) {
 
   auto xarc = xasw->xa_end_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
                                  TMSUSPEND);
+  memcpy(info, &(getctxt().info), sizeof(*info));
   if (xarc == XA_OK) {
     // pass
   } else if (xarc == XAER_RMFAIL) {
@@ -248,8 +283,7 @@ int _tx_suspend(TXINFO *info) {
     return TX_FAIL;
   }
 
-  memcpy(info, &(getctxt().info), sizeof(*info));
-  getctxt().info.xid.formatID = -1;
+  getctxt().notrx();
   if (getctxt().state == tx_state::s3) {
     getctxt().state = tx_state::s1;
   } else if (getctxt().state == tx_state::s4) {
