@@ -13,6 +13,7 @@ check:
 	make -C tpadvertise
 	make -C tpforward
 	make -C blocktime
+	make -C txnull
 
 clean:
 	make -C unit clean
@@ -24,5 +25,6 @@ clean:
 	make -C tpadvertise clean
 	make -C tpforward clean
 	make -C blocktime clean
+	make -C txnull clean
 
 
