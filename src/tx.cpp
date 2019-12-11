@@ -198,6 +198,23 @@ static int xa_end_err(int xarc) {
   }
 }
 
+static int trx_code(int xarc) {
+  if (xarc == XA_OK) {
+    return TX_OK;
+  } else if (xarc == XA_HEURHAZ) {
+    return TX_HAZARD;
+  } else if (xarc == XA_HEURMIX) {
+    return TX_MIXED;
+  } else if (xarc == XAER_RMFAIL) {
+    return TX_FAIL;
+  } else if (xarc == XAER_INVAL) {
+    return TX_FAIL;
+  } else if (xarc == XAER_PROTO) {
+    return TX_FAIL;
+  }
+  return TX_FAIL;
+}
+
 int tx_commit() {
   if (!(getctxt().state == tx_state::s3 || getctxt().state == tx_state::s4)) {
     return TX_PROTOCOL_ERROR;
@@ -213,20 +230,7 @@ int tx_commit() {
 
   xarc = xasw->xa_commit_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
                                TMNOFLAGS);
-  if (xarc == XA_OK) {
-    return change_state(TX_OK);
-  } else if (xarc == XA_HEURHAZ) {
-    return change_state(TX_HAZARD);
-  } else if (xarc == XA_HEURMIX) {
-    return change_state(TX_MIXED);
-  } else if (xarc == XAER_RMFAIL) {
-    return change_state(TX_FAIL);
-  } else if (xarc == XAER_INVAL) {
-    return change_state(TX_FAIL);
-  } else if (xarc == XAER_PROTO) {
-    return change_state(TX_FAIL);
-  }
-  return change_state(TX_FAIL);
+  return change_state(trx_code(xarc));
 }
 
 int tx_rollback() {
@@ -244,20 +248,7 @@ int tx_rollback() {
 
   xarc = xasw->xa_rollback_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
                                  TMNOFLAGS);
-  if (xarc == XA_OK) {
-    return change_state(TX_OK);
-  } else if (xarc == XA_HEURHAZ) {
-    return change_state(TX_HAZARD);
-  } else if (xarc == XA_HEURMIX) {
-    return change_state(TX_MIXED);
-  } else if (xarc == XAER_RMFAIL) {
-    return change_state(TX_FAIL);
-  } else if (xarc == XAER_INVAL) {
-    return change_state(TX_FAIL);
-  } else if (xarc == XAER_PROTO) {
-    return change_state(TX_FAIL);
-  }
-  return change_state(TX_FAIL);
+  return change_state(trx_code(xarc));
 }
 
 int _tx_suspend(TXINFO *info) {

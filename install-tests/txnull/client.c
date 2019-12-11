@@ -64,6 +64,16 @@ int main(int argc, char *argv[]) {
 
   assert(strcmp(rcvbuf, "HELLO") == 0);
 
+  memset(rcvbuf, 0, rcvlen);
+  ret = tpcall("SERVICE_INV", sndbuf, 0, &rcvbuf, &rcvlen, 0);
+  if (ret == -1) {
+    fprintf(stderr, "%s\n", tpstrerror(tperrno));
+  }
+  assert(ret != -1);
+  assert(tpurcode == 6);
+
+  assert(strcmp(rcvbuf, "HELLO") == 0);
+
   tpfree(sndbuf);
   tpfree(rcvbuf);
   return 0;

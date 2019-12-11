@@ -176,7 +176,7 @@ int tpsuspend(TPTRANID *tranid, long flags) {
     return 0;
   }
 
-  return -1;
+  return trx_err(rc, "_tx_suspend");
 }
 
 int _tx_resume(TXINFO *info);
@@ -209,5 +209,5 @@ int tpresume(TPTRANID *tranid, long flags) {
     return 0;
   }
 
-  return -1;
+  return trx_err(rc, "_tx_resume");
 }

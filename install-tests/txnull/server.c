@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <atmi.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <userlog.h>
 
 void SERVICE_COMMIT(TPSVCINFO *svcinfo) {
@@ -57,6 +58,22 @@ void SERVICE_SUSPEND(TPSVCINFO *svcinfo) {
   assert(tpgetlev());
   assert(tpcommit(TPNOFLAGS) != -1);
   assert(!tpgetlev());
+
+  assert(tx_set_transaction_control(TX_CHAINED) == TX_OK);
+  assert(tpbegin(30, TPNOFLAGS) != -1);
+  assert(tpgetlev());
+
+  assert(tpsuspend(&t, 0) != -1);
+  assert(!tpgetlev());
+  assert(tpresume(&t, 0) != -1);
+  assert(tpgetlev());
+  assert(tpcommit(TPNOFLAGS) != -1);
+  assert(tpgetlev());
+
+  assert(tx_set_transaction_control(TX_UNCHAINED) == TX_OK);
+  assert(tpcommit(TPNOFLAGS) != -1);
+  assert(!tpgetlev());
+
   tpreturn(TPSUCCESS, 3, svcinfo->data, 0, 0);
 }
 
@@ -107,4 +124,33 @@ void SERVICE_TX(TPSVCINFO *svcinfo) {
 
   assert(tpcommit(0) != -1);
   tpreturn(TPSUCCESS, 5, svcinfo->data, 0, 0);
+}
+
+void SERVICE_INV(TPSVCINFO *svcinfo) {
+  userlog(":TEST: %s called", __func__);
+
+  tpclose();
+
+  assert(tx_set_transaction_control(TX_CHAINED) == TX_PROTOCOL_ERROR);
+  assert(tx_set_transaction_control(TX_UNCHAINED) == TX_PROTOCOL_ERROR);
+  assert(tx_set_commit_return(TX_COMMIT_DECISION_LOGGED) == TX_PROTOCOL_ERROR);
+  assert(tx_set_commit_return(TX_COMMIT_COMPLETED) == TX_PROTOCOL_ERROR);
+
+  assert(tpbegin(30, 0) == -1);
+  assert(tperrno == TPEPROTO);
+  assert(tpcommit(0) == -1);
+  assert(tperrno == TPEPROTO);
+  assert(tpabort(0) == -1);
+  assert(tperrno == TPEPROTO);
+  assert(tpgetlev() == -1);
+  assert(tperrno == TPEPROTO);
+
+  TPTRANID t;
+  memset(&t, 0, sizeof(t));
+  assert(tpsuspend(&t, 0) == -1);
+  assert(tperrno == TPEPROTO);
+  assert(tpresume(&t, 0) == -1);
+  assert(tperrno == TPEPROTO);
+
+  tpreturn(TPSUCCESS, 6, svcinfo->data, 0, 0);
 }
