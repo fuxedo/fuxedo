@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
 
       buf.put(FUX_SRVID, 0, server.srvid);
       buf.put(FUX_GRPNO, 0, server.grpno);
-      req.set_data(reinterpret_cast<char *>(*buf.fbfr()), 0);
+      req.set_data(reinterpret_cast<char *>(*buf.ptrptr()), 0);
       req->cat = fux::ipc::admin;
       req->mtype = queue.mtype--;
 

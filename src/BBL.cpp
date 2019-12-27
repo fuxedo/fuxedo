@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <userlog.h>
 #include <xa.h>
+#include <tpadm.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -113,6 +114,8 @@ int tpsvrinit(int argc, char *argv[]) {
 
 extern "C" void TMIB(TPSVCINFO *svcinfo) {
   fux::fml32buf buf(svcinfo);
+
+  tpadmcall(buf.ptr(), buf.ptrptr(), 0);
 
   fux::tpreturn(TPSUCCESS, 0, buf);
 }

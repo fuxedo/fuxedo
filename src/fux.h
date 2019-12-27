@@ -49,11 +49,11 @@ class fml32buf {
   fml32buf(FBFR32 **owning_ptr) : fbfr_(owning_ptr), owned_(nullptr) {}
 
   fml32buf(const fml32buf &other) {
-    update([&] { return Fcpy32(*fbfr(), *other.fbfr()); });
+    update([&] { return Fcpy32(ptr(), *other.ptrptr()); });
   }
 
   fml32buf &operator=(const fml32buf &other) {
-    update([&] { return Fcpy32(*fbfr(), *other.fbfr()); });
+    update([&] { return Fcpy32(ptr(), *other.ptrptr()); });
     return *this;
   }
 
@@ -71,29 +71,29 @@ class fml32buf {
 
   fml32buf &put(FLDID32 fieldid, FLDOCC32 oc, const fml32buf &value) {
     return update([&] {
-      return Fchg32(*fbfr(), fieldid, oc,
-                    reinterpret_cast<char *>(*value.fbfr()), 0);
+      return Fchg32(ptr(), fieldid, oc,
+                    reinterpret_cast<char *>(*value.ptrptr()), 0);
     });
   }
 
   fml32buf &put(FLDID32 fieldid, FLDOCC32 oc, const std::string &value) {
     return update([&] {
-      return CFchg32(*fbfr(), fieldid, oc, const_cast<char *>(value.data()),
+      return CFchg32(ptr(), fieldid, oc, const_cast<char *>(value.data()),
                      value.size(), FLD_CARRAY);
     });
   }
 
   fml32buf &put(FLDID32 fieldid, FLDOCC32 oc, long value) {
     return update([&] {
-      return CFchg32(*fbfr(), fieldid, oc, reinterpret_cast<char *>(&value),
+      return CFchg32(ptr(), fieldid, oc, reinterpret_cast<char *>(&value),
                      sizeof(value), FLD_LONG);
     });
   }
 
-  FLDOCC32 count(FLDID32 fieldid) { return Foccur32(*fbfr(), fieldid); }
+  FLDOCC32 count(FLDID32 fieldid) { return Foccur32(ptr(), fieldid); }
 
   FBFR32 *ptr() const { return *fbfr_; }
-  FBFR32 **fbfr() const { return fbfr_; }
+  FBFR32 **ptrptr() const { return fbfr_; }
 
  private:
   fml32buf &update(std::function<int()> f) {
@@ -114,7 +114,7 @@ class fml32buf {
   }
   long get(FLDID32 fieldid, FLDOCC32 oc, identity<long>) {
     long ret;
-    if (CFget32(*fbfr(), fieldid, oc, reinterpret_cast<char *>(&ret), nullptr,
+    if (CFget32(ptr(), fieldid, oc, reinterpret_cast<char *>(&ret), nullptr,
                 FLD_LONG) != -1) {
       return ret;
     }
@@ -123,7 +123,7 @@ class fml32buf {
   long get(FLDID32 fieldid, FLDOCC32 oc, const long &default_value,
            identity<long>) {
     long ret;
-    if (CFget32(*fbfr(), fieldid, oc, reinterpret_cast<char *>(&ret), nullptr,
+    if (CFget32(ptr(), fieldid, oc, reinterpret_cast<char *>(&ret), nullptr,
                 FLD_LONG) != -1) {
       return ret;
     }
@@ -133,7 +133,7 @@ class fml32buf {
   std::string get(FLDID32 fieldid, FLDOCC32 oc, identity<std::string>) {
     FLDLEN32 len;
     char *ret;
-    if ((ret = CFfind32(*fbfr(), fieldid, oc, &len, FLD_CARRAY)) != nullptr) {
+    if ((ret = CFfind32(ptr(), fieldid, oc, &len, FLD_CARRAY)) != nullptr) {
       return std::string(ret, len);
     }
     throw fml32buf_error();
@@ -143,7 +143,7 @@ class fml32buf {
                   const std::string &default_value, identity<std::string>) {
     FLDLEN32 len;
     char *ret;
-    if ((ret = CFfind32(*fbfr(), fieldid, oc, &len, FLD_CARRAY)) != nullptr) {
+    if ((ret = CFfind32(ptr(), fieldid, oc, &len, FLD_CARRAY)) != nullptr) {
       return std::string(ret, len);
     }
     return default_value;
@@ -154,14 +154,14 @@ class fml32buf {
 };
 
 inline void tpreturn(int rval, long rcode, fml32buf &buf) {
-  ::tpreturn(rval, rcode, reinterpret_cast<char *>(*buf.fbfr()), 0, 0);
+  ::tpreturn(rval, rcode, reinterpret_cast<char *>(*buf.ptrptr()), 0, 0);
 }
 
 inline void tpcall(const char *svc, fml32buf &buf, long flags) {
   long olen = 0;
   int n =
-      ::tpcall(const_cast<char *>(svc), reinterpret_cast<char *>(*buf.fbfr()),
-               0, reinterpret_cast<char **>(buf.fbfr()), &olen, flags);
+      ::tpcall(const_cast<char *>(svc), reinterpret_cast<char *>(*buf.ptrptr()),
+               0, reinterpret_cast<char **>(buf.ptrptr()), &olen, flags);
   if (n == -1) {
     throw xatmi_error();
   }
