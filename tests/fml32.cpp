@@ -244,6 +244,9 @@ TEST_CASE("Ffindocc32", "[fml32]") {
   REQUIRE(Ffindocc32(fbfr, fld_string, DECONST("a|22|b"), 1) == 2);
   REQUIRE(Ffindocc32(fbfr, fld_string, DECONST("[abc2][0efg]"), 1) == 0);
 
+  REQUIRE(Ffindocc32(fbfr, fld_string, DECONST("[20"), 1) == -1);
+  REQUIRE(Ferror32 == FEINVAL);
+
   Ffree32(fbfr);
 }
 
@@ -506,6 +509,9 @@ TEST_CASE_METHOD(FieldFixture, "Fchg32-Flen32-Ffind32", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   REQUIRE(fbfr != nullptr);
 
+  REQUIRE(Flen32(fbfr, fld_short, 0) == -1);
+  REQUIRE(Ferror32 == FNOTPRES);
+
   set_fields(fbfr);
 
   REQUIRE(Flen32(fbfr, fld_short, 0) == sizeof(short));
@@ -543,10 +549,13 @@ TEST_CASE_METHOD(FieldFixture, "Fget32", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   REQUIRE(fbfr != nullptr);
 
-  set_fields(fbfr);
-
   char buf[512];
   FLDLEN32 len;
+
+  REQUIRE(Fget32(fbfr, fld_short, 0, buf, &len) == -1);
+  REQUIRE(Ferror32 == FNOTPRES);
+
+  set_fields(fbfr);
 
   len = 1;
   REQUIRE(
@@ -693,6 +702,10 @@ TEST_CASE("Ffindlast32", "[fml32]") {
   REQUIRE(fbfr != nullptr);
 
   auto fld_short = Fmkfldid32(FLD_SHORT, 10);
+  FLDOCC32 oc;
+
+  REQUIRE(Ffindlast32(fbfr, fld_short, &oc, nullptr) == nullptr);
+  REQUIRE(Ferror32 == FNOTPRES);
 
   for (short i = 0; i < 3; i++) {
     REQUIRE(Fadd32(fbfr, fld_short, reinterpret_cast<char *>(&i), 0) != -1);
@@ -701,16 +714,17 @@ TEST_CASE("Ffindlast32", "[fml32]") {
   REQUIRE(Foccur32(fbfr, fld_short) == 3);
 
   short n;
-  FLDOCC32 oc;
   char *p = Ffindlast32(fbfr, fld_short, nullptr, nullptr);
   REQUIRE(p != nullptr);
   REQUIRE(reinterpret<short>(p) == 2);
 
-  p = Ffindlast32(fbfr, fld_short, &oc, nullptr);
+  FLDLEN32 flen = 0;
+  p = Ffindlast32(fbfr, fld_short, &oc, &flen);
   REQUIRE(p != nullptr);
   REQUIRE(reinterpret<short>(p) == 2);
   REQUIRE(p != nullptr);
   REQUIRE(oc == 2);
+  REQUIRE(flen == sizeof(short));
 
   Ffree32(fbfr);
 }
@@ -797,10 +811,15 @@ TEST_CASE("Fnext32-with-value", "[fml32]") {
     REQUIRE(Fchg32(fbfr, fld_short, i, reinterpret_cast<char *>(&s), 0) != -1);
   }
 
-  FLDID32 fieldid;
-  FLDOCC32 oc;
+  FLDID32 fieldid = BADFLDID;
+  FLDOCC32 oc = 0;
   char buf[512];
   FLDLEN32 len;
+
+  REQUIRE(Fnext32(fbfr, nullptr, &oc, nullptr, nullptr) == -1);
+  REQUIRE(Ferror32 == FEINVAL);
+  REQUIRE(Fnext32(fbfr, &fieldid, nullptr, nullptr, nullptr) == -1);
+  REQUIRE(Ferror32 == FEINVAL);
 
   fieldid = fld_long;
   oc = 0;

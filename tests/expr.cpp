@@ -13,6 +13,7 @@
 TEST_CASE("invalid boolean expr", "[fml32]") {
   REQUIRE((Fboolco32(DECONST("(NAME == 'John'")) == nullptr &&
            Ferror32 == FSYNTAX));
+  REQUIRE((Fboolco32(DECONST("NAME ==")) == nullptr && Ferror32 == FSYNTAX));
   REQUIRE(
       (Fboolco32(DECONST("NAME == 'John")) == nullptr && Ferror32 == FSYNTAX));
   REQUIRE((Fboolco32(DECONST("foobar == 'John'")) == nullptr &&
