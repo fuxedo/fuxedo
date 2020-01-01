@@ -5,6 +5,7 @@
 
 #include <fml32.h>
 #include <xatmi.h>
+#include <unistd.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -346,6 +347,9 @@ TEST_CASE_METHOD(FieldFixture, "Fwrite32 and Fread32", "[fml32]") {
 
   set_fields(fbfr);
 
+  REQUIRE(Fwrite32(fbfr, stdin) == -1);
+  REQUIRE(Ferror32 == FEUNIX);
+
   tempfile file(__LINE__);
   REQUIRE(Fwrite32(fbfr, file.f) != -1);
 
@@ -360,6 +364,9 @@ TEST_CASE_METHOD(FieldFixture, "Fwrite32 and Fread32", "[fml32]") {
   REQUIRE(Fread32(fbfr3, file.f) != -1);
 
   get_fields(fbfr3);
+
+  REQUIRE(Fread32(fbfr3, stdout) == -1);
+  REQUIRE(Ferror32 == FEUNIX);
 
   Ffree32(fbfr);
   Ffree32(fbfr2);
@@ -615,10 +622,13 @@ TEST_CASE_METHOD(FieldFixture, "Fgetalloc32", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   REQUIRE(fbfr != nullptr);
 
+  REQUIRE(Fgetalloc32(fbfr, fld_short, 0, nullptr) == nullptr);
+  REQUIRE(Ferror32 == FNOTPRES);
+
   set_fields(fbfr);
 
-  char *buf;
   FLDLEN32 len = 0;
+  char *buf;
 
   REQUIRE((buf = Fgetalloc32(fbfr, fld_short, 0, &len)) != nullptr);
   REQUIRE(reinterpret<short>(buf) == s);
@@ -801,7 +811,8 @@ TEST_CASE("Fnext32-with-value", "[fml32]") {
   auto fld_long = Fmkfldid32(FLD_LONG, 11);
   auto fld_short = Fmkfldid32(FLD_SHORT, 11);
 
-  for (short i = 0; i < 1; i++) {
+  FLDOCC32 lastocc = 1;
+  for (FLDOCC32 i = 0; i < lastocc + 1; i++) {
     short s = i + 100;
     long l = i + 100;
     std::string str = std::to_string(i + 100);
@@ -822,51 +833,40 @@ TEST_CASE("Fnext32-with-value", "[fml32]") {
   REQUIRE(Ferror32 == FEINVAL);
 
   fieldid = fld_long;
-  oc = 0;
-  // FIXMEE
-  //  len = 1;
-  len = sizeof(buf);
-  REQUIRE(Fnext32(fbfr, &fieldid, &oc, buf, &len) == 1);
-  REQUIRE((fieldid == fld_string && oc == 0));
-  REQUIRE(len == 4);
-
-  fieldid = fld_long;
-  oc = 0;
+  oc = lastocc;
   len = sizeof(buf);
   REQUIRE(Fnext32(fbfr, &fieldid, &oc, buf, &len) == 1);
   REQUIRE((fieldid == fld_string && oc == 0));
   REQUIRE(len == 4);
   REQUIRE(std::string(buf, len - 1) == "100");
-
-  fieldid = fld_short;
-  oc = 0;
-  len = 8;
   REQUIRE(Fnext32(fbfr, &fieldid, &oc, buf, &len) == 1);
-  REQUIRE((fieldid == fld_long && oc == 0));
-  REQUIRE(len == sizeof(long));
+  REQUIRE((fieldid == fld_string && oc == 1));
+  REQUIRE(len == 4);
+  REQUIRE(std::string(buf, len - 1) == "101");
 
   fieldid = fld_short;
-  oc = 0;
-  len = sizeof(buf);
+  oc = lastocc;
+  len = sizeof(long);
   REQUIRE(Fnext32(fbfr, &fieldid, &oc, buf, &len) == 1);
   REQUIRE((fieldid == fld_long && oc == 0));
   REQUIRE(len == sizeof(long));
   REQUIRE(reinterpret<long>(buf) == 100);
-
-  fieldid = BADFLDID;
-  oc = 0;
-  len = 2;
   REQUIRE(Fnext32(fbfr, &fieldid, &oc, buf, &len) == 1);
-  REQUIRE((fieldid == fld_short && oc == 0));
-  REQUIRE(len == sizeof(short));
+  REQUIRE((fieldid == fld_long && oc == 1));
+  REQUIRE(len == sizeof(long));
+  REQUIRE(reinterpret<long>(buf) == 101);
 
   fieldid = BADFLDID;
-  oc = 0;
-  len = sizeof(buf);
+  oc = lastocc;
+  len = sizeof(short);
   REQUIRE(Fnext32(fbfr, &fieldid, &oc, buf, &len) == 1);
   REQUIRE((fieldid == fld_short && oc == 0));
   REQUIRE(len == sizeof(short));
   REQUIRE(reinterpret<short>(buf) == 100);
+  REQUIRE(Fnext32(fbfr, &fieldid, &oc, buf, &len) == 1);
+  REQUIRE((fieldid == fld_short && oc == 1));
+  REQUIRE(len == sizeof(short));
+  REQUIRE(reinterpret<short>(buf) == 101);
 
   Ffree32(fbfr);
 }
