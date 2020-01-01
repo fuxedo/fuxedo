@@ -181,14 +181,23 @@ TEST_CASE("boolean expression Ffloatev32", "[fml32]") {
   REQUIRE(numev(fbfr, "-1+-2") == -3);
   REQUIRE(numev(fbfr, "1+2+4-6") == 1);
   REQUIRE(numev(fbfr, "1*2*3*4/8") == 3);
+  REQUIRE(numev(fbfr, "5%2") == 1);
+
+  REQUIRE(numev(fbfr, "1+SALARY") == 1);
 
   auto SALARY = Fldid32(DECONST("SALARY"));
-
-  float salary;
-  salary = 100.0;
+  float salary = 100.0;
   REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) != -1);
 
   REQUIRE(numev(fbfr, "1+SALARY") == 101);
+
+  REQUIRE(numev(fbfr, "AGE + 1") == 1);
+
+  auto AGE = Fldid32(DECONST("AGE"));
+  long age = 18;
+  REQUIRE(Fchg32(fbfr, AGE, 0, reinterpret_cast<char *>(&age), 0) != -1);
+
+  REQUIRE(numev(fbfr, "AGE + 1") == 19);
 
   Ffree32(fbfr);
 }
@@ -196,6 +205,10 @@ TEST_CASE("boolean expression Ffloatev32", "[fml32]") {
 TEST_CASE("boolean eval", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
 
+  REQUIRE(boolev(fbfr, "1"));
+  REQUIRE(boolev(fbfr, "1.2"));
+  REQUIRE(!boolev(fbfr, "!1"));
+  REQUIRE(!boolev(fbfr, "!1.2"));
   REQUIRE(boolev(fbfr, "1 == 1"));
   REQUIRE(!boolev(fbfr, "1 != 1"));
   REQUIRE(boolev(fbfr, "1 != -1"));
