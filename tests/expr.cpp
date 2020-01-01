@@ -29,8 +29,23 @@ TEST_CASE("invalid boolean expr", "[fml32]") {
   REQUIRE((Fboolco32(DECONST("1 >> 1")) == nullptr && Ferror32 == FSYNTAX));
 }
 
-TEST_CASE("boolean expression conversions", "[fml32]") {
+static bool boolev(FBFR32 *fbfr, const std::string &expr) {
   char *tree;
+  REQUIRE((tree = Fboolco32(DECONST(expr.c_str()))) != nullptr);
+  int ret = Fboolev32(fbfr, tree);
+  free(tree);
+  return ret == 1;
+}
+
+static double numev(FBFR32 *fbfr, const std::string &expr) {
+  char *tree;
+  REQUIRE((tree = Fboolco32(DECONST(expr.c_str()))) != nullptr);
+  auto ret = Ffloatev32(fbfr, tree);
+  free(tree);
+  return ret;
+}
+
+TEST_CASE("boolean expression conversions", "[fml32]") {
   auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
 
   auto VALUE = Fldid32(DECONST("VALUE"));
@@ -38,28 +53,18 @@ TEST_CASE("boolean expression conversions", "[fml32]") {
   REQUIRE(Fchg32(fbfr, VALUE, 0, DECONST("000001"), 0) != -1);
 
   // if one side is string field it is converted to number
-  REQUIRE((tree = Fboolco32(DECONST("VALUE == '000001'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("VALUE == 1"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("VALUE == 1.0"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
+  REQUIRE(boolev(fbfr, "VALUE == '000001'"));
+  REQUIRE(boolev(fbfr, "VALUE == 1"));
+  REQUIRE(boolev(fbfr, "VALUE == 1.0"));
 
   // if one side is string constant second is converted to string
-  REQUIRE((tree = Fboolco32(DECONST("'001' == 1"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 0);
-  free(tree);
-
+  REQUIRE(boolev(fbfr, "'1' == 1"));
+  REQUIRE(boolev(fbfr, "'1.000000' == 1.0"));
+  REQUIRE(!boolev(fbfr, "'001' == 1"));
   tpfree((char *)fbfr);
 }
 
 TEST_CASE("boolean expression occurances", "[fml32]") {
-  char *tree;
   auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
 
   auto NAME = Fldid32(DECONST("NAME"));
@@ -70,35 +75,21 @@ TEST_CASE("boolean expression occurances", "[fml32]") {
   REQUIRE(Fchg32(fbfr, NAME, 1, DECONST("name2"), 0) != -1);
   REQUIRE(Fchg32(fbfr, VALUE, 2, DECONST("000002"), 0) != -1);
 
-  REQUIRE((tree = Fboolco32(DECONST("NAME == 'name1'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
+  REQUIRE(boolev(fbfr, "NAME == 'name1'"));
 
-  REQUIRE((tree = Fboolco32(DECONST("NAME[0] == 'name1'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
+  REQUIRE(boolev(fbfr, "NAME[0] == 'name1'"));
 
-  REQUIRE((tree = Fboolco32(DECONST(
-               "NAME[0] == 'name1' && VALUE[0] == '000001'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("NAME[1] == 'name1'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 0);
-  free(tree);
-  REQUIRE((tree = Fboolco32(DECONST("NAME[1] != 'name1'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("NAME[1] == 'name2'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
+  REQUIRE(boolev(fbfr, "NAME[0] == 'name1' && VALUE[0] == '000001'"));
+  REQUIRE(boolev(fbfr, "NAME[0] == 'name1' || VALUE[0] == '000002'"));
+  REQUIRE(boolev(fbfr, "NAME[0] == 'name2' || VALUE[0] == '000001'"));
+  REQUIRE(!boolev(fbfr, "NAME[1] == 'name1'"));
+  REQUIRE(boolev(fbfr, "NAME[1] != 'name1'"));
+  REQUIRE(boolev(fbfr, "NAME[1] == 'name2'"));
 
   tpfree((char *)fbfr);
 }
 
 TEST_CASE("boolean expression '?' subscript", "[fml32]") {
-  char *tree;
   auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
 
   auto NAME = Fldid32(DECONST("NAME"));
@@ -116,56 +107,25 @@ TEST_CASE("boolean expression '?' subscript", "[fml32]") {
   salary = 300.0;
   REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) != -1);
 
-  REQUIRE((tree = Fboolco32(DECONST("NAME[?] == 'name1'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
+  REQUIRE(boolev(fbfr, "NAME[?] == 'name1'"));
 
-  REQUIRE((tree = Fboolco32(DECONST("NAME[?] == '\\6Ea\\6de\\31'"))) !=
-          nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
+  REQUIRE(boolev(fbfr, "NAME[?] == '\\6Ea\\6de\\31'"));
+  REQUIRE(boolev(fbfr, "NAME[?] == '\\6E\\61\\6d\\65\\31'"));
 
-  REQUIRE((tree = Fboolco32(DECONST("NAME[?] == '\\6E\\61\\6d\\65\\31'"))) !=
-          nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
+  REQUIRE(boolev(fbfr, "NAME[?] == 'name3'"));
+  REQUIRE(!boolev(fbfr, "NAME[?] == 'name4'"));
+  REQUIRE(boolev(fbfr, "NAME[?] != 'name4'"));
 
-  REQUIRE((tree = Fboolco32(DECONST("NAME[?] == 'name3'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("NAME[?] == 'name4'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 0);
-  free(tree);
-  REQUIRE((tree = Fboolco32(DECONST("NAME[?] != 'name4'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("SALARY[?] < 100"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 0);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("SALARY[?] > 400"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 0);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("SALARY[?] > 222"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("SALARY[?] >= 300"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("SALARY[?] <= 300"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
+  REQUIRE(!boolev(fbfr, "SALARY[?] < 100"));
+  REQUIRE(!boolev(fbfr, "SALARY[?] > 400"));
+  REQUIRE(boolev(fbfr, "SALARY[?] > 222"));
+  REQUIRE(boolev(fbfr, "SALARY[?] >= 300"));
+  REQUIRE(boolev(fbfr, "SALARY[?] <= 300"));
 
   tpfree((char *)fbfr);
 }
 
 TEST_CASE("boolean expression regex", "[fml32]") {
-  char *tree;
   auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
 
   auto NAME = Fldid32(DECONST("NAME"));
@@ -174,109 +134,53 @@ TEST_CASE("boolean expression regex", "[fml32]") {
   REQUIRE(Fchg32(fbfr, NAME, 1, DECONST("bar"), 0) != -1);
   REQUIRE(Fchg32(fbfr, NAME, 2, DECONST("foobar"), 0) != -1);
 
-  REQUIRE((tree = Fboolco32(DECONST("NAME[0] %% 'foo'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("NAME[0] %% 'fooBAR'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 0);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("NAME[1] %% '.a.'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("NAME[0] !% '.*r$'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("NAME[?] %% '......'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
+  REQUIRE(boolev(fbfr, "NAME[0] %% 'foo'"));
+  REQUIRE(!boolev(fbfr, "NAME[0] %% 'fooBAR'"));
+  REQUIRE(boolev(fbfr, "NAME[1] %% '.a.'"));
+  REQUIRE(boolev(fbfr, "NAME[0] !% '.*r$'"));
+  REQUIRE(boolev(fbfr, "NAME[?] %% '......'"));
 
   tpfree((char *)fbfr);
 }
 
 TEST_CASE("boolean expression regex full string matching", "[fml32]") {
-  char *tree;
   auto fbfr = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 1024);
 
   auto NAME = Fldid32(DECONST("NAME"));
 
   REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("1234567890"), 0) != -1);
 
-  REQUIRE((tree = Fboolco32(DECONST("NAME %% '[0-1].*'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("NAME !% '[0-1].*'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 0);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("NAME %% '[2-3].*'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 0);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("NAME !% '[2-3].*'"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
+  REQUIRE(boolev(fbfr, "NAME %% '[0-1].*'"));
+  REQUIRE(!boolev(fbfr, "NAME !% '[0-1].*'"));
+  REQUIRE(!boolev(fbfr, "NAME %% '[2-3].*'"));
+  REQUIRE(boolev(fbfr, "NAME !% '[2-3].*'"));
 
   tpfree((char *)fbfr);
 }
 
 TEST_CASE("boolean expression unary", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
-  char *tree;
-
-  REQUIRE((tree = Fboolco32(DECONST("!(!NAME)"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 0);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("!!NAME"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 0);
-  free(tree);
+  REQUIRE(!boolev(fbfr, "!(!NAME)"));
+  REQUIRE(!boolev(fbfr, "!!NAME"));
 
   auto NAME = Fldid32(DECONST("NAME"));
   REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("13"), 0) != -1);
 
-  REQUIRE((tree = Fboolco32(DECONST("!(!NAME)"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
+  REQUIRE(boolev(fbfr, "!(!NAME)"));
 
   Ffree32(fbfr);
 }
 
 TEST_CASE("boolean expression Ffloatev32", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
-  char *tree;
 
-  REQUIRE((tree = Fboolco32(DECONST("1+2"))) != nullptr);
-  REQUIRE(Ffloatev32(fbfr, tree) == 3);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("1+~(~2)"))) != nullptr);
-  REQUIRE(Ffloatev32(fbfr, tree) == 3);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("+1+2"))) != nullptr);
-  REQUIRE(Ffloatev32(fbfr, tree) == 3);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("1+-2"))) != nullptr);
-  REQUIRE(Ffloatev32(fbfr, tree) == -1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("-1+-2"))) != nullptr);
-  REQUIRE(Ffloatev32(fbfr, tree) == -3);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("1+2+4-6"))) != nullptr);
-  REQUIRE(Ffloatev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("1*2*3*4/8"))) != nullptr);
-  REQUIRE(Ffloatev32(fbfr, tree) == 3);
-  free(tree);
+  REQUIRE(numev(fbfr, "1+2") == 3);
+  REQUIRE(numev(fbfr, "1+~(~2)") == 3);
+  REQUIRE(numev(fbfr, "+1+2") == 3);
+  REQUIRE(numev(fbfr, "1+-2") == -1);
+  REQUIRE(numev(fbfr, "-1+-2") == -3);
+  REQUIRE(numev(fbfr, "1+2+4-6") == 1);
+  REQUIRE(numev(fbfr, "1*2*3*4/8") == 3);
 
   auto SALARY = Fldid32(DECONST("SALARY"));
 
@@ -284,36 +188,19 @@ TEST_CASE("boolean expression Ffloatev32", "[fml32]") {
   salary = 100.0;
   REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) != -1);
 
-  REQUIRE((tree = Fboolco32(DECONST("1+SALARY"))) != nullptr);
-  REQUIRE(Ffloatev32(fbfr, tree) == 101);
-  free(tree);
+  REQUIRE(numev(fbfr, "1+SALARY") == 101);
 
   Ffree32(fbfr);
 }
 
 TEST_CASE("boolean eval", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
-  char *tree;
 
-  REQUIRE((tree = Fboolco32(DECONST("1 == 1"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("1 != 1"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 0);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("1 != -1"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("1 != ~1"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
-
-  REQUIRE((tree = Fboolco32(DECONST("1 == ~(~1)"))) != nullptr);
-  REQUIRE(Fboolev32(fbfr, tree) == 1);
-  free(tree);
+  REQUIRE(boolev(fbfr, "1 == 1"));
+  REQUIRE(!boolev(fbfr, "1 != 1"));
+  REQUIRE(boolev(fbfr, "1 != -1"));
+  REQUIRE(boolev(fbfr, "1 != ~1"));
+  REQUIRE(boolev(fbfr, "1 == ~(~1)"));
 
   Ffree32(fbfr);
 }
@@ -321,6 +208,9 @@ TEST_CASE("boolean eval", "[fml32]") {
 TEST_CASE("invalid inputs", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   char *tree = nullptr;
+
+  REQUIRE(Fboolco32(nullptr) == nullptr);
+  REQUIRE(Ferror32 == FEINVAL);
 
   REQUIRE(Fboolev32(nullptr, tree) == -1);
   REQUIRE(Ferror32 == FNOTFLD);
