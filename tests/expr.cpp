@@ -11,7 +11,8 @@
 #include "misc.h"
 
 TEST_CASE("invalid boolean expr", "[fml32]") {
-  REQUIRE((Fboolco32(nullptr) == nullptr && Ferror32 == FEINVAL));
+  REQUIRE((Fboolco32(DECONST("(NAME == 'John'")) == nullptr &&
+           Ferror32 == FSYNTAX));
   REQUIRE(
       (Fboolco32(DECONST("NAME == 'John")) == nullptr && Ferror32 == FSYNTAX));
   REQUIRE((Fboolco32(DECONST("foobar == 'John'")) == nullptr &&
@@ -25,6 +26,7 @@ TEST_CASE("invalid boolean expr", "[fml32]") {
   REQUIRE((Fboolco32(DECONST("NAME %% 1")) == nullptr && Ferror32 == FSYNTAX));
   REQUIRE(
       (Fboolco32(DECONST("1 %% 'John'")) == nullptr && Ferror32 == FSYNTAX));
+  REQUIRE((Fboolco32(DECONST("1 >> 1")) == nullptr && Ferror32 == FSYNTAX));
 }
 
 TEST_CASE("boolean expression conversions", "[fml32]") {
@@ -155,6 +157,10 @@ TEST_CASE("boolean expression '?' subscript", "[fml32]") {
   REQUIRE(Fboolev32(fbfr, tree) == 1);
   free(tree);
 
+  REQUIRE((tree = Fboolco32(DECONST("SALARY[?] <= 300"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
   tpfree((char *)fbfr);
 }
 
@@ -248,6 +254,14 @@ TEST_CASE("boolean expression Ffloatev32", "[fml32]") {
   REQUIRE(Ffloatev32(fbfr, tree) == 3);
   free(tree);
 
+  REQUIRE((tree = Fboolco32(DECONST("1+~(~2)"))) != nullptr);
+  REQUIRE(Ffloatev32(fbfr, tree) == 3);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("+1+2"))) != nullptr);
+  REQUIRE(Ffloatev32(fbfr, tree) == 3);
+  free(tree);
+
   REQUIRE((tree = Fboolco32(DECONST("1+-2"))) != nullptr);
   REQUIRE(Ffloatev32(fbfr, tree) == -1);
   free(tree);
@@ -284,8 +298,21 @@ TEST_CASE("boolean eval", "[fml32]") {
   REQUIRE((tree = Fboolco32(DECONST("1 == 1"))) != nullptr);
   REQUIRE(Fboolev32(fbfr, tree) == 1);
   free(tree);
+
   REQUIRE((tree = Fboolco32(DECONST("1 != 1"))) != nullptr);
   REQUIRE(Fboolev32(fbfr, tree) == 0);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("1 != -1"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("1 != ~1"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
+  free(tree);
+
+  REQUIRE((tree = Fboolco32(DECONST("1 == ~(~1)"))) != nullptr);
+  REQUIRE(Fboolev32(fbfr, tree) == 1);
   free(tree);
 
   Ffree32(fbfr);
@@ -307,28 +334,29 @@ TEST_CASE("invalid inputs", "[fml32]") {
   Ffree32(fbfr);
 }
 
-TEST_CASE("Fboolpr32", "[fml32]") {
+static std::string compiled(const std::string &expr) {
   auto fbfr = Falloc32(100, 100);
   char *tree;
 
-  REQUIRE((tree = Fboolco32(DECONST("1 == 1"))) != nullptr);
+  REQUIRE((tree = Fboolco32(DECONST(expr.c_str()))) != nullptr);
 
   tempfile f(__LINE__);
   Fboolpr32(tree, f.f);
   fclose(f.f);
-
-  REQUIRE(read_file(f.name) == "( ( 1 ) == ( 1 ) ) \n");
   free(tree);
 
-  REQUIRE((tree = Fboolco32(DECONST("FIRSTNAME %% 'J.*n' && SEX == 'M'"))) !=
-          nullptr);
+  return read_file(f.name);
+}
 
-  tempfile ff(__LINE__);
-  Fboolpr32(tree, ff.f);
-  fclose(ff.f);
+TEST_CASE("Fboolpr32", "[fml32]") {
+  REQUIRE(compiled("1 == 1") == "( ( 1 ) == ( 1 ) ) \n");
+  REQUIRE(compiled("1 != -1") == "( ( 1 ) != ( -( 1 ) ) ) \n");
+  REQUIRE(compiled("1 != ~1") == "( ( 1 ) != ( ~( 1 ) ) ) \n");
+  REQUIRE(compiled("1.0 == 1") == "( ( 1.000000 ) == ( 1 ) ) \n");
+  REQUIRE(compiled("NAME == 1") == "( ( NAME[0] ) == ( 1 ) ) \n");
+  REQUIRE(compiled("NAME[?] == 1") == "( ( NAME[?] ) == ( 1 ) ) \n");
 
   REQUIRE(
-      read_file(ff.name) ==
+      compiled("FIRSTNAME %% 'J.*n' && SEX == 'M'") ==
       "( ( ( FIRSTNAME[0] ) %% ( 'J.*n' ) ) && ( ( SEX[0] ) == ( 'M' ) ) ) \n");
-  free(tree);
 }
