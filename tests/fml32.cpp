@@ -1612,3 +1612,42 @@ TEST_CASE("tpexport & tpimport STRING binary", "[mem]") {
   REQUIRE(tpimport(ostr, olen, &copy, &olen, 0) != -1);
   REQUIRE(memcmp(str, copy, 4 * 1024) == 0);
 }
+
+TEST_CASE("tpexport & tpimport args", "[mem]") {
+  auto str = tpalloc(DECONST("STRING"), DECONST("*"), 4 * 1024);
+  REQUIRE(str != nullptr);
+
+  auto copy = tpalloc(DECONST("STRING"), DECONST("*"), 1 * 1024);
+  REQUIRE(copy != nullptr);
+
+  memset(str, 'x', 4 * 1024);
+  str[4 * 1024 - 1] = '\0';
+
+  char ostr[8 * 1024];
+  long olen = sizeof(ostr);
+
+  REQUIRE(tpexport(nullptr, 4 * 1024, ostr, &olen, 0) == -1);
+  REQUIRE(tperrno == TPEINVAL);
+  REQUIRE(tpexport(str, 4 * 1024, nullptr, &olen, 0) == -1);
+  REQUIRE(tperrno == TPEINVAL);
+  REQUIRE(tpexport(str, 4 * 1024, ostr, nullptr, 0) == -1);
+  REQUIRE(tperrno == TPEINVAL);
+  REQUIRE(tpexport(str, 4 * 1024, ostr, &olen, 666) == -1);
+  REQUIRE(tperrno == TPEINVAL);
+
+  REQUIRE(tpexport(str, 4 * 1024, ostr, &olen, 0) != -1);
+
+  REQUIRE(tpimport(nullptr, olen, &copy, &olen, 0) == -1);
+  REQUIRE(tperrno == TPEINVAL);
+  REQUIRE(tpimport(ostr, olen, nullptr, &olen, 0) == -1);
+  REQUIRE(tperrno == TPEINVAL);
+  char *tmp = nullptr;
+  REQUIRE(tpimport(ostr, olen, &tmp, &olen, 0) == -1);
+  REQUIRE(tperrno == TPEINVAL);
+  REQUIRE(tpimport(DECONST("01"), 666, &copy, &olen, TPEX_STRING) == -1);
+  REQUIRE(tperrno == TPEPROTO);
+
+  REQUIRE(tpimport(ostr, olen, &copy, &olen, 0) != -1);
+
+  REQUIRE(memcmp(str, copy, 4 * 1024) == 0);
+}

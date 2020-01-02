@@ -113,3 +113,28 @@ TEST_CASE("tptypes", "[tp-memory]") {
     }
   }
 }
+
+TEST_CASE("tprealloc inputs", "[tp-memory]") {
+  GIVEN("NULL buffer") {
+    char *ptr = NULL;
+    WHEN("tprealloc is called") {
+      THEN("error is returned") {
+        REQUIRE(tprealloc(ptr, 100) == nullptr);
+        REQUIRE(tperrno == TPEINVAL);
+        REQUIRE(strlen(tpstrerror(tperrno)) > 1);
+      }
+    }
+  }
+  GIVEN("invalid buffer") {
+    char tmp[128];
+    memset(tmp, 0, sizeof(tmp));
+    char *ptr = &tmp[64];
+    WHEN("tprealloc is called") {
+      THEN("error is returned") {
+        REQUIRE(tprealloc(ptr, 100) == nullptr);
+        REQUIRE(tperrno == TPENOENT);
+        REQUIRE(strlen(tpstrerror(tperrno)) > 1);
+      }
+    }
+  }
+}

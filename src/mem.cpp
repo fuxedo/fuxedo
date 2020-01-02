@@ -210,6 +210,10 @@ int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags) {
     TPERROR(TPEINVAL, "Invalid arguments");
     return -1;
   }
+  if (!(flags == 0 || flags == TPEX_STRING)) {
+    TPERROR(TPEINVAL, "Invalid flags");
+    return -1;
+  }
 
   auto mem = memptr(ibuf);
   long used = fux::mem::bufsize(ibuf, ilen);
