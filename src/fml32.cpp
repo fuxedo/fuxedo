@@ -85,40 +85,40 @@ static const char *Fstrerror32_(int err) {
 char *Fstrerror32(int err) { return const_cast<char *>(Fstrerror32_(err)); }
 
 FLDID32 Fmkfldid32(int type, FLDID32 num) {
-  fux::fml32::reset_Ferror32();
-  return Fbfr32fields::Fmkfldid32(type, num);
+  return fux::fml32::exception_boundary(
+      [&] { return Fbfr32fields::Fmkfldid32(type, num); }, -1);
 }
 
 int Fldtype32(FLDID32 fieldid) {
-  fux::fml32::reset_Ferror32();
-  return Fbfr32fields::Fldtype32(fieldid);
+  return fux::fml32::exception_boundary(
+      [&] { return Fbfr32fields::Fldtype32(fieldid); }, -1);
 }
 
 long Fldno32(FLDID32 fieldid) {
-  fux::fml32::reset_Ferror32();
-  return Fbfr32fields::Fldno32(fieldid);
+  return fux::fml32::exception_boundary(
+      [&] { return Fbfr32fields::Fldno32(fieldid); }, -1);
 }
 
 static Fbfr32fields Fbfr32fields_;
 
 char *Fname32(FLDID32 fieldid) {
-  fux::fml32::reset_Ferror32();
-  return Fbfr32fields_.name(fieldid);
+  return fux::fml32::exception_boundary(
+      [&] { return Fbfr32fields_.name(fieldid); }, nullptr);
 }
 
 FLDID32 Fldid32(char *name) {
-  fux::fml32::reset_Ferror32();
-  return Fbfr32fields_.fldid(name);
+  return fux::fml32::exception_boundary(
+      [&] { return Fbfr32fields_.fldid(name); }, BADFLDID);
 }
 
 void Fidnm_unload32() {
-  fux::fml32::reset_Ferror32();
-  return Fbfr32fields_.idnm_unload();
+  return fux::fml32::exception_boundary(
+      [&] { return Fbfr32fields_.idnm_unload(); });
 }
 
 void Fnmid_unload32() {
-  fux::fml32::reset_Ferror32();
-  return Fbfr32fields_.nmid_unload();
+  return fux::fml32::exception_boundary(
+      [&] { return Fbfr32fields_.nmid_unload(); });
 }
 
 ////////////////////////////////////////////////////////////////////////////

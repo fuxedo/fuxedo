@@ -4,8 +4,8 @@
 #include <catch.hpp>
 
 #include <fml32.h>
-#include <xatmi.h>
 #include <unistd.h>
+#include <xatmi.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>

@@ -8,6 +8,13 @@
 
 #include "misc.h"
 
+void fml32init(void *, size_t);
+void fml32reinit(void *, size_t);
+void fml32finit(void *);
+size_t fml32used(void *);
+
+namespace fux::mem {
+
 struct tptype {
   char type[8];
   char subtype[16];
@@ -19,11 +26,6 @@ struct tptype {
 };
 
 size_t strused(void *ptr) { return strlen(reinterpret_cast<char *>(ptr)) + 1; }
-
-void fml32init(void *, size_t);
-void fml32reinit(void *, size_t);
-void fml32finit(void *);
-size_t fml32used(void *);
 
 static tptype _tptypes[] = {
     tptype{"CARRAY", "*", 0, nullptr, nullptr, nullptr, nullptr},
@@ -57,7 +59,7 @@ static const tptype *typeptr(const char *type, const char *subtype) {
   return &(*tptype);
 }
 
-char *tpalloc(char *type, char *subtype, long size) try {
+char *tpalloc(char *type, char *subtype, long size) {
   if (type == nullptr) {
     TPERROR(TPEINVAL, "type is nullptr");
     return nullptr;
@@ -84,11 +86,9 @@ char *tpalloc(char *type, char *subtype, long size) try {
 
   fux::atmi::reset_tperrno();
   return mem->data;
-} catch (...) {
-  return nullptr;
 }
 
-char *tprealloc(char *ptr, long size) try {
+char *tprealloc(char *ptr, long size) {
   if (ptr == nullptr) {
     TPERROR(TPEINVAL, "ptr is nullptr");
     return nullptr;
@@ -111,11 +111,8 @@ char *tprealloc(char *ptr, long size) try {
   }
   fux::atmi::reset_tperrno();
   return mem->data;
-} catch (...) {
-  return nullptr;
 }
-
-void tpfree(char *ptr) try {
+void tpfree(char *ptr) {
   if (ptr != nullptr) {
     // Inside service routines do not free buffer passed into a service routine
     auto mem = memptr(ptr);
@@ -132,10 +129,9 @@ void tpfree(char *ptr) try {
     free(mem);
   }
   fux::atmi::reset_tperrno();
-} catch (...) {
 }
 
-long tptypes(char *ptr, char *type, char *subtype) try {
+long tptypes(char *ptr, char *type, char *subtype) {
   if (ptr == nullptr) {
     TPERROR(TPEINVAL, "ptr is nullptr");
     return -1;
@@ -151,11 +147,9 @@ long tptypes(char *ptr, char *type, char *subtype) try {
 
   fux::atmi::reset_tperrno();
   return 0;
-} catch (...) {
-  return -1;
 }
 
-int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags) try {
+int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags) {
   if (istr == nullptr) {
     TPERROR(TPEINVAL, "istr is NULL");
     return -1;
@@ -209,12 +203,9 @@ int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags) try {
   }
   fux::atmi::reset_tperrno();
   return 0;
-} catch (...) {
-  TPERROR(TPEPROTO, "Invalid base64 string");
-  return -1;
 }
 
-int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags) try {
+int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags) {
   if (ibuf == nullptr || ostr == nullptr || olen == nullptr) {
     TPERROR(TPEINVAL, "Invalid arguments");
     return -1;
@@ -251,11 +242,8 @@ int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags) try {
   *olen = needed;
   fux::atmi::reset_tperrno();
   return 0;
-} catch (...) {
-  return -1;
 }
 
-namespace fux::mem {
 void setowner(char *ptr, char **owner) { memptr(ptr)->owner = owner; }
 
 long bufsize(char *ptr, long used) {
@@ -272,4 +260,33 @@ long bufsize(char *ptr, long used) {
     return mem->size - offsetof(tpmem, type);
   }
 }
+
 }  // namespace fux::mem
+
+char *tpalloc(char *type, char *subtype, long size) {
+  return fux::atmi::exception_boundary(
+      [&] { return fux::mem::tpalloc(type, subtype, size); }, nullptr);
+}
+
+char *tprealloc(char *ptr, long size) {
+  return fux::atmi::exception_boundary(
+      [&] { return fux::mem::tprealloc(ptr, size); }, nullptr);
+}
+
+void tpfree(char *ptr) {
+  fux::atmi::exception_boundary([&] { fux::mem::tpfree(ptr); });
+}
+
+long tptypes(char *ptr, char *type, char *subtype) {
+  return fux::atmi::exception_boundary(
+      [&] { return fux::mem::tptypes(ptr, type, subtype); }, -1);
+}
+
+int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags) {
+  return fux::atmi::exception_boundary(
+      [&] { return fux::mem::tpimport(istr, ilen, obuf, olen, flags); }, -1);
+}
+int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags) {
+  return fux::atmi::exception_boundary(
+      [&] { return fux::mem::tpexport(ibuf, ilen, ostr, olen, flags); }, -1);
+}

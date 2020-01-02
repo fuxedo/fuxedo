@@ -18,13 +18,6 @@
 std::string string_format(const char *fmt, ...)
     __attribute__((format(printf, 1, 2)));
 
-namespace fux {
-namespace fml32 {
-void set_Ferror32(int err, const char *fmt, ...);
-void reset_Ferror32();
-}  // namespace fml32
-}  // namespace fux
-
 #define FERROR(err, fmt, args...)                                          \
   fux::fml32::set_Ferror32(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
                            __LINE__, ##args)
@@ -33,8 +26,33 @@ void reset_Ferror32();
   fux::atmi::set_tperrno(err, "%s() in %s:%d: " fmt, __func__, __FILE__, \
                          __LINE__, ##args)
 
-namespace fux {
-namespace util {
+namespace fux::fml32 {
+void set_Ferror32(int err, const char *fmt, ...);
+void reset_Ferror32();
+
+template <typename F>
+void exception_boundary(F &&f) noexcept {
+  try {
+    reset_Ferror32();
+    f();
+  } catch (const std::exception &e) {
+    FERROR(-1, "Unhandled exception [%s]", e.what());
+  }
+}
+
+template <typename F, typename R>
+auto exception_boundary(F &&f, R &&r) noexcept -> decltype(f()) {
+  try {
+    reset_Ferror32();
+    return f();
+  } catch (const std::exception &e) {
+    FERROR(-1, "Unhandled exception [%s]", e.what());
+    return r;
+  }
+}
+}  // namespace fux::fml32
+
+namespace fux::util {
 inline std::string getenv(const char *name, const char *defval) {
   auto *val = std::getenv(name);
   if (val != nullptr) {
@@ -42,16 +60,35 @@ inline std::string getenv(const char *name, const char *defval) {
   }
   return defval;
 }
-}  // namespace util
-}  // namespace fux
+}  // namespace fux::util
 
-namespace fux {
-namespace atmi {
+namespace fux::atmi {
 void set_tperrno(int err, const char *fmt, ...)
     __attribute__((format(printf, 2, 3)));
 void reset_tperrno();
-}  // namespace atmi
-}  // namespace fux
+
+template <typename F>
+void exception_boundary(F &&f) noexcept {
+  try {
+    reset_tperrno();
+    f();
+  } catch (const std::exception &e) {
+    TPERROR(-1, "Unhandled exception [%s]", e.what());
+  }
+}
+
+template <typename F, typename R>
+auto exception_boundary(F &&f, R &&r) noexcept -> decltype(f()) {
+  try {
+    reset_tperrno();
+    return f();
+  } catch (const std::exception &e) {
+    TPERROR(-1, "Unhandled exception [%s]", e.what());
+    return r;
+  }
+}
+
+}  // namespace fux::atmi
 
 template <unsigned int N>
 void checked_copy(const std::string &src, char (&dst)[N]) {
