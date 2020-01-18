@@ -17,7 +17,6 @@
 #include <thread>
 #include <vector>
 
-#include "ctxt.h"
 #include "fields.h"
 #include "fux.h"
 #include "ipc.h"
@@ -316,11 +315,9 @@ static void thread_dispatch(tmsvrargs_t *tmsvrargs, int argc, char *argv[]) {
   tmsvrargs->svrthrdone();
 }
 
-namespace fux {
-namespace glob {
-extern xa_switch_t *xa_switch;
+namespace fux::glob {
+extern xa_switch_t *xasw;
 }
-}  // namespace fux
 
 int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   bool show_help = false;
@@ -387,7 +384,7 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   main_ptr->argc = argc;
   main_ptr->argv = argv;
   main_ptr->tmsvrargs = tmsvrargs;
-  fux::glob::xa_switch = tmsvrargs->xa_switch;
+  fux::glob::xasw = tmsvrargs->xa_switch;
 
   if (int n = tmsvrargs->svrinit(argc, argv); n != 0) {
     userlog("tpsvrinit() = %d", n);

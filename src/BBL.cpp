@@ -4,7 +4,6 @@
 #include <xa.h>
 #include <algorithm>
 
-#include "ctxt.h"
 #include "fields.h"
 #include "fux.h"
 #include "mib.h"
@@ -113,9 +112,11 @@ int tpsvrinit(int argc, char *argv[]) {
 }
 
 extern "C" void TMIB(TPSVCINFO *svcinfo) {
-  fux::fml32buf buf(svcinfo);
+  fux::fml32buf rq(svcinfo);
+  fux::fml32buf rs;
 
-  tpadmcall(buf.ptr(), buf.ptrptr(), 0);
+  userlog("Processing %s", svcinfo->name);
+  tpadmcall(rq.ptr(), rs.ptrptr(), 0);
 
-  fux::tpreturn(TPSUCCESS, 0, buf);
+  fux::tpreturn(TPSUCCESS, 0, rs);
 }

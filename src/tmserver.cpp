@@ -4,7 +4,6 @@
 #include <xa.h>
 #include <algorithm>
 
-#include "ctxt.h"
 #include "fields.h"
 #include "fux.h"
 
@@ -19,13 +18,13 @@ static void tm(fux::fml32buf &buf) {
   int ret;
   switch (func) {
     case fux::tm::prepare:
-      ret = fux::glob::xaswitch()->xa_prepare_entry(&xid, rmid, flags);
+      //      ret = fux::glob::xaswitch()->xa_prepare_entry(&xid, rmid, flags);
       break;
     case fux::tm::commit:
-      ret = fux::glob::xaswitch()->xa_commit_entry(&xid, rmid, flags);
+      //      ret = fux::glob::xaswitch()->xa_commit_entry(&xid, rmid, flags);
       break;
     case fux::tm::rollback:
-      ret = fux::glob::xaswitch()->xa_rollback_entry(&xid, rmid, flags);
+      //      ret = fux::glob::xaswitch()->xa_rollback_entry(&xid, rmid, flags);
       break;
     default:
       ret = XAER_INVAL;

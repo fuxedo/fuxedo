@@ -81,7 +81,7 @@ void ubb2mib(ubbconfig &u, mib &m) {
   auto servers = m.servers();
 
   {
-    auto &server = servers.at(m.make_server(0, 0, "BBL", "", ".BBL"));
+    auto &server = servers.at(m.make_server(0, 0, "BBL", "-A", ".BBL"));
     server.autostart = true;
   }
 

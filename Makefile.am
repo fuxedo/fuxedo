@@ -28,7 +28,6 @@ mylib_DATA = src/tmserver.o
 
 src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/fml32.cpp src/expr.cpp \
-                           src/ctxt.cpp \
                            src/server.cpp src/client.cpp \
                            src/mib.cpp src/ubb2mib.cpp \
                            src/userlog.cpp \
@@ -81,7 +80,7 @@ src_fux_LDADD = src/libfuxedo.la
 src_tmipcrm_SOURCES = src/tmipcrm.cpp
 src_tmipcrm_LDADD = src/libfuxedo.la
 
-data_DATA = RM
+data_DATA = RM include/tpadm
 
 TESTS = tests/xatmi tests/fml32 tests/expr tests/mib tests/ipcq tests/base64 tests/userlog tests/trx
 check_PROGRAMS = $(TESTS)

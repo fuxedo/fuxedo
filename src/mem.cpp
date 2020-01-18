@@ -138,6 +138,11 @@ long tptypes(char *ptr, char *type, char *subtype) {
   }
 
   auto mem = memptr(ptr);
+  const auto tptype = typeptr(mem->type, mem->subtype);
+  if (tptype == nullptr) {
+    TPERROR(TPEINVAL, "Buffer not fielded");
+    return -1;
+  }
   if (type != nullptr) {
     std::copy_n(mem->type, sizeof(mem->type), type);
   }

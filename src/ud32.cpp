@@ -44,18 +44,20 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
+  FLDID32 SRVCNM = Fldid32(const_cast<char *>("SRVCNM"));
+  if (SRVCNM == BADFLDID) {
+  }
   try {
     extreader r(stdin);
-    auto ptr = r.parse();
-    FBFR32 *fbfr = ptr.get();
-    FBFR32 *rq;
+    r.parse();
+    FBFR32 *fbfr = r.get();
+    fux::fml32buf rq(&fbfr);
 
-    FLDID32 SRVCNM = Fldid32(const_cast<char *>("SRVCNM"));
-    if (SRVCNM == BADFLDID) {
-    }
     char *srvcnm = Ffind32(fbfr, SRVCNM, 0, nullptr);
     if (srvcnm == nullptr) {
+      fprintf(stderr, "No service name found (%s)\n", Fstrerror32(Ferror32));
     }
+    Fprint32(fbfr);
 
     if (timeout > 0) {
       tpbegin(timeout, 0);
@@ -63,13 +65,18 @@ int main(int argc, char *argv[]) {
 
     int cd;
     if (noreply) {
-      cd = tpacall(srvcnm, reinterpret_cast<char *>(rq), 0, TPNOFLAGS);
+      cd = tpacall(srvcnm, reinterpret_cast<char *>(rq.ptr()), 0, TPNOFLAGS);
     } else {
       long olen = 0;
-      cd = tpcall(srvcnm, reinterpret_cast<char *>(rq), 0,
-                  reinterpret_cast<char **>(&rq), &olen, TPNOFLAGS);
+      cd = tpcall(srvcnm, reinterpret_cast<char *>(rq.ptr()), 0,
+                  reinterpret_cast<char **>(rq.ptrptr()), &olen, TPNOFLAGS);
+    }
+    if (cd == -1) {
+      fprintf(stderr, "%s failed %d %s\n", srvcnm, tperrno,
+              tpstrerror(tperrno));
     }
 
+    Fprint32(fbfr);
     if (cd == -1) {
       if (timeout > 0) {
         tpabort(0);

@@ -34,6 +34,7 @@ class basic_parser {
       : in_(nullptr), fin_(f), count_(0), row_(1), col_(1), sym_(fgetc(f)) {}
 
  protected:
+  bool eof() { return sym_ == EOF; }
   bool accept(std::function<bool(int)> f, std::string *s = nullptr) {
     if (sym_ == EOF || !f(sym_)) {
       return false;

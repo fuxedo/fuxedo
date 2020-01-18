@@ -13,7 +13,6 @@
 #include <memory>
 #include <vector>
 
-#include "ctxt.h"
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
@@ -43,6 +42,10 @@ class client {
   }
 
   int tpacall(const char *svc, char *data, long len, long flags) try {
+    if (tptypes(data, nullptr, nullptr) == -1) {
+      return -1;
+    }
+
     int msqid = repo_.get_queue(svc);
 
     rq.set_data(data, len);
@@ -79,6 +82,13 @@ class client {
   }
 
   int tpgetrply(int *cd, char **data, long *len, long flags) {
+    if (data == nullptr) {
+      TPERROR(TPEINVAL, "data is null");
+    }
+    if (tptypes(*data, nullptr, nullptr) == -1) {
+      return -1;
+    }
+
     while (true) {
       fux::ipc::msg res;
 
@@ -257,8 +267,7 @@ int tpinit(TPINIT *tpinfo) {
     TPERROR(TPEPROTO, "%s called from server", __func__);
     return -1;
   }
-  getclient();
-  fux::atmi::reset_tperrno();
+  fux::atmi::exception_boundary([&] { getclient(); });
   return 0;
 }
 
@@ -267,19 +276,23 @@ int tpterm() {
     TPERROR(TPEPROTO, "%s called from server", __func__);
     return -1;
   }
-  current_client.reset();
-  fux::atmi::reset_tperrno();
+  fux::atmi::exception_boundary([&] { current_client.reset(); });
   return 0;
 }
 
-int tpcancel(int cd) { return getclient().tpcancel(cd); }
+int tpcancel(int cd) {
+  return fux::atmi::exception_boundary([&] { return getclient().tpcancel(cd); },
+                                       -1);
+}
 
 int tpacall(char *svc, char *data, long len, long flags) {
-  return getclient().tpacall(svc, data, len, flags);
+  return fux::atmi::exception_boundary(
+      [&] { return getclient().tpacall(svc, data, len, flags); }, -1);
 }
 
 int tpgetrply(int *cd, char **data, long *len, long flags) {
-  return getclient().tpgetrply(cd, data, len, flags);
+  return fux::atmi::exception_boundary(
+      [&] { return getclient().tpgetrply(cd, data, len, flags); }, -1);
 }
 int tpcall(char *svc, char *idata, long ilen, char **odata, long *olen,
            long flags) {
@@ -291,8 +304,13 @@ int tpcall(char *svc, char *idata, long ilen, char **odata, long *olen,
 }
 
 int tpsblktime(int blktime, long flags) {
-  return getclient().tpsblktime(blktime, flags);
+  return fux::atmi::exception_boundary(
+      [&] { return getclient().tpsblktime(blktime, flags); }, -1);
 }
-int tpgblktime(long flags) { return getclient().tpgblktime(flags); }
+
+int tpgblktime(long flags) {
+  return fux::atmi::exception_boundary(
+      [&] { return getclient().tpgblktime(flags); }, -1);
+}
 
 int get_queue(const char *svc) { return getclient().get_queue(svc); }

@@ -20,7 +20,11 @@ namespace fux::tx {
 uint16_t grpno;
 }
 
-static xa_switch_t *xasw = &tmnull_switch;
+namespace fux::glob {
+xa_switch_t *xasw = &tmnull_switch;
+}
+
+using fux::glob::xasw;
 
 enum class tx_state {
   s0 = 0,  // S0 No RMs have been opened or initialised. An application thread
