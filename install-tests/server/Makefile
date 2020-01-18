@@ -13,11 +13,15 @@ check: server mtserver failserver client defserver defmtserver tuxconfig
 	!(tmipcrm -zinvalid_option)
 	!(tmloadcf -zinvalid_option)
 	!(tmunloadcf -zinvalid_option)
+	-tmloadcf -h
+	-tmunloadcf -h
 	-tmipcrm -y
 	echo "n" | tmipcrm
 	echo "y" | tmipcrm
 	tmunloadcf > ubbconfig2
 	tmloadcf -y ubbconfig2
+	!(TUXCONFIG= tmunloadcf > ubbconfig2)
+	!(TUXCONFIG= tmloadcf -y ubbconfig2)
 	tmboot -y
 	./client
 	tmshutdown -y

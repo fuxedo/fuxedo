@@ -29,8 +29,8 @@ size_t filesize(const std::string &filename) {
 }
 
 tuxconfig getconfig(ubbconfig *ubb) {
-  auto outfile = std::getenv("TUXCONFIG");
-  if (outfile == nullptr) {
+  auto outfile = fux::util::getenv("TUXCONFIG", "");
+  if (outfile.empty()) {
     throw std::runtime_error("TUXCONFIG environment variable required");
   }
 
@@ -55,8 +55,8 @@ tuxconfig getconfig(ubbconfig *ubb) {
 }
 
 std::string getubb() {
-  auto outfile = std::getenv("TUXCONFIG");
-  if (outfile == nullptr) {
+  auto outfile = fux::util::getenv("TUXCONFIG", "");
+  if (outfile.empty()) {
     throw std::runtime_error("TUXCONFIG environment variable required");
   }
 
