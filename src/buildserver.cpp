@@ -143,7 +143,7 @@ int main(int argc, char *argv[]) {
   FILE *fout = fdopen(fd, "w");
 
   gencode(fout, parse_services(services), threads,
-          rm == rms.end() ? "tmnull_switch" : rm->second.xaswitch);
+          rmname.empty() ? "tmnull_switch" : rm->second.xaswitch);
 
   fclose(fout);
 
@@ -156,6 +156,9 @@ int main(int argc, char *argv[]) {
   cmd.push_back(std::string("-I") + tuxdir + "/include");
   cmd.insert(cmd.end(), firstfiles.begin(), firstfiles.end());
   cmd.push_back(std::string("-L") + tuxdir + "/lib");
+  if (!rmname.empty()) {
+    cmd.push_back(rm->second.lflags);
+  }
   cmd.push_back("-lfuxedo");
   cmd.push_back("-lpthread");
   cmd.push_back("-o");

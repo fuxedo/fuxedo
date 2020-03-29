@@ -15,9 +15,26 @@
 #include "mib.h"
 #include "misc.h"
 
-static void start(server &srv) {
-  std::cout << "exec " << srv.servername << " " << srv.clopt << " :"
-            << std::endl;
+static void start(server &srv, bool no, bool d1) {
+  std::vector<const char *> argv;
+  argv.push_back(srv.servername);
+  argv.push_back("-g");
+  auto grpno = std::to_string(srv.grpno);
+  argv.push_back(grpno.c_str());
+  argv.push_back("-i");
+  auto srvid = std::to_string(srv.srvid);
+  argv.push_back(srvid.c_str());
+  argv.push_back("-A");
+
+  if (d1) {
+    std::cout << "exec " << join(argv, " ") << " :" << std::endl;
+  } else {
+    std::cout << "exec " << srv.servername << " " << srv.clopt << " :"
+              << std::endl;
+  }
+  if (no) {
+    return;
+  }
   if (srv.pid != 0 && alive(srv.pid)) {
     std::cout << "\tINFO: Duplicate server." << std::endl;
     return;
@@ -26,15 +43,6 @@ static void start(server &srv) {
   srv.state = state_t::inactive;
   auto pid = fork();
   if (pid == 0) {
-    std::vector<const char *> argv;
-    argv.push_back(srv.servername);
-    argv.push_back("-g");
-    auto grpno = std::to_string(srv.grpno);
-    argv.push_back(grpno.c_str());
-    argv.push_back("-i");
-    auto srvid = std::to_string(srv.srvid);
-    argv.push_back(srvid.c_str());
-    argv.push_back("-A");
     argv.push_back(nullptr);
 
     if (freopen("/dev/null", "r", stdin) == nullptr ||
@@ -74,6 +82,8 @@ static void start(server &srv) {
 int main(int argc, char *argv[]) {
   bool show_help = false;
   bool yes = false;
+  bool no = false;
+  bool d1 = false;
   std::string grpname;
   int srvid = -1;
 
@@ -87,6 +97,11 @@ int main(int argc, char *argv[]) {
   auto parser =
       clara::Help(show_help) |
       clara::Opt(yes)["-y"]("answer Yes to all questions") |
+      clara::Opt(no)["-n"](
+          "the execution sequence is printed, but not performed") |
+      // FIXME: clara can't handle "-d1"
+      clara::Opt(d1)["-d"](
+          "causes command line options to be printed on the standard output") |
       clara::Opt(srvid, "srvid")["-i"]("server's SRVID in TUXCONFIG") |
       clara::Opt(grpname, "grpname")["-g"]("server's SRVGRP in TUXCONFIG");
 
@@ -110,7 +125,7 @@ int main(int argc, char *argv[]) {
     for (size_t i = 0; i < servers->len; i++) {
       auto &srv = servers[i];
       if (srv.autostart) {
-        start(srv);
+        start(srv, no, d1);
       }
     }
   } catch (const std::exception &e) {

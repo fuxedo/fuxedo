@@ -17,7 +17,7 @@ extern struct xa_switch_t tmnull_switch;
 }
 
 namespace fux::tx {
-uint16_t grpno;
+uint16_t grpno = 0;
 }
 
 namespace fux::glob {
@@ -43,7 +43,7 @@ enum class tx_state {
 struct tx_context {
   tx_context(mib &mibcon) : mibcon_(mibcon) {
     state = tx_state::s0;
-    grpcfg = &mibcon_.groups().at(fux::tx::grpno);
+    grpcfg = &mibcon_.groups().at(mibcon_.find_group(fux::tx::grpno));
     notrx();
   }
   void notrx() { info.xid.formatID = -1; }

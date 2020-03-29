@@ -6,7 +6,7 @@ export PATH:=$(TUXDIR)/bin:$(PATH)
 export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
 export TUXCONFIG:=$(CURDIR)/tuxconfig
 
-check: server mtserver failserver client defserver defmtserver tuxconfig
+check: server mtserver failserver client defserver defmtserver tuxconfig tpreturn_client tpforward_client
 	-rm -f ULOG.*
 	!(tmboot -zinvalid_option)
 	!(tmshutdown -zinvalid_option)
@@ -24,6 +24,8 @@ check: server mtserver failserver client defserver defmtserver tuxconfig
 	!(TUXCONFIG= tmloadcf -y ubbconfig2)
 	tmboot -y
 	./client
+	!(./tpforward_client)
+	!(./tpreturn_client)
 	tmshutdown -y
 	grep -q ':server\..*:TEST: tpsvrinit called' ULOG.*
 	! grep -q ':server\..*:TEST: tpsvrthrinit called' ULOG.*
@@ -69,6 +71,10 @@ defmtserver: defmtserver.c
 
 client: client.c
 	buildclient -o $@ -f $< -v -f "-Wl,--no-as-needed"
+tpforward_client: tpforward_client.c
+	buildclient -o $@ -f $< -v -f "-Wl,--no-as-needed"
+tpreturn_client: tpreturn_client.c
+	buildclient -o $@ -f $< -v -f "-Wl,--no-as-needed"
 
 clean:
-	-rm -f *.o ubbconfig tuxconfig client server mtserver failserver defserver defmtserver ULOG.* stdout stderr access.*
+	-rm -f *.o ubbconfig tuxconfig tpreturn_client tpforward_client client server mtserver failserver defserver defmtserver ULOG.* stdout stderr access.*
