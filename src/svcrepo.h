@@ -5,8 +5,13 @@
 #include "mib.h"
 #include "misc.h"
 
+struct queue_entry {
+  int grpno;
+  int msqid;
+};
+
 struct service_entry {
-  std::vector<int> queues;
+  std::vector<queue_entry> queues;
   size_t current_queue;
   uint64_t cached_revision;
   uint64_t *mib_revision;
@@ -18,10 +23,10 @@ struct service_entry {
 class service_repository {
  public:
   service_repository(mib &m) : m_(m) {}
-  int get_queue(const char *svc) {
+  int get_queue(int grpno, const char *svc) {
     auto &entry = get_entry(svc);
     refresh(entry);
-    return load_balance(entry);
+    return load_balance(entry, grpno);
   }
 
  private:
@@ -50,19 +55,24 @@ class service_repository {
         auto &a = adv.at(i);
         if (a.service == entry.mib_service) {
           auto msqid = m_.queues().at(a.queue).msqid;
-          entry.queues.push_back(msqid);
+          auto grpno = m_.servers().at(a.server).grpno;
+          entry.queues.push_back({grpno, msqid});
         }
       }
       entry.cached_revision = *(entry.mib_revision);
     }
   }
 
-  int load_balance(service_entry &entry) {
+  int load_balance(service_entry &entry, int grpno) {
     if (entry.queues.empty()) {
       throw std::out_of_range("no queue");
     }
-    entry.current_queue = (entry.current_queue + 1) % entry.queues.size();
-    return entry.queues[entry.current_queue];
+    if (grpno == -1) {
+      entry.current_queue = (entry.current_queue + 1) % entry.queues.size();
+      return entry.queues[entry.current_queue].msqid;
+    } else {
+      throw std::out_of_range("no queue");
+    }
   }
 
   mib &m_;

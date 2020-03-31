@@ -23,9 +23,6 @@ include_HEADERS = include/atmi.h include/xatmi.h \
 
 lib_LTLIBRARIES = src/libfuxedo.la
 
-mylibdir = $(libdir)
-mylib_DATA = src/tmserver.o
-
 src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/fml32.cpp src/expr.cpp \
                            src/server.cpp src/client.cpp \
@@ -53,7 +50,7 @@ src_buildclient_SOURCES = src/buildclient.cpp
 src_tmboot_SOURCES = src/tmboot.cpp
 src_tmboot_LDADD = src/libfuxedo.la
 
-src_TMS_SOURCES = src/tmserver.cpp src/TMS.cpp
+src_TMS_SOURCES = src/TMS.cpp
 src_TMS_LDADD = src/libfuxedo.la
 
 src_BBL_SOURCES = src/BBL.cpp

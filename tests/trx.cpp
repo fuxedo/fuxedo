@@ -51,3 +51,12 @@ TEST_CASE("transaction_table bounds check", "[trx]") {
 
   free(table);
 }
+
+TEST_CASE("XID stringification", "[trx]") {
+  std::string ethalon =
+      "1279875137.70797228836149378b6fd6a315481425."
+      "80e88a292250da8f8b2ee3a5959e8650";
+  XID xid = fux::to_xid(ethalon);
+  REQUIRE(xid.formatID == 1279875137);
+  REQUIRE(fux::to_string(&xid) == ethalon);
+}

@@ -213,6 +213,13 @@ class mib {
   size_t make_group(uint16_t grpno, const std::string &srvgrp,
                     const std::string &openinfo, const std::string &closeinfo,
                     const std::string &tmsname);
+  group &group_by_id(uint16_t grpno) {
+    auto idx = find_group(grpno);
+    if (idx == badoff) {
+      throw std::logic_error("Group not found");
+    }
+    return groups().at(idx);
+  }
 
   size_t find_server(uint16_t srvid, uint16_t grpno);
   size_t make_server(uint16_t srvid, uint16_t grpno,

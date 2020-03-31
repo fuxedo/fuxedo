@@ -41,12 +41,13 @@ class client {
     mibcon_.accessers().at(client_).invalidate();
   }
 
-  int tpacall(const char *svc, char *data, long len, long flags) try {
+  int tpacall(int grpno, const char *svc, char *data, long len,
+              long flags) try {
     if (tptypes(data, nullptr, nullptr) == -1) {
       return -1;
     }
 
-    int msqid = repo_.get_queue(svc);
+    int msqid = repo_.get_queue(grpno, svc);
 
     rq.set_data(data, len);
     checked_copy(svc, rq->servicename);
@@ -231,7 +232,7 @@ class client {
     return blocktime;
   }
 
-  int get_queue(const char *svc) { return repo_.get_queue(svc); }
+  int get_queue(const char *svc) { return repo_.get_queue(-1, svc); }
 
  private:
   fux::ipc::flags to_flags(long flags) {
@@ -262,6 +263,11 @@ static client &getclient() {
   return *current_client;
 }
 
+int tpacall_internal(int grpno, char *svc, char *data, long len, long flags) {
+  return fux::atmi::exception_boundary(
+      [&] { return getclient().tpacall(grpno, svc, data, len, flags); }, -1);
+}
+
 int tpinit(TPINIT *tpinfo) {
   if (fux::is_server()) {
     TPERROR(TPEPROTO, "%s called from server", __func__);
@@ -287,7 +293,7 @@ int tpcancel(int cd) {
 
 int tpacall(char *svc, char *data, long len, long flags) {
   return fux::atmi::exception_boundary(
-      [&] { return getclient().tpacall(svc, data, len, flags); }, -1);
+      [&] { return getclient().tpacall(-1, svc, data, len, flags); }, -1);
 }
 
 int tpgetrply(int *cd, char **data, long *len, long flags) {

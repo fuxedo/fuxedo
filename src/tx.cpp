@@ -1,5 +1,8 @@
 // This file is part of Fuxedo
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
+// This implements the TX (Transaction Demarcation) specification by calling XA
+// APIs
+// + some TX-like API needed for Oracle Tuxedo APIs
 
 #include <atmi.h>
 #include <tx.h>
@@ -10,7 +13,10 @@
 
 #include <algorithm>
 
+#include "fields.h"
+#include "fux.h"
 #include "mib.h"
+#include "trx.h"
 
 extern "C" {
 extern struct xa_switch_t tmnull_switch;
@@ -43,7 +49,7 @@ enum class tx_state {
 struct tx_context {
   tx_context(mib &mibcon) : mibcon_(mibcon) {
     state = tx_state::s0;
-    grpcfg = &mibcon_.groups().at(mibcon_.find_group(fux::tx::grpno));
+    grpcfg = &mibcon_.group_by_id(fux::tx::grpno);
     notrx();
   }
   void notrx() { info.xid.formatID = -1; }
@@ -115,7 +121,7 @@ int tx_info(TXINFO *info) {
 }
 
 static void genxid(XID *xid) {
-  xid->formatID = 186;
+  xid->formatID = fux::FORMAT_ID;
   xid->gtrid_length = sizeof(fux::trxid);
   xid->bqual_length = 0;
   auto trxid = getmib().gentrxid();
@@ -202,21 +208,50 @@ static int xa_end_err(int xarc) {
   }
 }
 
-static int trx_code(int xarc) {
-  if (xarc == XA_OK) {
-    return TX_OK;
-  } else if (xarc == XA_HEURHAZ) {
-    return TX_HAZARD;
-  } else if (xarc == XA_HEURMIX) {
-    return TX_MIXED;
-  } else if (xarc == XAER_RMFAIL) {
-    return TX_FAIL;
-  } else if (xarc == XAER_INVAL) {
-    return TX_FAIL;
-  } else if (xarc == XAER_PROTO) {
-    return TX_FAIL;
+struct participant {
+  uint16_t grpno;
+  size_t mibptr;
+  int cd;
+  int result;
+};
+
+int tpacall_internal(int grpno, char *svc, char *data, long len, long flags);
+
+static void command(std::vector<participant> &participants, XID *xid,
+                    int command) {
+  fux::fml32buf buf;
+  int pending = 0;
+
+  for (auto &p : participants) {
+    buf.put(fux::tm::FUX_XAFUNC, 0, command);
+    buf.put(fux::tm::FUX_XAXID, 0, fux::to_string(xid));
+    buf.put(fux::tm::FUX_XARMID, 0, p.grpno);
+    buf.put(fux::tm::FUX_XAFLAGS, 0, 0);
+    p.cd =
+        tpacall_internal(p.grpno, const_cast<char *>(".TM"),
+                         reinterpret_cast<char *>(*buf.ptrptr()), 0, TPNOTIME);
+    pending++;
   }
-  return TX_FAIL;
+
+  while (pending > 0) {
+    int cd;
+    long len = 0;
+    int rc =
+        tpgetrply(&cd, reinterpret_cast<char **>(buf.ptrptr()), &len, TPGETANY);
+
+    for (auto &p : participants) {
+      if (p.cd == cd) {
+        p.result = buf.get<long>(fux::tm::FUX_XARET, 0);
+      }
+    }
+  }
+}
+
+static void persist_tlog(XID *xid, std::vector<participant> participants) {
+  // TODO
+}
+static void clean_tlog(XID *xid) {
+  // TODO
 }
 
 int tx_commit() {
@@ -232,9 +267,36 @@ int tx_commit() {
     return change_state(xa_end_err(xarc));
   }
 
-  xarc = xasw->xa_commit_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
-                               TMNOFLAGS);
-  return change_state(trx_code(xarc));
+  std::vector<participant> participants1;
+  command(participants1, &getctxt().info.xid, fux::tm::prepare);
+
+  // Collect interested participants for the 2nd phase
+  std::vector<participant> participants2;
+  bool commit = true;
+  for (auto &p : participants1) {
+    if (p.result == XA_RDONLY) {
+      // Nothing to do
+      continue;
+    }
+
+    if (p.result != XA_OK) {
+      commit = false;
+    }
+    participants2.push_back(p);
+  }
+
+  if (commit) {
+    persist_tlog(&getctxt().info.xid, participants2);
+  }
+
+  if (commit) {
+    command(participants2, &getctxt().info.xid, fux::tm::commit);
+    clean_tlog(&getctxt().info.xid);
+    return change_state(TX_OK);
+  } else {
+    command(participants2, &getctxt().info.xid, fux::tm::rollback);
+    return change_state(TX_FAIL);
+  }
 }
 
 int tx_rollback() {
@@ -250,9 +312,9 @@ int tx_rollback() {
     return change_state(xa_end_err(xarc));
   }
 
-  xarc = xasw->xa_rollback_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
-                                 TMNOFLAGS);
-  return change_state(trx_code(xarc));
+  std::vector<participant> participants;
+  command(participants, &getctxt().info.xid, fux::tm::rollback);
+  return change_state(TX_OK);
 }
 
 int _tx_suspend(TXINFO *info) {
@@ -356,4 +418,42 @@ int tx_set_transaction_timeout(TRANSACTION_TIMEOUT timeout) {
   }
   getctxt().info.transaction_timeout = timeout;
   return TX_OK;
+}
+
+static void tm(fux::fml32buf &buf) {
+  auto func = buf.get<long>(fux::tm::FUX_XAFUNC, 0);
+  auto xids = buf.get<std::string>(fux::tm::FUX_XAXID, 0);
+  int rmid = buf.get<long>(fux::tm::FUX_XARMID, 0);
+  long flags = buf.get<long>(fux::tm::FUX_XAFLAGS, 0);
+
+  XID xid = fux::to_xid(xids);
+  int ret;
+  switch (func) {
+    case fux::tm::prepare:
+      userlog("xa_prepare(%s, %d, 0x%0lx) ...", xids.c_str(), rmid, flags);
+      ret = xasw->xa_prepare_entry(&xid, rmid, flags);
+      userlog("xa_prepare(%s, %d, 0x%0lx) = %d", xids.c_str(), rmid, flags,
+              ret);
+      break;
+    case fux::tm::commit:
+      userlog("xa_commit(%s, %d, 0x%0lx) ...", xids.c_str(), rmid, flags);
+      ret = xasw->xa_commit_entry(&xid, rmid, flags);
+      userlog("xa_commit(%s, %d, 0x%0lx) = %d", xids.c_str(), rmid, flags, ret);
+      break;
+    case fux::tm::rollback:
+      userlog("xa_rollback(%s, %d, 0x%0lx) ...", xids.c_str(), rmid, flags);
+      ret = xasw->xa_rollback_entry(&xid, rmid, flags);
+      userlog("xa_rollback(%s, %d, 0x%0lx) = %d", xids.c_str(), rmid, flags,
+              ret);
+      break;
+    default:
+      ret = XAER_INVAL;
+  }
+  buf.put(fux::tm::FUX_XARET, 0, ret);
+}
+
+extern "C" void TM(TPSVCINFO *svcinfo) {
+  fux::fml32buf buf(svcinfo);
+  tm(buf);
+  fux::tpreturn(TPSUCCESS, 0, buf);
 }

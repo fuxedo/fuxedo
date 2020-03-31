@@ -16,7 +16,34 @@ m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT([shared])
 AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_17(ext, mandatory)
+AX_CXX_HAVE_FILESYSTEM
 
+# g++-8.3 compiles the code but core dumps at runtime unless linked with -lstdc++fs
+AC_CACHE_CHECK(
+  [if -lstdc++fs is needed for filesystem],
+  ax_cv_cxx_have_libfilesystem,
+  [dnl
+    ac_save_CXX="$CXX"
+    CXX="$CXX -lstdc++fs"
+    AC_LINK_IFELSE([AC_LANG_PROGRAM(
+      [
+        [#ifdef HAVE_CXX_FILESYSTEM]
+        [#include <filesystem>]
+        [using std::filesystem::path;]
+        [#else]
+        [#include <experimental/filesystem>]
+        [using std::experimental::filesystem::path;]
+        [#endif]
+      ],
+      []
+      )],
+      [LIBS="-lstdc++fs $LIBS"]
+      [ax_cv_cxx_have_libfilesystem=yes],
+      [ax_cv_cxx_have_libfilesystem=no]
+    )
+    CXX="$ac_save_CXX"
+  ])
+ 
 AC_SUBST([AM_CXXFLAGS])
 AC_SUBST([AM_LDFLAGS])
 
