@@ -88,4 +88,12 @@ Fuxedo tries to be compatible with Oracle Tuxedo for all functionality implement
 
 ## More
 
-If you need more information, support or features contact us at info@fuxedo.io
+Check out some other projects:
+
+- https://github.com/fuxedo/tuxtrace - ULOG-based tracing of Tuxedo application
+- https://github.com/fuxedo/tuxmon - A top-like monitoring tool
+- https://github.com/aivarsk/tuxedo-python - Python3 bindings for Oracle Tuxedo
+
+I'm interested to hear what features of Oracle Tuxedo your project is using and what should be implemented in Fuxedo. If you can share the code or let me take a look under NDA - even better.
+
+For more information, support, features and development contact us at info@fuxedo.io
