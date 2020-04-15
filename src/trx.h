@@ -57,28 +57,63 @@ inline XID to_xid(const std::string &s) {
   return xid;
 }
 
+inline fux::gtrid to_gtrid(XID *xid) {
+  if (xid != nullptr && xid->formatID != -1) {
+    if (xid->formatID != fux::FORMAT_ID ||
+        xid->gtrid_length != sizeof(fux::gtrid)) {
+      throw std::runtime_error("Unsupported XID");
+    }
+    fux::gtrid id;
+    std::copy_n(xid->data, sizeof(id), reinterpret_cast<char *>(&id));
+    return id;
+  }
+  return 0;
+}
+
+inline XID make_xid(fux::gtrid id) {
+  // Tuxedo uses a 24/48 byte (long info[6]) transaction identifier for
+  // tpsuspend/tpresume we can't go past that
+  XID xid;
+  xid.formatID = fux::FORMAT_ID;
+  xid.gtrid_length = sizeof(id);
+  xid.bqual_length = 0;
+  std::copy_n(reinterpret_cast<char *>(&id), sizeof(id), xid.data);
+  return xid;
+}
+
+inline XID make_xid(fux::gtrid gtrid, fux::bqual bqual) {
+  XID xid = make_xid(gtrid);
+  xid.bqual_length = sizeof(bqual);
+  std::copy_n(reinterpret_cast<char *>(&bqual), sizeof(bqual),
+              xid.data + xid.gtrid_length);
+  return xid;
+}
+
 }  // namespace fux
 
+int _tx_suspend(TXINFO *info);
+int _tx_resume(TXINFO *info);
+
 struct transaction {
-  fux::trxid id;
+  fux::gtrid id;
   time_t started;
   time_t timeout;
   enum { active, preparing, do_commit, do_rollback, finished } state;
-  uint8_t participants[];
+  uint16_t groups[];
 };
 
 struct transaction_table {
   size_t len;
   size_t size;
-  size_t max_participants;
+  size_t max_groups;
   size_t entry_size;
   struct transaction entry[];
 
-  void init(size_t transactions, size_t participants) {
+  void init(size_t transactions, size_t groups) {
     len = 0;
     size = transactions;
-    max_participants = participants;
-    entry_size = size_of_transaction(participants);
+    max_groups = groups;
+    entry_size = size_of_transaction(groups);
   }
 
   transaction &operator[](size_t pos) {
@@ -89,34 +124,34 @@ struct transaction_table {
                                             (pos * entry_size));
   }
 
-  static size_t size_of_transaction(size_t participants) {
-    return nearest((sizeof(transaction) +
-                    participants * sizeof(transaction::participants[0])),
-                   std::alignment_of<transaction>::value);
+  static size_t size_of_transaction(size_t groups) {
+    return nearest(
+        (sizeof(transaction) + groups * sizeof(transaction::groups[0])),
+        std::alignment_of<transaction>::value);
   }
 
-  static size_t needed(size_t transactions, size_t participants) {
+  static size_t needed(size_t transactions, size_t groups) {
     return offsetof(transaction_table, entry) +
-           transactions * size_of_transaction(participants);
+           transactions * size_of_transaction(groups);
   }
 
-  void join(size_t transaction, size_t participant) {
-    if (participant >= max_participants) {
-      throw std::out_of_range("participant out of range");
+  void join(size_t transaction, size_t group) {
+    if (group >= max_groups) {
+      throw std::out_of_range("group out of range");
     }
     auto &t = (*this)[transaction];
-    t.participants[participant] = 1;
+    t.groups[group] = 1;
   }
 
-  bool has_joined(size_t transaction, size_t participant) {
-    if (participant >= max_participants) {
-      throw std::out_of_range("participant out of range");
+  bool has_joined(size_t transaction, size_t group) {
+    if (group >= max_groups) {
+      throw std::out_of_range("group out of range");
     }
     auto &t = (*this)[transaction];
-    return t.participants[participant] > 0;
+    return t.groups[group] > 0;
   }
 
-  size_t start(fux::trxid id) {
+  size_t start(fux::gtrid id) {
     for (size_t i = 0; i < len; i++) {
       if ((*this)[i].id == 0) {
         memset(&(*this)[i], 0, entry_size);
@@ -130,6 +165,22 @@ struct transaction_table {
       return len++;
     }
     throw std::out_of_range("No free entries in transaction table");
+  }
+
+  transaction &at(fux::gtrid gtrid) {
+    for (size_t i = 0; i < len; i++) {
+      if ((*this)[i].id == gtrid) {
+        return (*this)[i];
+      }
+    }
+    throw std::out_of_range("Transaction not found");
+  }
+
+  uint16_t &bqual(fux::gtrid gtrid, size_t group) {
+    if (group >= max_groups) {
+      throw std::out_of_range("group out of range");
+    }
+    return at(gtrid).groups[group];
   }
 
   void end(size_t transaction) {

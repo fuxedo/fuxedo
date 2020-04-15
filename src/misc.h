@@ -188,10 +188,6 @@ inline std::vector<std::string> split(const std::string &s,
 }
 }  // namespace fux
 
-namespace fux {
-typedef uint64_t trxid;
-}
-
 static constexpr size_t nearest(size_t n, size_t what, size_t mult = 1) {
   return n <= (mult * what) ? (mult * what) : nearest(n, what, mult + 1);
 }

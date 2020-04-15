@@ -23,9 +23,21 @@
 #include "misc.h"
 #include "trx.h"
 
-size_t filesize(const std::string &filename) {
-  std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
-  return in.tellg();
+#ifdef HAVE_CXX_FILESYSTEM
+#include <filesystem>
+namespace fs = std::filesystem;
+#else
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#endif
+
+void mib::validate() {
+  if (strlen(mach().tlogdevice) > 0) {
+    if (!fs::is_directory(mach().tlogdevice)) {
+      throw std::invalid_argument(string_format(
+          "TLOGDEVICE=%s must be a writable directory", mach().tlogdevice));
+    }
+  }
 }
 
 tuxconfig getconfig(ubbconfig *ubb) {
@@ -41,7 +53,7 @@ tuxconfig getconfig(ubbconfig *ubb) {
   tuxconfig tuxcfg;
   fin.read(reinterpret_cast<char *>(&tuxcfg), sizeof(tuxcfg));
 
-  auto size = filesize(outfile);
+  auto size = fs::file_size(outfile);
   if (tuxcfg.size != size) {
     throw std::runtime_error("Bad TUXCONFIG signature, invalid file");
   }
@@ -67,7 +79,7 @@ std::string getubb() {
   tuxconfig tuxcfg;
   fin.read(reinterpret_cast<char *>(&tuxcfg), sizeof(tuxcfg));
 
-  auto size = filesize(outfile);
+  auto size = fs::file_size(outfile);
   if (tuxcfg.size != size) {
     throw std::runtime_error("Bad TUXCONFIG signature, invalid file");
   }
@@ -114,7 +126,7 @@ void mib::init_memory() {
   transactions().init(100, cfg_.maxgroups);
 
   off += nearest64(transaction_table::needed(transactions().size,
-                                             transactions().max_participants));
+                                             transactions().max_groups));
 }
 
 size_t mib::find_advertisement(size_t service, size_t queue, size_t server) {
@@ -372,16 +384,22 @@ mib::mib(const tuxconfig &cfg, fux::mib::in_heap) : cfg_(cfg) {
   init_memory();
 }
 
-fux::trxid mib::gentrxid() {
+fux::gtrid mib::gengtrid() {
   struct timespec ts;
   (void)clock_gettime(CLOCK_MONOTONIC, &ts);
 
-  auto counter = __sync_fetch_and_add(&(mem_->counter), 1);
+  fux::gtrid gtrid = 0;
+  do {
+    auto counter = __sync_fetch_and_add(&(mem_->counter), 1);
 
-  // 10 bits machine identifier (from UBBCONFIG), 1024 machines
-  // 30 bits value representing the seconds since something, 30+years
-  // 24 bits counter, starting with a random value, 1,073,741,824 per second
-  return (uint64_t(mem_->host & 0b1111111111) << 54) +
-         (uint64_t(ts.tv_sec & 0b111111111111111111111111111111) << 24) +
-         (uint64_t(counter & 0b111111111111111111111111));
+    // 10 bits machine identifier (from UBBCONFIG), 1024 machines
+    // 30 bits value representing the seconds since something, 30+years
+    // 24 bits counter, starting with a random value, 1,073,741,824 per second
+    gtrid = (uint64_t(mem_->host & 0b1111111111) << 54) +
+            (uint64_t(ts.tv_sec & 0b111111111111111111111111111111) << 24) +
+            (uint64_t(counter & 0b111111111111111111111111));
+
+    // highly unlikely but check anyway because 0 means "no gtrid"
+  } while (gtrid == 0);
+  return gtrid;
 }

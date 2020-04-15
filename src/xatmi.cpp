@@ -6,6 +6,8 @@
 #include <cstdarg>
 #include <cstdio>
 
+#include <userlog.h>
+
 namespace fux {
 namespace atmi {
 
@@ -19,6 +21,7 @@ void set_tperrno(int err, const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   vsnprintf(tplasterr_, sizeof(tplasterr_), fmt, ap);
+  userlog("%s\n", tplasterr_);
   va_end(ap);
 }
 

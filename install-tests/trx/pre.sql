@@ -1,0 +1,13 @@
+BEGIN
+   EXECUTE IMMEDIATE 'DROP TABLE ' || 'fux_table';
+EXCEPTION
+   WHEN OTHERS THEN
+      IF SQLCODE != -942 THEN
+         RAISE;
+      END IF;
+END;
+/
+CREATE TABLE fux_table(n INT);
+INSERT INTO fux_table VALUES (0);
+COMMIT;
+EXIT

@@ -1,0 +1,23 @@
+#include <assert.h>
+#include <atmi.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <userlog.h>
+#include <sqlca.h>
+
+void SERVICE2(TPSVCINFO *svcinfo) {
+  userlog(":TEST: %s called", __func__);
+  EXEC SQL WHENEVER SQLERROR DO userlog(":TEST: ORACLE error");
+
+  EXEC SQL BEGIN DECLARE SECTION;
+  long n;
+  EXEC SQL END DECLARE SECTION;
+
+  EXEC SQL SELECT max(n) INTO :n FROM fux_table;
+
+  n += 2;
+
+  EXEC SQL INSERT INTO fux_table(n) VALUES (:n);
+
+  tpreturn(TPSUCCESS, 0, svcinfo->data, 0, 0);
+}

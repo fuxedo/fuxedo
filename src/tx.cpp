@@ -4,6 +4,14 @@
 // APIs
 // + some TX-like API needed for Oracle Tuxedo APIs
 
+/* XID format:
+   - gtrid 64 bit number based on Twitter Snowflake
+   - bqual 32 bits
+      - grpno 16 bit group identifier from UBBCONFIG
+      - conter 16 bit counter: 1 for tightly-coupled and 1...N for loosely
+   coupled
+
+ */
 #include <atmi.h>
 #include <tx.h>
 #include <userlog.h>
@@ -24,7 +32,8 @@ extern struct xa_switch_t tmnull_switch;
 
 namespace fux::tx {
 uint16_t grpno = 0;
-}
+size_t grpidx = 0;
+}  // namespace fux::tx
 
 namespace fux::glob {
 xa_switch_t *xasw = &tmnull_switch;
@@ -49,7 +58,10 @@ enum class tx_state {
 struct tx_context {
   tx_context(mib &mibcon) : mibcon_(mibcon) {
     state = tx_state::s0;
-    grpcfg = &mibcon_.group_by_id(fux::tx::grpno);
+    if (fux::tx::grpno != 0) {
+      grpcfg = &mibcon_.group_by_id(fux::tx::grpno);
+      fux::tx::grpidx = mibcon_.find_group(fux::tx::grpno);
+    }
     notrx();
   }
   void notrx() { info.xid.formatID = -1; }
@@ -120,51 +132,17 @@ int tx_info(TXINFO *info) {
   return getctxt().info.xid.formatID == -1 ? 0 : 1;
 }
 
-static void genxid(XID *xid) {
-  xid->formatID = fux::FORMAT_ID;
-  xid->gtrid_length = sizeof(fux::trxid);
-  xid->bqual_length = 0;
-  auto trxid = getmib().gentrxid();
-  std::copy_n(reinterpret_cast<char *>(&trxid), sizeof(fux::trxid), xid->data);
-}
-
 int tx_begin() {
-  if (!(getctxt().state == tx_state::s1 || getctxt().state == tx_state::s2)) {
-    return TX_PROTOCOL_ERROR;
-  }
-
   if (TMREGISTER) {
     // return TX_OK;
   }
+  auto gtrid = getmib().gengtrid();
+  auto &transactions = getmib().transactions();
+  auto n = transactions.start(gtrid);
 
-  genxid(&getctxt().info.xid);
-  // TMJOIN, TMRESUME
-  auto xarc = xasw->xa_start_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
-                                   TMNOFLAGS);
-  if (xarc == XA_OK) {
-    if (getctxt().state == tx_state::s1) {
-      getctxt().state = tx_state::s3;
-    } else if (getctxt().state == tx_state::s2) {
-      getctxt().state = tx_state::s4;
-    }
-    return TX_OK;
-  }
-
-  if (xarc == XAER_RMERR) {
-    return TX_ERROR;
-  } else if (xarc == XAER_DUPID) {
-    return TX_ERROR;
-  } else if (xarc == XAER_INVAL) {
-    return TX_FAIL;
-  } else if (xarc == XAER_PROTO) {
-    return TX_ERROR;
-  } else if (xarc == XAER_RMFAIL) {
-    return TX_FAIL;
-  } else if (xarc == XAER_OUTSIDE) {
-    return TX_OUTSIDE;
-  }
-
-  return TX_FAIL;
+  TXINFO info;
+  info.xid = fux::make_xid(gtrid);
+  return _tx_resume(&info);
 }
 
 static bool tx_set1(int rc) {
@@ -192,128 +170,93 @@ static int change_state(int rc) {
       getctxt().state = tx_state::s2;
     }
   }
-  getctxt().notrx();
   return rc;
 }
 
-static int xa_end_err(int xarc) {
-  if (xarc == XAER_RMFAIL) {
-    return TX_FAIL;
-  } else if (xarc == XAER_INVAL) {
-    return TX_FAIL;
-  } else if (xarc == XAER_PROTO) {
-    return TX_FAIL;
-  } else {
-    return TX_FAIL;
-  }
-}
-
-struct participant {
+struct branch {
+  fux::bqual bqual;
   uint16_t grpno;
-  size_t mibptr;
   int cd;
   int result;
 };
 
-int tpacall_internal(int grpno, char *svc, char *data, long len, long flags);
-
-static void command(std::vector<participant> &participants, XID *xid,
-                    int command) {
-  fux::fml32buf buf;
-  int pending = 0;
-
-  for (auto &p : participants) {
-    buf.put(fux::tm::FUX_XAFUNC, 0, command);
-    buf.put(fux::tm::FUX_XAXID, 0, fux::to_string(xid));
-    buf.put(fux::tm::FUX_XARMID, 0, p.grpno);
-    buf.put(fux::tm::FUX_XAFLAGS, 0, 0);
-    p.cd =
-        tpacall_internal(p.grpno, const_cast<char *>(".TM"),
-                         reinterpret_cast<char *>(*buf.ptrptr()), 0, TPNOTIME);
-    pending++;
-  }
-
-  while (pending > 0) {
-    int cd;
-    long len = 0;
-    int rc =
-        tpgetrply(&cd, reinterpret_cast<char **>(buf.ptrptr()), &len, TPGETANY);
-
-    for (auto &p : participants) {
-      if (p.cd == cd) {
-        p.result = buf.get<long>(fux::tm::FUX_XARET, 0);
-      }
-    }
-  }
+static fux::bqual make_bqual(uint16_t grpno, uint16_t n) {
+  return grpno << 16 | n;
 }
 
-static void persist_tlog(XID *xid, std::vector<participant> participants) {
+static void command(std::vector<branch> &branches, XID *xid, int command);
+
+static void persist_tlog(XID *xid, std::vector<branch> branches) {
   // TODO
 }
 static void clean_tlog(XID *xid) {
   // TODO
 }
 
+static std::vector<branch> collect(XID *xid) {
+  std::vector<branch> branches;
+  auto max = getmib().transactions().max_groups;
+  auto &tx = getmib().transactions().at(fux::to_gtrid(xid));
+  for (size_t group = 0; group < max; group++) {
+    int n = tx.groups[group];
+    for (int branch = n; branch > 0; branch--) {
+      auto grpno = getmib().groups().at(group).grpno;
+      branches.push_back({make_bqual(grpno, branch), grpno});
+    }
+  }
+  return branches;
+}
+
 int tx_commit() {
-  if (!(getctxt().state == tx_state::s3 || getctxt().state == tx_state::s4)) {
-    return TX_PROTOCOL_ERROR;
+  TXINFO info;
+  auto rc = _tx_suspend(&info);
+  if (rc != TX_OK) {
+    return rc;
   }
 
-  auto xarc = xasw->xa_end_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
-                                 TMNOFLAGS);
-  if (xarc == XA_OK) {
-    // pass
-  } else {
-    return change_state(xa_end_err(xarc));
-  }
+  std::vector<branch> branches1 = collect(&info.xid);
 
-  std::vector<participant> participants1;
-  command(participants1, &getctxt().info.xid, fux::tm::prepare);
+  command(branches1, &info.xid, fux::tm::prepare);
 
-  // Collect interested participants for the 2nd phase
-  std::vector<participant> participants2;
+  // Collect interested branches for the 2nd phase
+  std::vector<branch> branches2;
   bool commit = true;
-  for (auto &p : participants1) {
+  for (auto &p : branches1) {
     if (p.result == XA_RDONLY) {
       // Nothing to do
       continue;
     }
-
     if (p.result != XA_OK) {
       commit = false;
     }
-    participants2.push_back(p);
+    branches2.push_back(p);
   }
 
   if (commit) {
-    persist_tlog(&getctxt().info.xid, participants2);
+    persist_tlog(&info.xid, branches2);
   }
 
   if (commit) {
-    command(participants2, &getctxt().info.xid, fux::tm::commit);
-    clean_tlog(&getctxt().info.xid);
+    command(branches2, &info.xid, fux::tm::commit);
+    clean_tlog(&info.xid);
     return change_state(TX_OK);
   } else {
-    command(participants2, &getctxt().info.xid, fux::tm::rollback);
+    command(branches2, &info.xid, fux::tm::rollback);
     return change_state(TX_FAIL);
   }
 }
 
 int tx_rollback() {
-  if (!(getctxt().state == tx_state::s3 || getctxt().state == tx_state::s4)) {
-    return TX_PROTOCOL_ERROR;
+  TXINFO info;
+  auto rc = _tx_suspend(&info);
+  if (rc != TX_OK) {
+    return rc;
   }
 
-  auto xarc = xasw->xa_end_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
-                                 TMNOFLAGS);
-  if (xarc == XA_OK) {
-    // pass
-  } else {
-    return change_state(xa_end_err(xarc));
-  }
+  std::vector<branch> branches = collect(&info.xid);
 
-  std::vector<participant> participants;
-  command(participants, &getctxt().info.xid, fux::tm::rollback);
+  command(branches, &info.xid, fux::tm::rollback);
+
   return change_state(TX_OK);
 }
 
@@ -322,32 +265,67 @@ int _tx_suspend(TXINFO *info) {
     return TX_PROTOCOL_ERROR;
   }
 
+  *info = getctxt().info;
+  userlog("xa_end(%s, ...) ...", fux::to_string(&info->xid).c_str());
   auto xarc = xasw->xa_end_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
-                                 TMSUSPEND);
-  memcpy(info, &(getctxt().info), sizeof(*info));
+                                 TMSUCCESS);
+  //                                 TMSUSPEND);
+  userlog("xa_end(%s, ...) = %d", fux::to_string(&info->xid).c_str(), xarc);
+  getctxt().notrx();
+
+  int rc = TX_OK;
   if (xarc == XA_OK) {
     // pass
+  } else if (xarc == XAER_RMFAIL) {
+    rc = TX_FAIL;
+  } else if (xarc == XAER_INVAL) {
+    rc = TX_FAIL;
+  } else if (xarc == XAER_PROTO) {
+    rc = TX_FAIL;
   } else {
-    return xa_end_err(xarc);
+    rc = TX_FAIL;
   }
 
-  getctxt().notrx();
-  if (getctxt().state == tx_state::s3) {
-    getctxt().state = tx_state::s1;
-  } else if (getctxt().state == tx_state::s4) {
-    getctxt().state = tx_state::s2;
+  return change_state(rc);
+}
+
+static void fill_bqual(bool *isnew) {
+  auto &xid = getctxt().info.xid;
+  if (xid.bqual_length != 0) {
+    return;
   }
-  return TX_OK;
+  auto &n = getmib().transactions().bqual(fux::to_gtrid(&xid), fux::tx::grpidx);
+  //  if (n == 0) {
+  *isnew = true;
+  //  }
+  n++;
+  fux::bqual bqual = make_bqual(fux::tx::grpno, n);
+
+  std::copy_n(reinterpret_cast<char *>(&bqual), sizeof(bqual),
+              xid.data + xid.gtrid_length);
+  xid.bqual_length = sizeof(bqual);
 }
 
 int _tx_resume(TXINFO *info) {
   if (!(getctxt().state == tx_state::s1 || getctxt().state == tx_state::s2)) {
     return TX_PROTOCOL_ERROR;
   }
-  memcpy(&(getctxt().info.xid), &(info->xid), sizeof(info->xid));
 
-  auto xarc = xasw->xa_start_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
-                                   TMRESUME);
+  getctxt().info.xid = info->xid;
+  bool isnew = false;
+  fill_bqual(&isnew);
+
+  long flags = TMNOFLAGS;
+  if (!isnew) {
+    flags = TMJOIN;
+  }
+  userlog("xa_start(%s, %d, 0x%0lx) ...",
+          fux::to_string(&getctxt().info.xid).c_str(), fux::tx::grpno, flags);
+  auto xarc = xasw->xa_start_entry(&getctxt().info.xid, fux::tx::grpno, flags);
+  //                                   TMRESUME);
+  userlog("xa_start(%s, %d, 0x%0lx) = %d",
+          fux::to_string(&getctxt().info.xid).c_str(), fux::tx::grpno, flags,
+          xarc);
   if (xarc == XA_OK) {
     if (getctxt().state == tx_state::s1) {
       getctxt().state = tx_state::s3;
@@ -388,6 +366,7 @@ int tx_set_commit_return(COMMIT_RETURN when_return) {
   getctxt().info.when_return = when_return;
   return TX_OK;
 }
+
 int tx_set_transaction_control(TRANSACTION_CONTROL control) {
   if (!(getctxt().state == tx_state::s1 || getctxt().state == tx_state::s2 ||
         getctxt().state == tx_state::s3 || getctxt().state == tx_state::s4)) {
@@ -408,6 +387,7 @@ int tx_set_transaction_control(TRANSACTION_CONTROL control) {
   }
   return TX_OK;
 }
+
 int tx_set_transaction_timeout(TRANSACTION_TIMEOUT timeout) {
   if (!(getctxt().state == tx_state::s1 || getctxt().state == tx_state::s2 ||
         getctxt().state == tx_state::s3 || getctxt().state == tx_state::s4)) {
@@ -419,6 +399,52 @@ int tx_set_transaction_timeout(TRANSACTION_TIMEOUT timeout) {
   getctxt().info.transaction_timeout = timeout;
   return TX_OK;
 }
+
+//////////////////////////////////////////////////////////////////////////////
+// Call TM
+
+int tpacall_internal(int grpno, char *svc, char *data, long len, long flags);
+void command(std::vector<branch> &branches, XID *xid, int command) {
+  fux::fml32buf buf;
+  int pending = 0;
+
+  for (auto &p : branches) {
+    buf.put(fux::tm::FUX_XAFUNC, 0, command);
+    XID bxid = fux::make_xid(fux::to_gtrid(xid), p.bqual);
+    buf.put(fux::tm::FUX_XAXID, 0, fux::to_string(&bxid));
+    buf.put(fux::tm::FUX_XARMID, 0, p.grpno);
+    buf.put(fux::tm::FUX_XAFLAGS, 0, 0);
+    userlog("Calling TM in group %d for %s", p.grpno,
+            fux::to_string(&bxid).c_str());
+    p.cd =
+        tpacall_internal(p.grpno, const_cast<char *>(".TM"),
+                         reinterpret_cast<char *>(*buf.ptrptr()), 0, TPNOTIME);
+    if (p.cd == -1) {
+      userlog("Failed to call TM in group %d (%s)", p.grpno,
+              tpstrerror(tperrno));
+      p.result = TMER_TMERR;
+      break;
+    }
+    pending++;
+  }
+
+  while (pending > 0) {
+    int cd;
+    long len = 0;
+    int rc =
+        tpgetrply(&cd, reinterpret_cast<char **>(buf.ptrptr()), &len, TPGETANY);
+
+    for (auto &p : branches) {
+      if (p.cd == cd) {
+        p.result = buf.get<long>(fux::tm::FUX_XARET, 0);
+        pending--;
+      }
+    }
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// TM implementation
 
 static void tm(fux::fml32buf &buf) {
   auto func = buf.get<long>(fux::tm::FUX_XAFUNC, 0);

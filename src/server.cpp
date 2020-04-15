@@ -22,6 +22,7 @@
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
+#include "trx.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -205,6 +206,14 @@ struct server_thread {
   jmp_buf tpreturn_env;
 
   void tpforward(char *svc, char *data, long len, long flags) {
+    fux::gtrid gtrid = 0;
+    if (tx_info(nullptr) == 1) {
+      TXINFO info;
+      if (_tx_suspend(&info) == TX_OK) {
+        gtrid = fux::to_gtrid(&info.xid);
+      }
+    }
+
     int msqid = get_queue(svc);
     res.set_data(data, len);
 
@@ -220,6 +229,7 @@ struct server_thread {
     res->replyq = req->replyq;
     res->mtype = req->cd;
     res->cd = req->cd;
+    res->gtrid = gtrid;
 
     fux::ipc::qsend(msqid, res, 0, fux::ipc::flags::notime);
 
@@ -227,6 +237,11 @@ struct server_thread {
   }
 
   void tpreturn(int rval, long rcode, char *data, long len, long flags) {
+    if (tx_info(nullptr) == 1) {
+      TXINFO info;
+      (void)_tx_suspend(&info);
+    }
+
     if (req->replyq != -1) {
       res.set_data(data, len);
 
@@ -295,6 +310,11 @@ static void dispatch() {
     tpsvcinfo.flags = thread_ptr->req->flags;
     tpsvcinfo.len = thread_ptr->req.size_data();
     tpsvcinfo.cd = thread_ptr->req->cd;
+    if (thread_ptr->req->gtrid != 0) {
+      TXINFO info;
+      info.xid = fux::make_xid(thread_ptr->req->gtrid);
+      _tx_resume(&info);
+    }
 
     auto it = main_ptr->advertisements.find(tpsvcinfo.name);
     if (setjmp(thread_ptr->tpreturn_env) == 0) {

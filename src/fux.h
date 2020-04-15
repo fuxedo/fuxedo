@@ -176,7 +176,7 @@ class fml32buf {
     FLDLEN32 len;
     char *ret;
     if ((ret = CFfind32(ptr(), fieldid, oc, &len, FLD_CARRAY)) != nullptr) {
-      return std::string(ret, len);
+      return std::string(ret);
     }
     throw fml32buf_error();
   }
@@ -186,7 +186,7 @@ class fml32buf {
     FLDLEN32 len;
     char *ret;
     if ((ret = CFfind32(ptr(), fieldid, oc, &len, FLD_CARRAY)) != nullptr) {
-      return std::string(ret, len);
+      return std::string(ret);
     }
     return default_value;
   }

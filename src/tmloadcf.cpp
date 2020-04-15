@@ -13,6 +13,14 @@
 
 #include "misc.h"
 
+#ifdef HAVE_CXX_FILESYSTEM
+#include <filesystem>
+namespace fs = std::filesystem;
+#else
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#endif
+
 void ubb2mib(ubbconfig &u, mib &m);
 
 template <typename T>
@@ -65,7 +73,7 @@ int main(int argc, char *argv[]) {
     config = p.parse();
 
     tuxconfig tuxcfg;
-    tuxcfg.size = sizeof(tuxcfg) + filesize(file);
+    tuxcfg.size = sizeof(tuxcfg) + fs::file_size(file);
     tuxcfg.ipckey = std::stoi(config.resources.at("IPCKEY"));
     tuxcfg.maxservers = require(config.resources, "MAXSERVERS", 1, 8192, 50);
     tuxcfg.maxservices =

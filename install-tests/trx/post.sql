@@ -1,0 +1,3 @@
+SELECT n FROM fux_table ORDER BY 1; 
+SELECT 'MAX=' || TO_CHAR(MAX(n)) FROM fux_table ORDER BY 1; 
+EXIT

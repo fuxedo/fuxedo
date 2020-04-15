@@ -15,7 +15,6 @@
 #include "misc.h"
 #include "ubb.h"
 
-size_t filesize(const std::string &filename);
 tuxconfig getconfig(ubbconfig *ubb = nullptr);
 
 struct transaction_table;
@@ -182,11 +181,12 @@ class mib {
 
   static size_t needed(const tuxconfig &cfg);
 
+  void validate();
   void remove();
 
   mibmem *operator->() { return mem_; }
 
-  fux::trxid gentrxid();
+  fux::gtrid gengtrid();
 
   auto &conf() { return mem_->conf; }
   auto &mach() { return mem_->mach; }

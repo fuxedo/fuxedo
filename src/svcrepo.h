@@ -71,8 +71,13 @@ class service_repository {
       entry.current_queue = (entry.current_queue + 1) % entry.queues.size();
       return entry.queues[entry.current_queue].msqid;
     } else {
-      throw std::out_of_range("no queue");
+      for (auto &e : entry.queues) {
+        if (e.grpno == grpno) {
+          return e.msqid;
+        }
+      }
     }
+    throw std::out_of_range("no queue");
   }
 
   mib &m_;

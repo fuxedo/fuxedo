@@ -29,7 +29,7 @@ src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/mib.cpp src/ubb2mib.cpp \
                            src/userlog.cpp \
                            src/ipc.cpp \
-                           src/xa.cpp src/tx.cpp src/trx.cpp \
+                           src/nullxa.cpp src/tx.cpp src/trx.cpp \
                            src/misc.cpp src/base64.cpp src/fields.cpp \
                            src/tpadmcall.cpp src/tmq.cpp
 

@@ -4,6 +4,7 @@
 #include <catch.hpp>
 #include <stdexcept>
 
+#include "../src/ipc.h"
 #include "../src/trx.h"
 
 TEST_CASE("transaction_table size limit", "[trx]") {

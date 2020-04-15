@@ -16,6 +16,7 @@
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
+#include "trx.h"
 
 #include "resp.h"
 #include "svcrepo.h"
@@ -59,6 +60,16 @@ class client {
       rq->cd = cds.allocate();
       if (rq->cd == -1) {
         return -1;
+      }
+    }
+    if (flags & TPNOTRAN) {
+      rq->gtrid = 0;
+    } else {
+      TXINFO info;
+      if (tx_info(&info) == 1) {
+        rq->gtrid = fux::to_gtrid(&info.xid);
+      } else {
+        rq->gtrid = 0;
       }
     }
 

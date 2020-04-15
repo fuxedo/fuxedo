@@ -114,6 +114,8 @@ int main(int argc, char *argv[]) {
   try {
     mib &m = getmib();
 
+    m.validate();
+
     std::ostringstream path;
     path << m.mach().tuxdir << "/bin:";
     path << m.mach().appdir << ":";
