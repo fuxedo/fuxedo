@@ -86,6 +86,8 @@ Fuxedo tries to be compatible with Oracle Tuxedo for all functionality implement
 - Running `make` from `install-tests` folder will execute all "intergration tests" with whatever `TUXDIR` points to. That is done for every change in Fuxedo and time-to-time with Oracle Tuxedo 12.2
 - Part of unittests (FML32, Boolean expressions) are compiled and executed as "integration tests" under `install-tests/unit`
 
+Some of the tests fail with Oracle Tuxedo and I have reported several issues to Oracle, some are fixed but require additional patches from Oracle to be installed.
+
 ## More
 
 Check out some other projects:
