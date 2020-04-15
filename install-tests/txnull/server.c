@@ -63,10 +63,9 @@ void SERVICE_SUSPEND(TPSVCINFO *svcinfo) {
   assert(tpbegin(30, TPNOFLAGS) != -1);
   assert(tpgetlev());
 
-// FIXME CHAINED
-//  assert(tpsuspend(&t, 0) != -1);
-//  assert(!tpgetlev());
-//  assert(tpresume(&t, 0) != -1);
+  assert(tpsuspend(&t, 0) != -1);
+  assert(!tpgetlev());
+  assert(tpresume(&t, 0) != -1);
   assert(tpgetlev());
   assert(tpcommit(TPNOFLAGS) != -1);
   assert(tpgetlev());

@@ -5,7 +5,9 @@
 #include <atmi.h>
 #include <tx.h>
 
+#include "ipc.h"
 #include "misc.h"
+#include "trx.h"
 
 // Maybe
 // TX_ERROR => TPERMERR
@@ -148,7 +150,6 @@ int tpcommit(long flags) {
   return trx_err(rc, "tx_commit");
 }
 
-int _tx_suspend(TXINFO *info);
 int tpsuspend(TPTRANID *tranid, long flags) {
   if (tranid == nullptr) {
     TPERROR(TPEINVAL, "tranid==nullptr");
@@ -177,10 +178,9 @@ int tpsuspend(TPTRANID *tranid, long flags) {
     return 0;
   }
 
-  return trx_err(rc, "_tx_suspend");
+  return trx_err(rc, "_tx_end");
 }
 
-int _tx_resume(TXINFO *info);
 int tpresume(TPTRANID *tranid, long flags) {
   if (tranid == nullptr) {
     TPERROR(TPEINVAL, "tranid==nullptr");
@@ -210,5 +210,5 @@ int tpresume(TPTRANID *tranid, long flags) {
     return 0;
   }
 
-  return trx_err(rc, "_tx_resume");
+  return trx_err(rc, "_tx_start");
 }

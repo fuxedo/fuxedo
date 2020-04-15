@@ -209,7 +209,7 @@ struct server_thread {
     fux::gtrid gtrid = 0;
     if (tx_info(nullptr) == 1) {
       TXINFO info;
-      if (_tx_suspend(&info) == TX_OK) {
+      if (_tx_end(&info) == TX_OK) {
         gtrid = fux::to_gtrid(&info.xid);
       }
     }
@@ -239,7 +239,7 @@ struct server_thread {
   void tpreturn(int rval, long rcode, char *data, long len, long flags) {
     if (tx_info(nullptr) == 1) {
       TXINFO info;
-      (void)_tx_suspend(&info);
+      (void)_tx_end(&info);
     }
 
     if (req->replyq != -1) {
@@ -313,7 +313,7 @@ static void dispatch() {
     if (thread_ptr->req->gtrid != 0) {
       TXINFO info;
       info.xid = fux::make_xid(thread_ptr->req->gtrid);
-      _tx_resume(&info);
+      _tx_start(&info);
     }
 
     auto it = main_ptr->advertisements.find(tpsvcinfo.name);

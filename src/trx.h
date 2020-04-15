@@ -91,6 +91,8 @@ inline XID make_xid(fux::gtrid gtrid, fux::bqual bqual) {
 
 }  // namespace fux
 
+int _tx_end(TXINFO *info);
+int _tx_start(TXINFO *info);
 int _tx_suspend(TXINFO *info);
 int _tx_resume(TXINFO *info);
 

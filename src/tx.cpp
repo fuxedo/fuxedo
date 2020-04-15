@@ -91,8 +91,8 @@ static int rm_err(int xarc, const char *func) {
 }
 
 int tx_open() {
-  auto xarc = xasw->xa_open_entry(getctxt().grpcfg->openinfo,
-                                  getctxt().grpcfg->grpno, TMNOFLAGS);
+  auto xarc = xasw->xa_open_entry(getctxt().grpcfg->openinfo, fux::tx::grpno,
+                                  TMNOFLAGS);
   if (xarc == XA_OK) {
     if (getctxt().state == tx_state::s0) {
       getctxt().notrx();
@@ -109,8 +109,8 @@ int tx_close() {
         getctxt().state == tx_state::s2)) {
     return TX_PROTOCOL_ERROR;
   }
-  auto xarc = xasw->xa_close_entry(getctxt().grpcfg->closeinfo,
-                                   getctxt().grpcfg->grpno, TMNOFLAGS);
+  auto xarc = xasw->xa_close_entry(getctxt().grpcfg->closeinfo, fux::tx::grpno,
+                                   TMNOFLAGS);
   if (xarc == XA_OK) {
     getctxt().state = tx_state::s0;
     return TX_OK;
@@ -142,7 +142,7 @@ int tx_begin() {
 
   TXINFO info;
   info.xid = fux::make_xid(gtrid);
-  return _tx_resume(&info);
+  return _tx_start(&info);
 }
 
 static bool tx_set1(int rc) {
@@ -209,7 +209,7 @@ static std::vector<branch> collect(XID *xid) {
 
 int tx_commit() {
   TXINFO info;
-  auto rc = _tx_suspend(&info);
+  auto rc = _tx_end(&info);
   if (rc != TX_OK) {
     return rc;
   }
@@ -248,7 +248,7 @@ int tx_commit() {
 
 int tx_rollback() {
   TXINFO info;
-  auto rc = _tx_suspend(&info);
+  auto rc = _tx_end(&info);
   if (rc != TX_OK) {
     return rc;
   }
@@ -260,17 +260,18 @@ int tx_rollback() {
   return change_state(TX_OK);
 }
 
-int _tx_suspend(TXINFO *info) {
+static int _tx_end(TXINFO *info, long flags) {
   if (!(getctxt().state == tx_state::s3 || getctxt().state == tx_state::s4)) {
     return TX_PROTOCOL_ERROR;
   }
 
   *info = getctxt().info;
-  userlog("xa_end(%s, ...) ...", fux::to_string(&info->xid).c_str());
-  auto xarc = xasw->xa_end_entry(&getctxt().info.xid, getctxt().grpcfg->grpno,
-                                 TMSUCCESS);
-  //                                 TMSUSPEND);
-  userlog("xa_end(%s, ...) = %d", fux::to_string(&info->xid).c_str(), xarc);
+  userlog("xa_end(%s, %d, 0x%0lx) ...",
+          fux::to_string(&getctxt().info.xid).c_str(), fux::tx::grpno, flags);
+  auto xarc = xasw->xa_end_entry(&getctxt().info.xid, fux::tx::grpno, flags);
+  userlog("xa_end(%s, %d, 0x%0lx) = %d",
+          fux::to_string(&getctxt().info.xid).c_str(), fux::tx::grpno, flags,
+          xarc);
   getctxt().notrx();
 
   int rc = TX_OK;
@@ -286,6 +287,26 @@ int _tx_suspend(TXINFO *info) {
     rc = TX_FAIL;
   }
 
+  return rc;
+}
+
+// The main difference is that suspend does not start a new transaction even in
+// chained mode
+int _tx_suspend(TXINFO *info) {
+  auto rc = _tx_end(info, TMSUSPEND);
+  if (rc == TX_OK) {
+    if (getctxt().state == tx_state::s3) {
+      getctxt().state = tx_state::s1;
+    } else if (getctxt().state == tx_state::s4) {
+      getctxt().state = tx_state::s2;
+    }
+  }
+
+  return rc;
+}
+
+int _tx_end(TXINFO *info) {
+  auto rc = _tx_end(info, TMSUCCESS);
   return change_state(rc);
 }
 
@@ -306,7 +327,7 @@ static void fill_bqual(bool *isnew) {
   xid.bqual_length = sizeof(bqual);
 }
 
-int _tx_resume(TXINFO *info) {
+static int _tx_start(TXINFO *info, long flags) {
   if (!(getctxt().state == tx_state::s1 || getctxt().state == tx_state::s2)) {
     return TX_PROTOCOL_ERROR;
   }
@@ -315,14 +336,12 @@ int _tx_resume(TXINFO *info) {
   bool isnew = false;
   fill_bqual(&isnew);
 
-  long flags = TMNOFLAGS;
   if (!isnew) {
     flags = TMJOIN;
   }
   userlog("xa_start(%s, %d, 0x%0lx) ...",
           fux::to_string(&getctxt().info.xid).c_str(), fux::tx::grpno, flags);
   auto xarc = xasw->xa_start_entry(&getctxt().info.xid, fux::tx::grpno, flags);
-  //                                   TMRESUME);
   userlog("xa_start(%s, %d, 0x%0lx) = %d",
           fux::to_string(&getctxt().info.xid).c_str(), fux::tx::grpno, flags,
           xarc);
@@ -351,6 +370,10 @@ int _tx_resume(TXINFO *info) {
 
   return TX_FAIL;
 }
+
+int _tx_resume(TXINFO *info) { return _tx_start(info, TMRESUME); }
+
+int _tx_start(TXINFO *info) { return _tx_start(info, TMNOFLAGS); }
 
 int tx_set_commit_return(COMMIT_RETURN when_return) {
   if (!(getctxt().state == tx_state::s1 || getctxt().state == tx_state::s2 ||
