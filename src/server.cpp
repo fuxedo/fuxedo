@@ -206,12 +206,9 @@ struct server_thread {
   jmp_buf tpreturn_env;
 
   void tpforward(char *svc, char *data, long len, long flags) {
-    fux::gtrid gtrid = 0;
-    if (tx_info(nullptr) == 1) {
-      TXINFO info;
-      if (_tx_end(&info) == TX_OK) {
-        gtrid = fux::to_gtrid(&info.xid);
-      }
+    auto gttid = fux::tx::gttid();
+    if (fux::tx::transactional()) {
+      fux::tx_end(true);
     }
 
     int msqid = get_queue(svc);
@@ -229,7 +226,7 @@ struct server_thread {
     res->replyq = req->replyq;
     res->mtype = req->cd;
     res->cd = req->cd;
-    res->gtrid = gtrid;
+    res->gttid = gttid;
 
     fux::ipc::qsend(msqid, res, 0, fux::ipc::flags::notime);
 
@@ -237,9 +234,8 @@ struct server_thread {
   }
 
   void tpreturn(int rval, long rcode, char *data, long len, long flags) {
-    if (tx_info(nullptr) == 1) {
-      TXINFO info;
-      (void)_tx_end(&info);
+    if (fux::tx::transactional()) {
+      fux::tx_end(rval == TPSUCCESS);
     }
 
     if (req->replyq != -1) {
@@ -310,10 +306,9 @@ static void dispatch() {
     tpsvcinfo.flags = thread_ptr->req->flags;
     tpsvcinfo.len = thread_ptr->req.size_data();
     tpsvcinfo.cd = thread_ptr->req->cd;
-    if (thread_ptr->req->gtrid != 0) {
-      TXINFO info;
-      info.xid = fux::make_xid(thread_ptr->req->gtrid);
-      _tx_start(&info);
+
+    if (thread_ptr->req->flags & TPTRAN) {
+      fux::tx_join(thread_ptr->req->gttid);
     }
 
     auto it = main_ptr->advertisements.find(tpsvcinfo.name);

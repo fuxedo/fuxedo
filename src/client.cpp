@@ -25,7 +25,23 @@
 
 namespace fux {
 bool is_server();
-}
+
+struct suspend_guard {
+  suspend_guard(bool suspend = true) : suspended(false) {
+    if (suspend && fux::tx::transactional()) {
+      suspended = true;
+      fux::tx_suspend();
+    }
+  }
+  ~suspend_guard() {
+    if (suspended) {
+      fux::tx_resume();
+    }
+  }
+  bool suspended;
+};
+
+}  // namespace fux
 
 class client {
  public:
@@ -62,15 +78,12 @@ class client {
         return -1;
       }
     }
-    if (flags & TPNOTRAN) {
-      rq->gtrid = 0;
+    if (!(flags & TPNOTRAN) && fux::tx::transactional()) {
+      rq->flags |= TPTRAN;
+      rq->gttid = fux::tx::gttid();
     } else {
-      TXINFO info;
-      if (tx_info(&info) == 1) {
-        rq->gtrid = fux::to_gtrid(&info.xid);
-      } else {
-        rq->gtrid = 0;
-      }
+      rq->flags = 0;
+      rq->gttid = fux::bad_gttid;
     }
 
     if (fux::ipc::qsend(msqid, rq, next_blocktime(), to_flags(flags))) {
@@ -309,15 +322,25 @@ int tpacall(char *svc, char *data, long len, long flags) {
 
 int tpgetrply(int *cd, char **data, long *len, long flags) {
   return fux::atmi::exception_boundary(
-      [&] { return getclient().tpgetrply(cd, data, len, flags); }, -1);
+      [&] {
+        // TODO: if no transaction calls, use false
+        fux::suspend_guard g(true);
+        return getclient().tpgetrply(cd, data, len, flags);
+      },
+      -1);
 }
 int tpcall(char *svc, char *idata, long ilen, char **odata, long *olen,
            long flags) {
-  int cd = tpacall(svc, idata, ilen, flags);
-  if (cd == -1) {
-    return -1;
-  }
-  return tpgetrply(&cd, odata, olen, flags);
+  return fux::atmi::exception_boundary(
+      [&] {
+        fux::suspend_guard g(!(flags & TPNOTRAN));
+        int cd = getclient().tpacall(-1, svc, idata, ilen, flags);
+        if (cd == -1) {
+          return -1;
+        }
+        return tpgetrply(&cd, odata, olen, flags);
+      },
+      -1);
 }
 
 int tpsblktime(int blktime, long flags) {

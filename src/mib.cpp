@@ -384,11 +384,11 @@ mib::mib(const tuxconfig &cfg, fux::mib::in_heap) : cfg_(cfg) {
   init_memory();
 }
 
-fux::gtrid mib::gengtrid() {
+uint64_t mib::genuid() {
   struct timespec ts;
   (void)clock_gettime(CLOCK_MONOTONIC, &ts);
 
-  fux::gtrid gtrid = 0;
+  uint64_t gtrid = 0;
   do {
     auto counter = __sync_fetch_and_add(&(mem_->counter), 1);
 
@@ -399,7 +399,7 @@ fux::gtrid mib::gengtrid() {
             (uint64_t(ts.tv_sec & 0b111111111111111111111111111111) << 24) +
             (uint64_t(counter & 0b111111111111111111111111));
 
-    // highly unlikely but check anyway because 0 means "no gtrid"
+    // highly unlikely but 0 looks too bad
   } while (gtrid == 0);
   return gtrid;
 }

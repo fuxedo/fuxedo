@@ -19,7 +19,7 @@ check: oraxa server server1 server2 client tuxconfig
 	./client
 	./client
 	tmshutdown -y
-	sqlplus fuxedo/fuxedo@orcl @post.sql >> ULOG.*
+	sqlplus fuxedo/fuxedo@orcl @post.sql >> `echo ULOG.*`
 	grep -q ':TEST: SERVICE_COMMIT called' ULOG.*
 	grep -q ':TEST: SERVICE_ABORT called' ULOG.*
 	grep -q ':TEST: SERVICE1 called' ULOG.*
@@ -58,4 +58,6 @@ client: client.c
 	buildclient -o $@ -f $< -v -f "-Wl,--no-as-needed"
 
 clean:
+	-tmipcrm -y
+	killall server server1 server2 client BBL oraxa
 	-rm -f *.o ubbconfig tuxconfig client server server1 server2 oraxa ULOG.* stdout stderr access.* server1.c server2.c *.lis

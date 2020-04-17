@@ -12,8 +12,8 @@ TEST_CASE("transaction_table size limit", "[trx]") {
   auto *table = reinterpret_cast<transaction_table *>(calloc(n, 1));
   table->init(1, 50);
 
-  REQUIRE(table->start(1) == 0);
-  REQUIRE_THROWS_AS(table->start(2), std::out_of_range);
+  REQUIRE(table->start({1, 1, 0, {1}}, 1) == 0);
+  REQUIRE_THROWS_AS(table->start({1, 1, 0, {1}}, 2), std::out_of_range);
 
   free(table);
 }
@@ -23,9 +23,9 @@ TEST_CASE("transaction_table transaction release", "[trx]") {
   auto *table = reinterpret_cast<transaction_table *>(calloc(n, 1));
   table->init(1, 50);
 
-  REQUIRE(table->start(1) == 0);
+  REQUIRE(table->start({1, 1, 0, {1}}, 1) == 0);
   table->end(0);
-  REQUIRE(table->start(2) == 0);
+  REQUIRE(table->start({1, 1, 0, {2}}, 1) == 0);
 
   free(table);
 }

@@ -186,7 +186,7 @@ class mib {
 
   mibmem *operator->() { return mem_; }
 
-  fux::gtrid gengtrid();
+  uint64_t genuid();
 
   auto &conf() { return mem_->conf; }
   auto &mach() { return mem_->mach; }

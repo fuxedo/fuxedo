@@ -163,22 +163,20 @@ int tpsuspend(TPTRANID *tranid, long flags) {
   TXINFO info;
   int rc = _tx_suspend(&info);
   if (rc == TX_OK) {
-    tranid->info[0] = info.xid.formatID;
-    tranid->info[1] = info.xid.gtrid_length;
-    tranid->info[2] = info.xid.bqual_length;
-    if (static_cast<size_t>(info.xid.gtrid_length + info.xid.bqual_length) <
-        sizeof(long) * 2) {
-      memcpy(&tranid->info[3], info.xid.data,
-             info.xid.gtrid_length + info.xid.bqual_length);
-    } else {
+    if (sizeof(*tranid) <
+        offsetof(XID, data) + info.xid.gtrid_length + info.xid.bqual_length) {
       TPERROR(TPEINVAL, "Invalid XID, too big");
       return -1;
     }
+    std::copy_n(
+        reinterpret_cast<char *>(&info.xid),
+        offsetof(XID, data) + info.xid.gtrid_length + info.xid.bqual_length,
+        reinterpret_cast<char *>(&tranid->info));
     fux::atmi::reset_tperrno();
     return 0;
   }
 
-  return trx_err(rc, "_tx_end");
+  return trx_err(rc, "tpsuspend");
 }
 
 int tpresume(TPTRANID *tranid, long flags) {
@@ -191,18 +189,13 @@ int tpresume(TPTRANID *tranid, long flags) {
     return -1;
   }
 
-  TXINFO info;
-  info.xid.formatID = tranid->info[0];
-  info.xid.gtrid_length = tranid->info[1];
-  info.xid.bqual_length = tranid->info[2];
-  if (static_cast<size_t>(info.xid.gtrid_length + info.xid.bqual_length) <
-      sizeof(long) * 2) {
-    memcpy(info.xid.data, &tranid->info[3],
-           info.xid.gtrid_length + info.xid.bqual_length);
-  } else {
-    TPERROR(TPEINVAL, "Invalid XID, too big");
+  if (sizeof(*tranid) > sizeof(XID)) {
+    TPERROR(TPEINVAL, "Invalid TRANID, too big");
     return -1;
   }
+  TXINFO info;
+  std::copy_n(reinterpret_cast<char *>(&tranid->info), sizeof(*tranid),
+              reinterpret_cast<char *>(&info.xid));
 
   int rc = _tx_resume(&info);
   if (rc == TX_OK) {

@@ -16,11 +16,7 @@
 #include <vector>
 
 #include <atmidefs.h>
-
-namespace fux {
-typedef uint64_t gtrid;
-typedef uint32_t bqual;
-}  // namespace fux
+#include "defs.h"
 
 namespace fux {
 namespace ipc {
@@ -66,7 +62,7 @@ struct msgfile : msgbase {
 
 struct msgmem : msgbase {
   char servicename[XATMI_SERVICE_NAME_LENGTH];
-  fux::gtrid gtrid;
+  fux::gttid gttid;
   long flags;
   int cd;
   int replyq;

@@ -7,11 +7,19 @@
 #include <stdexcept>
 #include <type_traits>
 
+#include "defs.h"
 #include "misc.h"
 
 namespace fux {
 
-static const long FORMAT_ID = 0xda7aba5e;
+namespace tx {
+fux::gttid gttid();
+bool transactional();
+}  // namespace tx
+void tx_resume();
+void tx_suspend();
+void tx_join(fux::gttid id);
+void tx_end(bool ok);
 
 inline std::string to_string(XID *xid) {
   char buf[32];
@@ -25,10 +33,12 @@ inline std::string to_string(XID *xid) {
     snprintf(buf, sizeof(buf), "%02x", data[i]);
     out += buf;
   }
-  out += ".";
-  for (int i = 0; i < xid->bqual_length; i++) {
-    snprintf(buf, sizeof(buf), "%02x", data[xid->gtrid_length + i]);
-    out += buf;
+  if (xid->bqual_length > 0) {
+    out += ".";
+    for (int i = 0; i < xid->bqual_length; i++) {
+      snprintf(buf, sizeof(buf), "%02x", data[xid->gtrid_length + i]);
+      out += buf;
+    }
   }
 
   return out;
@@ -37,13 +47,17 @@ inline std::string to_string(XID *xid) {
 inline XID to_xid(const std::string &s) {
   XID xid;
   auto parts = fux::split(s, ".");
-  if (parts.size() != 3) {
-    throw std::logic_error("XID must consist of 3 parts");
+  if (parts.size() != 2 && parts.size() != 3) {
+    throw std::logic_error("Invalid XID string");
   }
 
   xid.formatID = std::stol(parts[0]);
   xid.gtrid_length = parts[1].size() / 2;
-  xid.bqual_length = parts[2].size() / 2;
+  if (parts.size() == 3) {
+    xid.bqual_length = parts[2].size() / 2;
+  } else {
+    xid.bqual_length = 0;
+  }
 
   unsigned char *data = reinterpret_cast<unsigned char *>(xid.data);
   for (int i = 0; i < xid.gtrid_length; i++) {
@@ -57,51 +71,17 @@ inline XID to_xid(const std::string &s) {
   return xid;
 }
 
-inline fux::gtrid to_gtrid(XID *xid) {
-  if (xid != nullptr && xid->formatID != -1) {
-    if (xid->formatID != fux::FORMAT_ID ||
-        xid->gtrid_length != sizeof(fux::gtrid)) {
-      throw std::runtime_error("Unsupported XID");
-    }
-    fux::gtrid id;
-    std::copy_n(xid->data, sizeof(id), reinterpret_cast<char *>(&id));
-    return id;
-  }
-  return 0;
-}
-
-inline XID make_xid(fux::gtrid id) {
-  // Tuxedo uses a 24/48 byte (long info[6]) transaction identifier for
-  // tpsuspend/tpresume we can't go past that
-  XID xid;
-  xid.formatID = fux::FORMAT_ID;
-  xid.gtrid_length = sizeof(id);
-  xid.bqual_length = 0;
-  std::copy_n(reinterpret_cast<char *>(&id), sizeof(id), xid.data);
-  return xid;
-}
-
-inline XID make_xid(fux::gtrid gtrid, fux::bqual bqual) {
-  XID xid = make_xid(gtrid);
-  xid.bqual_length = sizeof(bqual);
-  std::copy_n(reinterpret_cast<char *>(&bqual), sizeof(bqual),
-              xid.data + xid.gtrid_length);
-  return xid;
-}
-
 }  // namespace fux
 
-int _tx_end(TXINFO *info);
-int _tx_start(TXINFO *info);
 int _tx_suspend(TXINFO *info);
 int _tx_resume(TXINFO *info);
 
 struct transaction {
-  fux::gtrid id;
+  XID xid;
   time_t started;
   time_t timeout;
   enum { active, preparing, do_commit, do_rollback, finished } state;
-  uint16_t groups[];
+  char groups[];
 };
 
 struct transaction_table {
@@ -137,12 +117,13 @@ struct transaction_table {
            transactions * size_of_transaction(groups);
   }
 
-  void join(size_t transaction, size_t group) {
+  transaction &join(uint16_t transaction, uint16_t group) {
     if (group >= max_groups) {
       throw std::out_of_range("group out of range");
     }
     auto &t = (*this)[transaction];
     t.groups[group] = 1;
+    return t;
   }
 
   bool has_joined(size_t transaction, size_t group) {
@@ -153,40 +134,47 @@ struct transaction_table {
     return t.groups[group] > 0;
   }
 
-  size_t start(fux::gtrid id) {
+  fux::gttid init(fux::gttid i, const XID &xid, uint16_t group) {
+    memset(&(*this)[i], 0, entry_size);
+    (*this)[i].xid = xid;
+    join(i, group);
+    return i;
+  }
+
+  fux::gttid start(const XID &xid, uint16_t group) {
     for (size_t i = 0; i < len; i++) {
-      if ((*this)[i].id == 0) {
-        memset(&(*this)[i], 0, entry_size);
-        (*this)[i].id = id;
-        return i;
+      if ((*this)[i].xid.formatID == -1) {
+        return init(i, xid, group);
       }
     }
     if (len < size) {
-      memset(&(*this)[len], 0, entry_size);
-      (*this)[len].id = id;
-      return len++;
+      return init(len++, xid, group);
     }
     throw std::out_of_range("No free entries in transaction table");
   }
 
-  transaction &at(fux::gtrid gtrid) {
+  fux::gttid find(XID &xid) {
     for (size_t i = 0; i < len; i++) {
-      if ((*this)[i].id == gtrid) {
-        return (*this)[i];
+      XID &x = (*this)[i].xid;
+      if (x.formatID == xid.formatID && x.gtrid_length == xid.gtrid_length &&
+          x.bqual_length == xid.bqual_length &&
+          memcmp(x.data, xid.data, xid.gtrid_length + xid.bqual_length) == 0) {
+        return i;
       }
     }
-    throw std::out_of_range("Transaction not found");
+    throw std::out_of_range("Not found in transaction table");
   }
 
-  uint16_t &bqual(fux::gtrid gtrid, size_t group) {
-    if (group >= max_groups) {
-      throw std::out_of_range("group out of range");
+  transaction &at(fux::gttid i) {
+    if (i < len) {
+      return (*this)[i];
     }
-    return at(gtrid).groups[group];
+    throw std::out_of_range("Transaction not found");
   }
 
   void end(size_t transaction) {
     auto &t = (*this)[transaction];
     memset(&t, 0, entry_size);
+    t.xid.formatID = -1;
   }
 };
