@@ -240,6 +240,9 @@ class mib {
 
   constexpr static size_t badoff = std::numeric_limits<size_t>::max();
 
+  void collect(std::vector<int> &q, std::vector<int> &m, std::vector<int> &s);
+  void remove(std::vector<int> &q, std::vector<int> &m, std::vector<int> &s);
+
  private:
   size_t find_advertisement(size_t service, size_t queue, size_t server);
   void init_memory();

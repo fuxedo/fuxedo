@@ -36,7 +36,7 @@ static long checked_get(T &dict, const std::string &key, long min, long max,
 
 void ubb2mib(ubbconfig &u, mib &m) {
   if (u.machines.size() != 1) {
-    throw std::logic_error("Excatly one MACHINE entry supported");
+    throw std::logic_error("Exactly one MACHINE entry supported");
   }
   auto &mach = u.machines[0];
   if (mach.second.at("TUXCONFIG") != std::getenv("TUXCONFIG")) {

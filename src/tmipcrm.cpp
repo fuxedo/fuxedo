@@ -15,6 +15,27 @@ static std::string input(const std::string &prompt) {
   return in;
 }
 
+static void print(std::vector<int> &q, std::vector<int> &m,
+                  std::vector<int> &s) {
+  std::cout << "The following IPC resources were found:" << std::endl;
+  std::cout << std::endl;
+  std::cout << "Message Queues:" << std::endl;
+  for (int i : q) {
+    std::cout << "        " << i << std::endl;
+  }
+  std::cout << std::endl;
+  std::cout << "Shared Memory:" << std::endl;
+  for (int i : m) {
+    std::cout << "        " << i << std::endl;
+  }
+  std::cout << std::endl;
+  std::cout << "Semaphores:" << std::endl;
+  for (int i : s) {
+    std::cout << "        " << i << std::endl;
+  }
+  std::cout << std::endl;
+}
+
 int main(int argc, char *argv[]) {
   bool show_help = false;
   bool yes = false;
@@ -27,36 +48,30 @@ int main(int argc, char *argv[]) {
     std::cerr << parser;
     return -1;
   }
-  /*
-     The following IPC recources were found:
-
-  Message Queues:
-        5701633
-        5734402
-
-  Shared Memory:
-        28770304
-
-  Semaphores:
-        1835009
-        1769472
-
-Remove IPC resources (y/n)?:
-*/
 
   try {
     auto cfg = getconfig();
 
-    mib m(cfg);
+    mib mib(cfg);
+    std::cout << "Looking for IPC resources in TUXCONFIG file "
+              << std::getenv("TUXCONFIG") << std::endl;
+    std::vector<int> q, m, s;
+    mib.collect(q, m, s);
+
+    if (q.empty() && m.empty() && s.empty()) {
+      return 0;
+    }
+
+    print(q, m, s);
 
     if (yes) {
-      m.remove();
+      mib.remove(q, m, s);
     } else {
       while (true) {
         std::string in = input("Remove IPC resources (y/n)?: ");
         if (in.size() == 1) {
           if (in[0] == 'y') {
-            m.remove();
+            mib.remove(q, m, s);
             break;
           } else if (in[0] == 'n') {
             break;

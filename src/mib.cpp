@@ -315,25 +315,42 @@ int mib::make_service_rqaddr(size_t server) {
 }
 
 void mib::remove() {
+  std::vector<int> q, m, s;
+  collect(q, m, s);
+  remove(q, m, s);
+}
+
+void mib::collect(std::vector<int> &q, std::vector<int> &m,
+                  std::vector<int> &s) {
   for (size_t i = 0; i < queues()->len; i++) {
     auto msqid = queues().at(i).msqid;
     if (msqid != -1) {
-      msgctl(msqid, IPC_RMID, NULL);
-      queues().at(i).msqid = -1;
+      q.push_back(msqid);
     }
   }
   for (size_t i = 0; i < accessers()->len; i++) {
     auto &acc = accessers().at(i);
-    acc.rpid_timeout = INVALID_TIME;
     if (acc.rpid != -1) {
-      msgctl(acc.rpid, IPC_RMID, NULL);
-      acc.rpid = -1;
+      q.push_back(acc.rpid);
     }
   }
-  fux::ipc::semrm(mem_->mainsem);
-  if (shmctl(shmid_, IPC_RMID, NULL) == -1) {
-    throw std::system_error(errno, std::system_category(),
-                            "shmctl(IPC_RMID) failed");
+  s.push_back(mem_->mainsem);
+  m.push_back(shmid_);
+}
+
+void mib::remove(std::vector<int> &q, std::vector<int> &m,
+                 std::vector<int> &s) {
+  for (int i : m) {
+    msgctl(i, IPC_RMID, NULL);
+  }
+  for (int i : s) {
+    fux::ipc::semrm(i);
+  }
+  for (int i : m) {
+    if (shmctl(i, IPC_RMID, NULL) == -1) {
+      throw std::system_error(errno, std::system_category(),
+                              "shmctl(IPC_RMID) failed");
+    }
   }
 }
 
