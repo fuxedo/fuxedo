@@ -118,3 +118,19 @@ clang-format:
 
 installcheck-local:
 	TUXDIR=$(prefix) CXX="$(CXX)" CXXFLAGS="$(CXXFLAGS) $(AM_CXXFLAGS) $(AM_LDFLAGS)" make -C install-tests
+
+install-exec-hook:
+	(cd ${libdir}; $(LN_S) libfuxedo.so libtmib.so)
+	(cd ${libdir}; $(LN_S) libfuxedo.so libtux.so)
+	(cd ${libdir}; $(LN_S) libfuxedo.so libbuft.so)
+	(cd ${libdir}; $(LN_S) libfuxedo.so libfml.so)
+	(cd ${libdir}; $(LN_S) libfuxedo.so libfml32.so)
+	(cd ${libdir}; $(LN_S) libfuxedo.so libengine.so)
+
+uninstall-hook:
+	(cd ${libdir}; rm -f libtmib.so)
+	(cd ${libdir}; rm -f libtux.so)
+	(cd ${libdir}; rm -f libbuft.so)
+	(cd ${libdir}; rm -f libfml.so)
+	(cd ${libdir}; rm -f libfml32.so)
+	(cd ${libdir}; rm -f libengine.so)

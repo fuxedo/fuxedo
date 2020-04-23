@@ -15,6 +15,7 @@ AM_CONDITIONAL([CODE_COVERAGE_ENABLED], [test "x$enable_code_coverage" = xyes])
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT([shared])
 AC_LANG([C++])
+AC_PROG_LN_S
 AX_CXX_COMPILE_STDCXX_17(ext, mandatory)
 AX_CXX_HAVE_FILESYSTEM
 
