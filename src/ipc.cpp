@@ -79,16 +79,20 @@ int seminit(key_t key, int nsems) {
   return semid;
 }
 
+static void semop(int semid, struct sembuf sop) {
+  if (semop(semid, &sop, 1) == -1) {
+    throw std::system_error(errno, std::generic_category(),
+                            "Semaphore lock failed");
+  }
+}
+
 void semlock(int semid, int num) {
   struct sembuf sb;
   sb.sem_num = num;
   sb.sem_op = -1;
   sb.sem_flg = SEM_UNDO;
 
-  if (semop(semid, &sb, 1) == -1) {
-    throw std::system_error(errno, std::generic_category(),
-                            "Semaphore lock failed");
-  }
+  semop(semid, sb);
 }
 
 void semunlock(int semid, int num) {
@@ -97,10 +101,7 @@ void semunlock(int semid, int num) {
   sb.sem_op = 1;
   sb.sem_flg = SEM_UNDO;
 
-  if (semop(semid, &sb, 1) == -1) {
-    throw std::system_error(errno, std::generic_category(),
-                            "Semaphore unlock failed");
-  }
+  semop(semid, sb);
 }
 
 void semrm(int semid) {

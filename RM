@@ -2,3 +2,4 @@
 Oracle_XA:xaosw:-L$ORACLE_HOME/lib -lclntsh
 # Dummy (default)
 NONE:tmnull_switch:
+TUXEDO/QM:tuxq_switch:

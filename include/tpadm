@@ -9,23 +9,19 @@ $int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long flags);
 $#ifdef __cplusplus
 $}
 $#endif
-
 *base 0
-
-SRVCNM        1 string -
-
+SRVCNM                              1 string     -
 *base 100
-
-TA_OPERATION  1 string -
-TA_CLASS      2 string -
-TA_CURSOR     3 string -
-TA_OCCURS     4 long -
-TA_FLAGS      5 long -
-TA_FILTER     6 long -
-TA_MIBTIMEOUT 7 long -
-TA_CURSORHOLD 8 long -
-TA_MORE       9 long -
-TA_ERROR      10 long -
+TA_OPERATION                        1 string     -
+TA_CLASS                            2 string     -
+TA_CURSOR                           3 string     -
+TA_OCCURS                           4 long       -
+TA_FLAGS                            5 long       -
+TA_FILTER                           6 long       -
+TA_MIBTIMEOUT                       7 long       -
+TA_CURSORHOLD                       8 long       -
+TA_MORE                             9 long       -
+TA_ERROR                           10 long       -
 $// Possible TA_ERROR values
 $// TAOK the operation was successfully performed. No updates were made to the application.
 $// TAUPDATED an update was successfully made to the application.
@@ -33,13 +29,31 @@ $// TAPARTIAL a partial update was successfully made to the application.
 $#define TAOK       0
 $#define TAUPDATED  1
 $#define TAPARTIAL  2
-
-
-TA_SRVGRP   11  string -
-TA_GRPNO    12  long -
-TA_LMID     13  string -
-TA_STATE    14  string -
-TA_OPENINFO 15  string -
-TA_CLOSEINFO 16  string -
-TA_TMSCOUNG 17  long -
-TA_TMSNAME  18  string -
+TA_SRVGRP                          11 string     -
+TA_GRPNO                           12 long       -
+TA_LMID                            13 string     -
+TA_STATE                           14 string     -
+TA_OPENINFO                        15 string     -
+TA_CLOSEINFO                       16 string     -
+TA_TMSCOUNT                        17 long       -
+TA_TMSNAME                         18 string     -
+TA_APPQMSGID                       19 string     -
+TA_APPQNAME                        20 string     -
+TA_APPQSPACENAME                   21 string     -
+TA_QMCONFIG                        22 string     -
+TA_NEWAPPQNAME                     23 string     -
+TA_PRIORITY                        24 long       -
+TA_TIME                            25 string     -
+TA_EXPIRETIME                      26 string     -
+TA_CORRID                          27 string     -
+TA_PERSISTENCE                     28 string     -
+TA_REPLYPERSISTENCE                29 string     -
+TA_LOWPRIORITY                     30 long       -
+TA_HIGHPRIORITY                    31 long       -
+TA_MSGENDTIME                      32 string     -
+TA_MSGSTARTTIME                    33 string     -
+TA_MSGEXPIREENDTIME                34 string     -
+TA_MSGEXPIRESTARTTIME              35 string     -
+TA_CURRETRIES                      36 long       -
+TA_MSGSIZE                         37 long       -
+TA_MSGDATA                         38 carray     -

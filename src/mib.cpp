@@ -340,7 +340,7 @@ void mib::collect(std::vector<int> &q, std::vector<int> &m,
 
 void mib::remove(std::vector<int> &q, std::vector<int> &m,
                  std::vector<int> &s) {
-  for (int i : m) {
+  for (int i : q) {
     msgctl(i, IPC_RMID, NULL);
   }
   for (int i : s) {

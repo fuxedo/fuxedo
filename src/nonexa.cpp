@@ -19,7 +19,7 @@ static int xa_rollback(XID *, int, long) { return XA_OK; }
 
 extern "C" {
 struct xa_switch_t tmnull_switch {
-  "null", TMNOFLAGS, 0, xa_open, xa_close, xa_start, xa_end, xa_rollback,
+  "NONE", TMNOFLAGS, 0, xa_open, xa_close, xa_start, xa_end, xa_rollback,
       xa_prepare, xa_commit, xa_recover, xa_forget, xa_complete
 };
 }

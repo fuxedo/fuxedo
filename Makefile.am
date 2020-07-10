@@ -29,7 +29,7 @@ src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/mib.cpp src/ubb2mib.cpp \
                            src/userlog.cpp \
                            src/ipc.cpp \
-                           src/nullxa.cpp src/tx.cpp src/trx.cpp \
+                           src/qmxa.cpp src/nonexa.cpp src/tx.cpp src/trx.cpp \
                            src/misc.cpp src/base64.cpp src/fields.cpp \
                            src/tpadmcall.cpp src/tmq.cpp
 
@@ -107,6 +107,9 @@ tests_mib_LDADD = src/libfuxedo.la
 
 tests_trx_SOURCES = tests/trx.cpp tests/tests-main.cpp
 tests_trx_LDADD = src/libfuxedo.la
+
+tests_qm_SOURCES = tests/qm.cpp tests/tests-main.cpp
+tests_qm_LDADD = src/libfuxedo.la
 
 clang-format:
 	clang-format -style=Google -i \
