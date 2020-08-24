@@ -2,6 +2,7 @@
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
 #include <setjmp.h>
+#include <tpadm.h>
 #include <userlog.h>
 #include <xa.h>
 #include <xatmi.h>
@@ -17,7 +18,6 @@
 #include <thread>
 #include <vector>
 
-#include "fields.h"
 #include "fux.h"
 #include "ipc.h"
 #include "mib.h"
@@ -89,7 +89,8 @@ struct server_main {
     mtype_ = std::numeric_limits<long>::min();
   }
 
-  void active() { m_.servers().at(mib_server).state = state_t::active; }
+  void active() { m_.servers().at(mib_server).state = state_t::ACTive; }
+  void inactive() { m_.servers().at(mib_server).state = state_t::INActive; }
 
   int tpadvertise(const char *svcname, void (*func)(TPSVCINFO *)) {
     fux::scoped_fuxlock lock(mutex);
@@ -157,8 +158,8 @@ struct server_main {
     mtype_ = -(mtype - 1);
     req_counter_ = 0;
 
-    if (buf.get<long>(FUX_SRVID, 0) == srvid &&
-        buf.get<long>(FUX_GRPNO, 0) == grpno) {
+    if (buf.get<long>(TA_SRVID, 0) == srvid &&
+        buf.get<long>(TA_GRPNO, 0) == grpno) {
       stop = true;
       return true;
     }
@@ -191,7 +192,7 @@ int _tmrunserver(int) {
 }
 
 struct server_thread {
-  server_thread() : atmibuf(nullptr) {}
+  server_thread() : atmibuf(nullptr), reply_to_shutdown(false) {}
 
   void prepare() {
     if (atmibuf == nullptr) {
@@ -203,6 +204,7 @@ struct server_thread {
   fux::ipc::msg req;
   fux::ipc::msg res;
   char *atmibuf;
+  bool reply_to_shutdown;
   jmp_buf tpreturn_env;
 
   void tpforward(char *svc, char *data, long len, long flags) {
@@ -233,11 +235,7 @@ struct server_thread {
     longjmp(tpreturn_env, 1);
   }
 
-  void tpreturn(int rval, long rcode, char *data, long len, long flags) {
-    if (fux::tx::transactional()) {
-      fux::tx_end(rval == TPSUCCESS);
-    }
-
+  void reply(int rval, long rcode, char *data, long len, long flags) {
     if (req->replyq != -1) {
       res.set_data(data, len);
 
@@ -258,16 +256,21 @@ struct server_thread {
 
       fux::ipc::qsend(req->replyq, res, 0, fux::ipc::flags::notime);
     }
+  }
 
+  void tpreturn(int rval, long rcode, char *data, long len, long flags) {
+    if (fux::tx::transactional()) {
+      fux::tx_end(rval == TPSUCCESS);
+    }
+    reply(rval, rcode, data, len, flags);
     longjmp(tpreturn_env, 1);
   }
 };
 
 static thread_local std::unique_ptr<server_thread> thread_ptr;
+static server_thread *main_thread_ptr;
 
 static void dispatch() {
-  thread_ptr = std::make_unique<server_thread>();
-
   while (true) {
     if (main_ptr->stop) {
       break;
@@ -275,6 +278,7 @@ static void dispatch() {
 
     TPSVCINFO tpsvcinfo;
     {
+      userlog("Dispatch loop");
       fux::scoped_fuxlock lock(main_ptr->mutex);
       if (main_ptr->stop) {
         break;
@@ -286,21 +290,25 @@ static void dispatch() {
       thread_ptr->prepare();
       thread_ptr->req.get_data(&thread_ptr->atmibuf);
       tpsvcinfo.data = thread_ptr->atmibuf;
-      if (thread_ptr->req->cat == fux::ipc::admin) {
+      if (strcmp(thread_ptr->req->servicename, ".stop") == 0) {
         fux::fml32buf buf(&tpsvcinfo);
 
         userlog("Received admin message");
-        if (!main_ptr->handle(thread_ptr->req->mtype, buf)) {
+        if (main_ptr->handle(thread_ptr->req->mtype, buf)) {
+          if (thread_ptr.get() != main_thread_ptr) {
+            main_thread_ptr->req = thread_ptr->req;
+            main_thread_ptr->req.get_data(&main_thread_ptr->atmibuf);
+          }
+          main_thread_ptr->reply_to_shutdown = true;
+          continue;
+        } else {
           // return for processing by other MSSQ servers
           userlog("Not the target receiver of message, put back in queue");
           fux::ipc::qsend(main_ptr->request_queue, thread_ptr->req, 0,
                           fux::ipc::flags::notime);
         }
-        continue;
-      } else {
-        // else continue processing without global lock
       }
-    }
+    }  // lock
 
     checked_copy(thread_ptr->req->servicename, tpsvcinfo.name);
     tpsvcinfo.flags = thread_ptr->req->flags;
@@ -311,23 +319,22 @@ static void dispatch() {
       fux::tx_join(thread_ptr->req->gttid);
     }
 
-    auto it = main_ptr->advertisements.find(tpsvcinfo.name);
     if (setjmp(thread_ptr->tpreturn_env) == 0) {
+      auto it = main_ptr->advertisements.find(tpsvcinfo.name);
       it->second(&tpsvcinfo);
-    } else {
     }
   }
-
-  thread_ptr.reset();
 }
 
 static void thread_dispatch(tmsvrargs_t *tmsvrargs, int argc, char *argv[]) {
+  thread_ptr = std::make_unique<server_thread>();
   if (int n = tmsvrargs->svrthrinit(argc, argv); n != 0) {
     userlog("tpsvrthrinit() = %d", n);
     return;
   }
   dispatch();
   tmsvrargs->svrthrdone();
+  thread_ptr.reset();
 }
 
 namespace fux::glob {
@@ -384,7 +391,6 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
 
   mib &m = getmib();
   main_ptr = std::make_unique<server_main>(m);
-
   main_ptr->mib_server = m.find_server(srvid, grpno);
   if (main_ptr->mib_server == m.badoff) {
     return -1;
@@ -405,6 +411,10 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
     userlog("tpsvrinit() = %d", n);
     return -1;
   }
+
+  thread_ptr = std::make_unique<server_thread>();
+  thread_ptr->prepare();
+  main_thread_ptr = thread_ptr.get();
 
   if (all) {
     struct tmdsptchtbl_t *rec = tmsvrargs->tmdsptchtbl;
@@ -436,6 +446,11 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   tmsvrargs->mainloop(0);
 
   tmsvrargs->svrdone();
+  main_ptr->inactive();
+  if (main_thread_ptr->reply_to_shutdown) {
+    main_thread_ptr->reply(TPMINVAL, 0, main_thread_ptr->atmibuf, 0, TPNOFLAGS);
+  }
+  thread_ptr.reset();
   return 0;
 }
 

@@ -56,7 +56,19 @@ struct group {
   char tmsname[256];
 };
 
-enum struct state_t { active, inactive };
+enum class state_t : uint8_t {
+  undefined = 0,
+  MIGrating,
+  CLEaning,
+  REStarting,
+  SUSpended,
+  PARtitioned,
+  DEAd,
+  NEW,
+  INValid,
+  ACTive,
+  INActive
+};
 
 struct server {
   uint16_t srvid;
@@ -68,6 +80,10 @@ struct server {
   state_t state;
   char servername[128];
   char clopt[1024];
+
+  void suspend() { state = state_t::SUSpended; }
+
+  bool is_inactive() const { return state == state_t::INActive; }
 };
 
 struct queue {

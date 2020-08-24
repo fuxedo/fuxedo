@@ -5,6 +5,7 @@
 // + some TX-like API needed for Oracle Tuxedo APIs
 
 #include <atmi.h>
+#include <tpadm.h>
 #include <tx.h>
 #include <userlog.h>
 #include <xa.h>
@@ -13,13 +14,16 @@
 
 #include <algorithm>
 
-#include "fields.h"
 #include "fux.h"
 #include "mib.h"
 #include "trx.h"
 
 extern "C" {
 extern struct xa_switch_t tmnull_switch;
+}
+
+namespace fux::tm {
+enum xa_func { prepare, commit, rollback };
 }
 
 namespace fux::tx {
@@ -444,21 +448,21 @@ int tx_set_transaction_timeout(TRANSACTION_TIMEOUT timeout) {
 //////////////////////////////////////////////////////////////////////////////
 // Call TM
 
-int tpacall_internal(int grpno, char *svc, char *data, long len, long flags);
+int tpacall_group(int grpno, char *svc, char *data, long len, long flags);
 void command(std::vector<branch> &branches, XID *xid, int command) {
   fux::fml32buf buf;
   int pending = 0;
 
   for (auto &p : branches) {
-    buf.put(fux::tm::FUX_XAFUNC, 0, command);
-    buf.put(fux::tm::FUX_XAXID, 0, fux::to_string(xid));
-    buf.put(fux::tm::FUX_XARMID, 0, p.grpno);
-    buf.put(fux::tm::FUX_XAFLAGS, 0, 0);
+    buf.put(TA_XAFUNC, 0, command);
+    buf.put(TA_XID, 0, fux::to_string(xid));
+    buf.put(TA_RMID, 0, p.grpno);
+    buf.put(TA_FLAGS, 0, 0);
     userlog("Calling TM in group %d for %s", p.grpno,
             fux::to_string(xid).c_str());
-    p.cd = tpacall_internal(p.grpno, const_cast<char *>(".TM"),
-                            reinterpret_cast<char *>(*buf.ptrptr()), 0,
-                            TPNOTIME | TPNOTRAN);
+    p.cd = tpacall_group(p.grpno, const_cast<char *>(".TM"),
+                         reinterpret_cast<char *>(*buf.ptrptr()), 0,
+                         TPNOTIME | TPNOTRAN);
     if (p.cd == -1) {
       userlog("Failed to call TM in group %d (%s)", p.grpno,
               tpstrerror(tperrno));
@@ -476,7 +480,7 @@ void command(std::vector<branch> &branches, XID *xid, int command) {
 
     for (auto &p : branches) {
       if (p.cd == cd) {
-        p.result = buf.get<long>(fux::tm::FUX_XARET, 0);
+        p.result = buf.get<long>(TA_XARET, 0);
         pending--;
       }
     }
@@ -487,10 +491,10 @@ void command(std::vector<branch> &branches, XID *xid, int command) {
 // TM implementation
 
 static void tm(fux::fml32buf &buf) {
-  auto func = buf.get<long>(fux::tm::FUX_XAFUNC, 0);
-  auto xids = buf.get<std::string>(fux::tm::FUX_XAXID, 0);
-  int rmid = buf.get<long>(fux::tm::FUX_XARMID, 0);
-  long flags = buf.get<long>(fux::tm::FUX_XAFLAGS, 0);
+  auto func = buf.get<long>(TA_XAFUNC, 0);
+  auto xids = buf.get<std::string>(TA_XID, 0);
+  int rmid = buf.get<long>(TA_RMID, 0);
+  long flags = buf.get<long>(TA_FLAGS, 0);
 
   XID xid = fux::to_xid(xids);
   int ret;
@@ -515,7 +519,7 @@ static void tm(fux::fml32buf &buf) {
     default:
       ret = XAER_INVAL;
   }
-  buf.put(fux::tm::FUX_XARET, 0, ret);
+  buf.put(TA_XARET, 0, ret);
 }
 
 extern "C" void TM(TPSVCINFO *svcinfo) {

@@ -7,6 +7,7 @@ check:
 	make -C unit
 	make -C build
 	make -C server
+	make -C tmshutdown
 	make -C tpinit
 	make -C tpcall
 	make -C tpacall
@@ -19,6 +20,7 @@ clean:
 	make -C unit clean
 	make -C build clean
 	make -C server clean
+	make -C tmshutdown clean
 	make -C tpinit clean
 	make -C tpcall clean
 	make -C tpacall clean

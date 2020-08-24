@@ -58,13 +58,22 @@ class client {
     mibcon_.accessers().at(client_).invalidate();
   }
 
-  int tpacall(int grpno, const char *svc, char *data, long len,
-              long flags) try {
-    if (tptypes(data, nullptr, nullptr) == -1) {
-      return -1;
-    }
-
+  int tpacall_group(int grpno, const char *svc, char *data, long len,
+                    long flags) try {
     int msqid = repo_.get_queue(grpno, svc);
+    return tpacall_queue(msqid, svc, data, len, flags);
+  } catch (const std::out_of_range &e) {
+    TPERROR(TPENOENT, "Service %s does not exist", svc);
+    return -1;
+  }
+
+  int tpacall_queue(int msqid, const char *svc, char *data, long len,
+                    long flags) {
+    if (data != nullptr) {
+      if (tptypes(data, nullptr, nullptr) == -1) {
+        return -1;
+      }
+    }
 
     rq.set_data(data, len);
     checked_copy(svc, rq->servicename);
@@ -100,9 +109,6 @@ class client {
     if (rq->cd != 0) {
       cds.release(rq->cd);
     }
-    return -1;
-  } catch (const std::out_of_range &e) {
-    TPERROR(TPENOENT, "Service %s does not exist", svc);
     return -1;
   }
 
@@ -172,8 +178,9 @@ class client {
       if (res->rval == TPMINVAL) {
         fux::atmi::reset_tperrno();
         return 0;
+      } else {
+        TPERROR(res->rval, "Service failed with %d", res->rval);
       }
-      TPERROR(res->rval, "Service failed with %d", res->rval);
       return -1;
     }
   }
@@ -287,11 +294,6 @@ static client &getclient() {
   return *current_client;
 }
 
-int tpacall_internal(int grpno, char *svc, char *data, long len, long flags) {
-  return fux::atmi::exception_boundary(
-      [&] { return getclient().tpacall(grpno, svc, data, len, flags); }, -1);
-}
-
 int tpinit(TPINIT *tpinfo) {
   if (fux::is_server()) {
     TPERROR(TPEPROTO, "%s called from server", __func__);
@@ -315,9 +317,22 @@ int tpcancel(int cd) {
                                        -1);
 }
 
+int tpacall_group(int grpno, char *svc, char *data, long len, long flags) {
+  return fux::atmi::exception_boundary(
+      [&] { return getclient().tpacall_group(grpno, svc, data, len, flags); },
+      -1);
+}
+
+int tpacall_queue(int msqid, const char *svc, char *data, long len,
+                  long flags) {
+  return fux::atmi::exception_boundary(
+      [&] { return getclient().tpacall_queue(msqid, svc, data, len, flags); },
+      -1);
+}
+
 int tpacall(char *svc, char *data, long len, long flags) {
   return fux::atmi::exception_boundary(
-      [&] { return getclient().tpacall(-1, svc, data, len, flags); }, -1);
+      [&] { return getclient().tpacall_group(-1, svc, data, len, flags); }, -1);
 }
 
 int tpgetrply(int *cd, char **data, long *len, long flags) {
@@ -334,7 +349,7 @@ int tpcall(char *svc, char *idata, long ilen, char **odata, long *olen,
   return fux::atmi::exception_boundary(
       [&] {
         fux::suspend_guard g(!(flags & TPNOTRAN));
-        int cd = getclient().tpacall(-1, svc, idata, ilen, flags);
+        int cd = getclient().tpacall_group(-1, svc, idata, ilen, flags);
         if (cd == -1) {
           return -1;
         }

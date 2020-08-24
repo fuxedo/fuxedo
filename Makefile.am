@@ -30,7 +30,7 @@ src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/userlog.cpp \
                            src/ipc.cpp \
                            src/qmxa.cpp src/nonexa.cpp src/tx.cpp src/trx.cpp \
-                           src/misc.cpp src/base64.cpp src/fields.cpp \
+                           src/misc.cpp src/base64.cpp \
                            src/tpadmcall.cpp src/tmq.cpp
 
 src_libfuxedo_la_LDFLAGS = -lpthread

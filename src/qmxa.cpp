@@ -1,8 +1,8 @@
 // This file is part of Fuxedo
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
-#include <xa.h>
 #include <userlog.h>
+#include <xa.h>
 
 #ifdef HAVE_CXX_FILESYSTEM
 #include <filesystem>
@@ -12,11 +12,11 @@ namespace fs = std::filesystem;
 namespace fs = std::experimental::filesystem;
 #endif
 
-#include "trx.h"
 #include "misc.h"
+#include "trx.h"
 
-//int ax_reg(int, XID *, long) { return TMER_TMERR; }
-//int ax_unreg(int, long) { return TMER_TMERR; }
+// int ax_reg(int, XID *, long) { return TMER_TMERR; }
+// int ax_unreg(int, long) { return TMER_TMERR; }
 
 struct qspace {
   fs::path base;
@@ -108,7 +108,7 @@ static int xa_prepare(XID *xid, int, long) {
 
 static int xa_recover(XID *, long, int, long) { return XA_OK; }
 extern "C" {
-struct xa_switch_t tuxq_switch{
+struct xa_switch_t tuxq_switch {
   "TUXEDO/QM", TMNOFLAGS, 0, xa_open, xa_close, xa_start, xa_end, xa_rollback,
       xa_prepare, xa_commit, xa_recover, xa_forget, xa_complete
 };

@@ -57,3 +57,13 @@ TA_MSGEXPIRESTARTTIME              35 string     -
 TA_CURRETRIES                      36 long       -
 TA_MSGSIZE                         37 long       -
 TA_MSGDATA                         38 carray     -
+
+TA_SRVID                    39       long -
+TA_RMID                     40       long -
+TA_XID                      41     string -
+
+
+
+
+TA_XAFUNC		100 long
+TA_XARET		101 long

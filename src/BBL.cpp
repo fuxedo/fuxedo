@@ -4,7 +4,6 @@
 #include <xa.h>
 #include <algorithm>
 
-#include "fields.h"
 #include "fux.h"
 #include "mib.h"
 

@@ -40,7 +40,7 @@ static void start(server &srv, bool no, bool d1) {
     return;
   }
 
-  srv.state = state_t::inactive;
+  srv.state = state_t::INActive;
   auto pid = fork();
   if (pid == 0) {
     argv.push_back(nullptr);
@@ -52,13 +52,12 @@ static void start(server &srv, bool no, bool d1) {
     }
 
     if (execvp(srv.servername, (char *const *)&argv[0]) == -1) {
-      // perror("AAAAAAAA");
       exit(-1);
     }
   } else if (pid > 0) {
     srv.pid = pid;
     for (;;) {
-      if (srv.state == state_t::active) {
+      if (srv.state == state_t::ACTive) {
         break;
       }
       if (int n = waitpid(pid, nullptr, WNOHANG); n == pid || n == -1) {
