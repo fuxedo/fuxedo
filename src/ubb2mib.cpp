@@ -109,6 +109,8 @@ void ubb2mib(ubbconfig &u, mib &m) {
     auto basesrvid = checked_get(srvconf.second, "SRVID", 1, 30000);
     auto min = checked_get(srvconf.second, "MIN", 1, 1000, 1);
     auto max = checked_get(srvconf.second, "MAX", 1, 1000, 1);
+    auto minthreads = checked_get(srvconf.second, "MINDISPATCHTHREADS", 1, 1000, 1);
+    auto maxthreads = checked_get(srvconf.second, "MAXDISPATCHTHREADS", 1, 1000, 1);
     auto grpno = group_ids.at(srvconf.second.at("SRVGRP"));
     for (auto n = 0; n < max; n++) {
       auto srvid = basesrvid + n;
@@ -120,6 +122,8 @@ void ubb2mib(ubbconfig &u, mib &m) {
       auto &server = servers.at(m.make_server(srvid, grpno, srvconf.first,
                                               srvconf.second["CLOPT"], rqaddr));
       server.autostart = n < min;
+      server.mindispatchthreads = minthreads;
+      server.maxdispatchthreads = maxthreads;
     }
   }
 }

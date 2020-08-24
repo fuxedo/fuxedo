@@ -73,6 +73,8 @@ enum class state_t : uint8_t {
 struct server {
   uint16_t srvid;
   uint16_t grpno;
+  uint16_t mindispatchthreads;
+  uint16_t maxdispatchthreads;
   bool autostart;
   pid_t pid;
   time_t last_alive_time;

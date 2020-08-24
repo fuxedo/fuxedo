@@ -400,6 +400,7 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   main_ptr->grpno = grpno;
   fux::tx::grpno = grpno;
 
+  auto thread_count = m.servers().at(main_ptr->mib_server).mindispatchthreads;
   main_ptr->request_queue = m.make_service_rqaddr(main_ptr->mib_server);
   main_ptr->mib_queue = m.servers().at(main_ptr->mib_server).rqaddr;
   main_ptr->argc = argc;
@@ -430,9 +431,9 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
 
   main_ptr->active();
 
-  if (_tmbuilt_with_thread_option) {
+  if (_tmbuilt_with_thread_option && thread_count > 1) {
     std::vector<std::thread> threads;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < thread_count; i++) {
       threads.emplace_back(std::thread(thread_dispatch, tmsvrargs, argc, argv));
     }
 
