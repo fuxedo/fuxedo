@@ -76,6 +76,14 @@ void ubb2mib(ubbconfig &u, mib &m) {
 
   m.mach().blocktime = std::stol(blocktime) * std::stol(scanunit);
 
+  auto &domain = m.domain();
+  domain.ipckey = m.conf().ipckey;
+  domain.maxservers = m.conf().maxservers;
+  domain.maxservices = m.conf().maxservices;
+  domain.maxqueues = m.conf().maxqueues;
+  domain.maxgroups = m.conf().maxgroups;
+  domain.maxaccessers = m.conf().maxaccessers;
+
   std::map<std::string, uint16_t> group_ids;
   auto groups = m.groups();
   auto servers = m.servers();
@@ -109,8 +117,10 @@ void ubb2mib(ubbconfig &u, mib &m) {
     auto basesrvid = checked_get(srvconf.second, "SRVID", 1, 30000);
     auto min = checked_get(srvconf.second, "MIN", 1, 1000, 1);
     auto max = checked_get(srvconf.second, "MAX", 1, 1000, 1);
-    auto minthreads = checked_get(srvconf.second, "MINDISPATCHTHREADS", 1, 1000, 1);
-    auto maxthreads = checked_get(srvconf.second, "MAXDISPATCHTHREADS", 1, 1000, 1);
+    auto minthreads =
+        checked_get(srvconf.second, "MINDISPATCHTHREADS", 1, 1000, 1);
+    auto maxthreads =
+        checked_get(srvconf.second, "MAXDISPATCHTHREADS", 1, 1000, 1);
     auto grpno = group_ids.at(srvconf.second.at("SRVGRP"));
     for (auto n = 0; n < max; n++) {
       auto srvid = basesrvid + n;

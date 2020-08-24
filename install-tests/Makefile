@@ -15,6 +15,7 @@ check:
 	make -C tpforward
 	make -C blocktime
 	make -C txnull
+	make -C bbl
 
 clean:
 	make -C unit clean
@@ -28,5 +29,6 @@ clean:
 	make -C tpforward clean
 	make -C blocktime clean
 	make -C txnull clean
+	make -C bbl clean
 
 

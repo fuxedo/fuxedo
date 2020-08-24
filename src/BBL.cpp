@@ -114,7 +114,6 @@ extern "C" void TMIB(TPSVCINFO *svcinfo) {
   fux::fml32buf rq(svcinfo);
   fux::fml32buf rs;
 
-  userlog("Processing %s", svcinfo->name);
   tpadmcall(rq.ptr(), rs.ptrptr(), 0);
 
   fux::tpreturn(TPSUCCESS, 0, rs);

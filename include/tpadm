@@ -62,6 +62,12 @@ TA_SRVID                    39       long -
 TA_RMID                     40       long -
 TA_XID                      41     string -
 
+TA_IPCKEY			42 long
+TA_MAXACCESSERS			43 long
+TA_MAXGROUPS			44 long
+TA_MAXSERVERS			45 long
+TA_MAXSERVICES			46 long
+TA_MAXQUEUES			47 long
 
 
 

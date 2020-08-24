@@ -12,7 +12,7 @@ check: server  tuxconfig
 	-rm -f ULOG.*
 	-tmipcrm -y
 	tmboot -y
-	echo "SRVCNM\t.TMIB\n\n" | ud32
+	echo "SRVCNM\t.TMIB\nTA_CLASS\tT_DOMAIN\nTA_OPERATION\tGET\n\n" | ud32
 	tmshutdown -y
 
 ubbconfig: ubbconfig.in

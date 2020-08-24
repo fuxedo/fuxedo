@@ -9,6 +9,18 @@
 
 using fux::fml32buf;
 
+static void manage_domain(const std::string &operation, fml32buf &in,
+                          fml32buf &out) {
+  auto &domain = getmib().domain();
+
+  out.put(TA_IPCKEY, 0, domain.ipckey);
+  out.put(TA_MAXSERVERS, 0, domain.maxservers);
+  out.put(TA_MAXSERVICES, 0, domain.maxservices);
+  out.put(TA_MAXQUEUES, 0, domain.maxqueues);
+  out.put(TA_MAXGROUPS, 0, domain.maxgroups);
+  out.put(TA_MAXACCESSERS, 0, domain.maxaccessers);
+}
+
 static void manage_group(const std::string &operation, fml32buf &in,
                          fml32buf &out) {
   tuxconfig tuxcfg;
@@ -33,7 +45,9 @@ int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long flags) {
 
   auto klass = in.get<std::string>(TA_CLASS, 0);
   auto operation = in.get<std::string>(TA_OPERATION, 0);
-  if (klass == "T_GROUP") {
+  if (klass == "T_DOMAIN") {
+    manage_domain(operation, in, out);
+  } else if (klass == "T_GROUP") {
     manage_group(operation, in, out);
   }
   // TA_OPERATION: GET, GETNEXT, SET

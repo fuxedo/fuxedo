@@ -34,7 +34,20 @@ struct accesser {
   }
 };
 
-struct machine {
+struct t_domain {
+  char autotran[2];
+  char master[256];
+
+  uint32_t trantime;
+  uint32_t ipckey;
+  uint16_t maxservers;
+  uint16_t maxservices;
+  uint16_t maxqueues;
+  uint16_t maxgroups;
+  uint16_t maxaccessers;
+};
+
+struct t_machine {
   // char address[30];
   // Does not fit Travis CI machine names like
   // travis-job-639f543d-4c99-47ee-b050-1a08446902d8
@@ -145,7 +158,8 @@ struct mibmem {
   uint32_t counter __attribute__((aligned(64)));
 
   tuxconfig conf;
-  machine mach;
+  t_domain domain;
+  t_machine mach;
 
   mibarr<group> groups;
   mibarr<server> servers;
@@ -207,6 +221,7 @@ class mib {
   uint64_t genuid();
 
   auto &conf() { return mem_->conf; }
+  auto &domain() { return mem_->domain; }
   auto &mach() { return mem_->mach; }
   auto groups() { return mibarrptr<group>(&mem_->groups); }
   auto servers() { return mibarrptr<server>(&mem_->servers); }
