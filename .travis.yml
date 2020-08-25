@@ -64,6 +64,8 @@ script:
     fi
   - make && make check
   - make install && make installcheck
+  - export TUXDIR=/home/travis/fuxbin
+  - pip3 install tuxedo
 
 after_success:
   - |
