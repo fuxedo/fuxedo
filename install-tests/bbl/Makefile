@@ -5,7 +5,7 @@ endif
 export PATH:=$(TUXDIR)/bin:$(PATH)
 export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
 export TUXCONFIG:=$(CURDIR)/tuxconfig
-export FLDTBLDIR32:=$(TUXDIR)/share
+export FLDTBLDIR32:=$(TUXDIR)/udataobj
 export FIELDTBLS32:=tpadm
 
 check: server  tuxconfig

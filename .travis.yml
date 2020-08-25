@@ -65,6 +65,7 @@ script:
   - make && make check
   - make install && make installcheck
   - export TUXDIR=/home/travis/fuxbin
+  - pyenv global 3.7.1
   - pip3 install tuxedo
 
 after_success:
