@@ -161,10 +161,12 @@ void mib::advertise(const std::string &servicename, size_t queue,
   advertisement.service = service;
   advertisement.queue = queue;
   advertisement.server = server;
+  advertisement.state = state_t::ACTive;
 
   if (i == advertisements()->len) {
     advertisements()->len++;
   }
+  services().at(service).state = state_t::ACTive;
   services().at(service).modified();
 }
 
@@ -180,7 +182,9 @@ void mib::unadvertise(const std::string &servicename, size_t queue,
     throw std::logic_error("Service not advertised");
   }
   auto &advertisement = advertisements().at(i);
+  advertisement.state = state_t::INValid;
   advertisement.service = advertisement.queue = advertisement.server = badoff;
+
   services().at(service).modified();
 }
 
@@ -293,6 +297,19 @@ size_t mib::make_accesser(pid_t pid) {
   return at;
 }
 
+const char *to_string(state_t s) {
+  switch (s) {
+    case state_t::ACTive:
+      return "ACT";
+    case state_t::INActive:
+      return "INA";
+    case state_t::INValid:
+      return "INV";
+    default:
+      return "";
+  }
+}
+
 size_t mib::make_service(const std::string &servicename) {
   if (find_service(servicename) != badoff) {
     throw std::logic_error("Duplicate service");
@@ -300,6 +317,20 @@ size_t mib::make_service(const std::string &servicename) {
 
   auto &service = services().at(services()->len);
   checked_copy(servicename, service.servicename);
+  service.state = state_t::INActive;
+  checked_copy("N", service.autotran);
+  service.load = 50;
+  service.prio = 50;
+  service.blocktime = 0;
+  service.svctimeout = 0;
+  service.trantime = 30;
+  checked_copy("ALL", service.buftype);
+  checked_copy("", service.routingname);
+  checked_copy("N", service.signature_required);
+  checked_copy("N", service.encryption_required);
+  checked_copy("NOCONVERT", service.buftypeconv);
+  checked_copy("", service.cachingname);
+
   return services()->len++;
 }
 

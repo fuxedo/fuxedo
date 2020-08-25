@@ -35,16 +35,17 @@ struct accesser {
 };
 
 struct t_domain {
-  char autotran[2];
+  uint32_t ipckey;
   char master[256];
 
   uint32_t trantime;
-  uint32_t ipckey;
   uint16_t maxservers;
   uint16_t maxservices;
   uint16_t maxqueues;
   uint16_t maxgroups;
   uint16_t maxaccessers;
+
+  char autotran[2];
 };
 
 struct t_machine {
@@ -63,14 +64,14 @@ struct t_machine {
 
 struct group {
   uint16_t grpno;
-  char srvgrp[32];
+  char srvgrp[30];
   char openinfo[256];
   char closeinfo[256];
   char tmsname[256];
 };
 
 enum class state_t : uint8_t {
-  undefined = 0,
+  INValid = 0,
   MIGrating,
   CLEaning,
   REStarting,
@@ -78,10 +79,11 @@ enum class state_t : uint8_t {
   PARtitioned,
   DEAd,
   NEW,
-  INValid,
   ACTive,
   INActive
 };
+
+const char *to_string(state_t s);
 
 struct server {
   uint16_t srvid;
@@ -109,7 +111,21 @@ struct queue {
 
 struct service {
   char servicename[XATMI_SERVICE_NAME_LENGTH];
+  state_t state;
+  char autotran[2];
+  long load;
+  long prio;
+  long blocktime;
+  long svctimeout;
+  long trantime;
+  char buftype[256];
+  char routingname[16];
+  char signature_required[2];
+  char encryption_required[2];
+  char buftypeconv[10];  // XML2FML, XML2FML32, NOCONVERT
+  char cachingname[32];
   uint64_t revision;
+
   void modified() { revision++; }
 };
 
@@ -117,6 +133,7 @@ struct advertisement {
   size_t service;
   size_t queue;
   size_t server;
+  state_t state;
 };
 
 template <typename T>
@@ -145,6 +162,7 @@ class mibarrptr {
   }
 
   auto size() const { return p_->size; }
+  auto length() const { return p_->len; }
 
  private:
   mibarr<T> *p_;
