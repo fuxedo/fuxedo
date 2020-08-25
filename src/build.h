@@ -29,5 +29,5 @@ static std::map<std::string, rminfo> parse_rm(const std::string &filename) {
 
 static std::map<std::string, rminfo> parse_rm() {
   auto tuxdir = fux::util::getenv("TUXDIR", "");
-  return parse_rm(tuxdir + "/share/RM");
+  return parse_rm(tuxdir + "/udataobj/RM");
 }
