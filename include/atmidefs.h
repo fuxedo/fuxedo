@@ -75,6 +75,8 @@ struct tpinfo_t {
 };
 typedef struct tpinfo_t TPINIT;
 
+#define TPINITNEED(n) (sizeof(TPINIT) + n)
+
 /* The transactionID structure passed to tpsuspend(3c) and tpresume(3c) */
 struct tp_tranid_t {
   long info[6]; /* Internally defined */
@@ -237,3 +239,6 @@ struct tpevctl_t {
   TPQCTL qctl;
 };
 typedef struct tpevctl_t TPEVCTL;
+
+#define TPACK_INTL 666
+#define TPNOCOPY 666

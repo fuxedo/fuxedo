@@ -312,6 +312,24 @@ int tpterm() {
   return 0;
 }
 
+int tpappthrinit(TPINIT *tpinfo) {
+  if (!fux::is_server()) {
+    TPERROR(TPEPROTO, "%s called from client", __func__);
+    return -1;
+  }
+  fux::atmi::exception_boundary([&] { getclient(); });
+  return 0;
+}
+
+int tpappthrterm() {
+  if (!fux::is_server()) {
+    TPERROR(TPEPROTO, "%s called from client", __func__);
+    return -1;
+  }
+  fux::atmi::exception_boundary([&] { current_client.reset(); });
+  return 0;
+}
+
 int tpcancel(int cd) {
   return fux::atmi::exception_boundary([&] { return getclient().tpcancel(cd); },
                                        -1);

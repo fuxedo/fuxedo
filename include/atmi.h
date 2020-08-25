@@ -58,10 +58,13 @@ struct tmsvrargs_t {
 int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs);
 
 int tpadvertise(char *svcname, void (*func)(TPSVCINFO *));
+int tpadvertisex(char *svcname, void (*func)(TPSVCINFO *), long flags);
 int tpunadvertise(char *svcname);
 
 int tpinit(TPINIT *tpinfo);
 int tpterm();
+int tpappthrinit(TPINIT *tpinifo);
+int tpappthrterm();
 int tpcall(char *svc, char *idata, long ilen, char **odata, long *olen,
            long flags);
 int tpacall(char *svc, char *data, long len, long flags);
@@ -88,6 +91,9 @@ int tpgetrply(int *cd, char **data, long *len, long flags);
 #define TPBLK_MILLISECOND 0x10
 int tpsblktime(int blktime, long flags);
 int tpgblktime(long flags);
+
+#define TPSINGLETON 0x1   /* singleton service */
+#define TPSECONDARYRQ 0x2 /* service on the secondary queue */
 
 #ifdef __cplusplus
 }

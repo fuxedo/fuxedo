@@ -17,6 +17,7 @@ include_HEADERS = include/atmi.h include/xatmi.h \
                   include/fml32.h \
                   include/userlog.h \
                   include/atmidefs.h \
+                  include/tmenv.h \
                   include/xa.h \
                   include/tx.h \
                   include/tpadm.h
@@ -77,7 +78,8 @@ src_fux_LDADD = src/libfuxedo.la
 src_tmipcrm_SOURCES = src/tmipcrm.cpp
 src_tmipcrm_LDADD = src/libfuxedo.la
 
-data_DATA = RM include/tpadm
+udataobjdir = @prefix@/udataobj
+udataobj_DATA = RM include/tpadm
 
 TESTS = tests/xatmi tests/fml32 tests/expr tests/mib tests/ipcq tests/base64 tests/userlog tests/trx
 check_PROGRAMS = $(TESTS)

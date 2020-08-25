@@ -28,6 +28,7 @@ struct tptype {
 size_t strused(void *ptr) { return strlen(reinterpret_cast<char *>(ptr)) + 1; }
 
 static tptype _tptypes[] = {
+    tptype{"TPINIT", "*", TPINITNEED(0), nullptr, nullptr, nullptr, nullptr},
     tptype{"CARRAY", "*", 0, nullptr, nullptr, nullptr, nullptr},
     tptype{"STRING", "*", 512, nullptr, nullptr, nullptr, strused},
     tptype{"FML32", "*", 512, fml32init, fml32reinit, fml32finit, fml32used}};

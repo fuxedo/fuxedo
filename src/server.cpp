@@ -92,7 +92,8 @@ struct server_main {
   void active() { m_.servers().at(mib_server).state = state_t::ACTive; }
   void inactive() { m_.servers().at(mib_server).state = state_t::INActive; }
 
-  int tpadvertise(const char *svcname, void (*func)(TPSVCINFO *)) {
+  int tpadvertisex(const char *svcname, void (*func)(TPSVCINFO *), long flags) {
+    // TODO: flags
     fux::scoped_fuxlock lock(mutex);
 
     if (svcname == nullptr || strlen(svcname) == 0) {
@@ -456,11 +457,15 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
 }
 
 int tpadvertise(char *svcname, void (*func)(TPSVCINFO *)) {
+  return tpadvertisex(svcname, func, TPNOFLAGS);
+}
+
+int tpadvertisex(char *svcname, void (*func)(TPSVCINFO *), long flags) {
   if (!main_ptr) {
     TPERROR(TPEPROTO, "%s can't be called from client", __func__);
     return -1;
   }
-  return main_ptr->tpadvertise(svcname, func);
+  return main_ptr->tpadvertisex(svcname, func, flags);
 }
 
 int tpunadvertise(char *svcname) {
