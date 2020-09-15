@@ -36,9 +36,10 @@ src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
 
 src_libfuxedo_la_LDFLAGS = -lpthread
 
-bin_PROGRAMS = src/mkfldhdr32 src/ud32 \
+bin_PROGRAMS = src/mkfldhdr32 src/viewc32 src/ud32 \
                src/fux \
                src/tmipcrm \
+               src/tmadmin \
                src/tmloadcf src/tmunloadcf \
                src/buildserver src/buildclient src/buildtms \
                src/tmboot src/tmshutdown \
@@ -57,11 +58,17 @@ src_TMS_LDADD = src/libfuxedo.la
 src_BBL_SOURCES = src/BBL.cpp
 src_BBL_LDADD = src/libfuxedo.la -lpthread
 
+src_tmadmin_SOURCES = src/tmadmin.cpp
+src_tmadmin_LDADD = src/libfuxedo.la
+
 src_tmshutdown_SOURCES = src/tmshutdown.cpp
 src_tmshutdown_LDADD = src/libfuxedo.la
 
 src_mkfldhdr32_SOURCES = src/mkfldhdr32.cpp
 src_mkfldhdr32_LDADD = src/libfuxedo.la
+
+src_viewc32_SOURCES = src/viewc32.cpp
+src_viewc32_LDADD = src/libfuxedo.la
 
 src_ud32_SOURCES = src/ud32.cpp
 src_ud32_LDADD = src/libfuxedo.la

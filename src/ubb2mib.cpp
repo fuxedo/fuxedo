@@ -5,6 +5,7 @@
 #include <functional>  //std::hash
 #include <iostream>
 
+#include "fux.h"
 #include "mib.h"
 #include "misc.h"
 #include "ubbreader.h"
@@ -88,7 +89,11 @@ void ubb2mib(ubbconfig &u, mib &m) {
   auto groups = m.groups();
   auto servers = m.servers();
 
+  fux::fml32buf in, out;
+
   {
+    //    in.reinit();
+    //    tpadmcall(in.ptr(), out.ptrptr(), TPNOFLAGS);
     auto &server = servers.at(m.make_server(0, 0, "BBL", "-A", ".BBL"));
     server.autostart = true;
   }
@@ -109,7 +114,6 @@ void ubb2mib(ubbconfig &u, mib &m) {
       auto &server =
           servers.at(m.make_server(30001 + n, grpno, grpconf.second["TMSNAME"],
                                    "-A", std::to_string(grpno) + ".TM"));
-      server.autostart = true;
     }
   }
 

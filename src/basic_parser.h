@@ -49,6 +49,12 @@ class basic_parser {
     return accept([ch](int c) { return c == ch; }, s);
   }
 
+  bool rest_of_line(std::string *s = nullptr) {
+    while (accept([](int c) { return c != '\n'; }, s))
+      ;
+    return true;
+  }
+
   bool hex(std::string *s = nullptr) {
     if (strchr("0123456789abcdefABCDEF", sym_) != nullptr) {
       char high = sym_;
@@ -80,14 +86,7 @@ class basic_parser {
     return false;
   }
 
-  bool field_name(std::string *s = nullptr) {
-    if (accept(::isalpha, s)) {
-      while (accept(::isalnum, s) || accept('_', s))
-        ;
-      return true;
-    }
-    return false;
-  }
+  bool field_name(std::string *s = nullptr) { return name(s); }
 
   bool name(std::string *s = nullptr) {
     if (accept(::isalpha, s)) {

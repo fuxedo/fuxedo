@@ -31,12 +31,11 @@ int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long flags);
 #define TAOK 0
 #define TAUPDATED 1
 #define TAPARTIAL 2
-#define TA_SRVGRP ((FLDID32)83886191)  // TA_SRVGRP	111	string	     -
-#define TA_GRPNO ((FLDID32)16777328)   // TA_GRPNO	112	long	       -
-#define TA_LMID ((FLDID32)83886193)    // TA_LMID	113	string	     -
-#define TA_STATE ((FLDID32)83886194)   // TA_STATE	114	string	     -
-#define TA_OPENINFO \
-  ((FLDID32)83886195)  // TA_OPENINFO	115	string	     -
+#define TA_SRVGRP ((FLDID32)83886191)    // TA_SRVGRP	111	string	     -
+#define TA_GRPNO ((FLDID32)16777328)     // TA_GRPNO	112	long	       -
+#define TA_LMID ((FLDID32)83886193)      // TA_LMID	113	string	     -
+#define TA_STATE ((FLDID32)83886194)     // TA_STATE	114	string	     -
+#define TA_OPENINFO ((FLDID32)83886195)  // TA_OPENINFO	115	string	     -
 #define TA_CLOSEINFO \
   ((FLDID32)83886196)  // TA_CLOSEINFO	116	string
                        // -
@@ -44,10 +43,9 @@ int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long flags);
   ((FLDID32)16777333)                   // TA_TMSCOUNT	117	long	       -
 #define TA_TMSNAME ((FLDID32)83886198)  // TA_TMSNAME	118	string	     -
 #define TA_APPQMSGID \
-  ((FLDID32)83886199)  // TA_APPQMSGID	119	string
-                       // -
-#define TA_APPQNAME \
-  ((FLDID32)83886200)  // TA_APPQNAME	120	string	     -
+  ((FLDID32)83886199)                    // TA_APPQMSGID	119	string
+                                         // -
+#define TA_APPQNAME ((FLDID32)83886200)  // TA_APPQNAME	120	string	     -
 #define TA_APPQSPACENAME \
   ((FLDID32)83886201)                    // TA_APPQSPACENAME	121	string	     -
 #define TA_QMCONFIG ((FLDID32)83886202)  // TA_QMCONFIG	122	string	     -
@@ -76,9 +74,11 @@ int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long flags);
 #define TA_MSGEXPIRESTARTTIME \
   ((FLDID32)83886215)  // TA_MSGEXPIRESTARTTIME	135	string	     -
 #define TA_CURRETRIES \
-  ((FLDID32)16777352)                        // TA_CURRETRIES	136	long	       -
-#define TA_MSGSIZE ((FLDID32)16777353)       // TA_MSGSIZE	137	long	       -
-#define TA_MSGDATA ((FLDID32)100663434)      // TA_MSGDATA	138	carray	     -
+  ((FLDID32)16777352)  // TA_CURRETRIES	136	long	       -
+#define TA_MSGSIZE \
+  ((FLDID32)16777353)  // TA_MSGSIZE	137	long	       -
+#define TA_MSGDATA \
+  ((FLDID32)100663434)                       // TA_MSGDATA	138	carray	     -
 #define TA_SRVID ((FLDID32)16777355)         // TA_SRVID	139	long	 -
 #define TA_RMID ((FLDID32)16777356)          // TA_RMID	140	long	 -
 #define TA_XID ((FLDID32)83886221)           // TA_XID	141	string	 -
@@ -109,14 +109,43 @@ int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long flags);
 #define TA_SIGNATURE_REQUIRED \
   ((FLDID32)83886246)  // TA_SIGNATURE_REQUIRED	166	string
 #define TA_ENCRYPTION_REQUIRED \
-  ((FLDID32)83886247)  // TA_ENCRYPTION_REQUIRED	167	string
-#define TA_BUFTYPECONV \
-  ((FLDID32)83886248)                       // TA_BUFTYPECONV	168	string
+  ((FLDID32)83886247)                       // TA_ENCRYPTION_REQUIRED	167	string
+#define TA_BUFTYPECONV ((FLDID32)83886248)  // TA_BUFTYPECONV	168	string
 #define TA_CACHINGNAME ((FLDID32)83886249)  // TA_CACHINGNAME	169	string
 #define TA_SVCRNAM ((FLDID32)83886250)      // TA_SVCRNAM	170	string
 #define TA_SVCTYPE ((FLDID32)83886251)      // TA_SVCTYPE	171	string
 #define TA_NCOMPLETED ((FLDID32)16777388)   // TA_NCOMPLETED	172	long
 #define TA_NQUEUED ((FLDID32)16777389)      // TA_NQUEUED	173	long
 #define TA_RQADDR ((FLDID32)83886254)       // TA_RQADDR	174	string
-#define TA_XAFUNC ((FLDID32)16777416)       // TA_XAFUNC	200	long
-#define TA_XARET ((FLDID32)16777417)        // TA_XARET	201	long
+#define TA_GRACE ((FLDID32)16777391)        // TA_GRACE	175	long
+#define TA_MAXGEN ((FLDID32)16777392)       // TA_MAXGEN	176	long
+#define TA_RCMD ((FLDID32)83886257)         // TA_RCMD	177	string
+#define TA_RESTART ((FLDID32)83886258)      // TA_RESTART	178	string
+#define TA_CONV ((FLDID32)83886259)         // TA_CONV	179	string
+#define TA_RQID ((FLDID32)16777396)         // TA_RQID	180	long
+#define TA_SERVERCNT ((FLDID32)16777397)    // TA_SERVERCNT	181	long
+#define TA_TOTNQUEUED ((FLDID32)16777398)   // TA_TOTNQUEUED	182	long
+#define TA_TOTWKQUEUED ((FLDID32)16777399)  // TA_TOTWKQUEUED	183	long
+#define TA_SOURCE ((FLDID32)83886264)       // TA_SOURCE	184	string
+#define TA_WKQUEUED ((FLDID32)16777401)     // TA_WKQUEUED	185	long
+#define TA_SERVERNAME ((FLDID32)83886266)   // TA_SERVERNAME	186	string
+#define TA_BASESRVID ((FLDID32)16777403)    // TA_BASESRVID	187	long
+#define TA_CLOPT ((FLDID32)83886268)        // TA_CLOPT	188	string
+#define TA_ENVFILE ((FLDID32)83886269)      // TA_ENVFILE	189	string
+#define TA_DEPENDSON ((FLDID32)83886270)    // TA_DEPENDSON	190	string
+#define TA_MIN ((FLDID32)16777407)          // TA_MIN	191	long
+#define TA_MAX ((FLDID32)16777408)          // TA_MAX	192	long
+#define TA_MINDISPATCHTHREADS \
+  ((FLDID32)16777409)  // TA_MINDISPATCHTHREADS	193	long
+#define TA_MAXDISPATCHTHREADS \
+  ((FLDID32)16777410)  // TA_MAXDISPATCHTHREADS	194	long
+#define TA_THREADSTACKSIZE \
+  ((FLDID32)16777411)  // TA_THREADSTACKSIZE	195	long
+#define TA_CURDISPATCHTHREADS \
+  ((FLDID32)16777412)  // TA_CURDISPATCHTHREADS	196	long
+#define TA_HWDISPATCHTHREADS \
+  ((FLDID32)16777413)  // TA_HWDISPATCHTHREADS	197	long
+#define TA_NUMDISPATCHTHREADS \
+  ((FLDID32)16777414)                  // TA_NUMDISPATCHTHREADS	198	long
+#define TA_XAFUNC ((FLDID32)16777416)  // TA_XAFUNC	200	long
+#define TA_XARET ((FLDID32)16777417)   // TA_XARET	201	long

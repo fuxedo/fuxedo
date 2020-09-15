@@ -210,6 +210,16 @@ size_t mib::make_queue(const std::string &rqaddr) {
   return queues()->len++;
 }
 
+size_t mib::group_index(const std::string_view &srvgrp) {
+  for (size_t i = 0; i < groups()->len; i++) {
+    auto &group = groups().at(i);
+    if (group.srvgrp == srvgrp) {
+      return i;
+    }
+  }
+  return badoff;
+}
+
 size_t mib::find_group(uint16_t grpno) {
   for (size_t i = 0; i < groups()->len; i++) {
     auto &group = groups().at(i);
@@ -236,6 +246,16 @@ size_t mib::make_group(uint16_t grpno, const std::string &srvgrp,
   checked_copy(tmsname, group.tmsname);
 
   return groups()->len++;
+}
+
+size_t mib::server_index(uint16_t srvid, size_t group_idx) {
+  for (size_t i = 0; i < servers()->len; i++) {
+    auto &server = servers().at(i);
+    if (server.srvid == srvid && server.group_idx == group_idx) {
+      return i;
+    }
+  }
+  return badoff;
 }
 
 size_t mib::find_server(uint16_t srvid, uint16_t grpno) {
@@ -265,6 +285,10 @@ size_t mib::make_server(uint16_t srvid, uint16_t grpno,
   if (server.rqaddr == badoff) {
     server.rqaddr = make_queue(rqaddr);
   }
+
+  // FIXME: only active
+  queues().at(server.rqaddr).servercnt++;
+  queues().at(server.rqaddr).server_idx = servers()->len;
   return servers()->len++;
 }
 
@@ -307,6 +331,26 @@ const char *to_string(state_t s) {
       return "INV";
     default:
       return "";
+  }
+}
+
+state_t to_state(const std::string_view &s) { return state_t::undefined; }
+
+const char *to_string(bool b) {
+  if (b) {
+    return "Y";
+  } else {
+    return "N";
+  }
+}
+
+bool to_bool(const std::string_view &s) {
+  if (s == "Y") {
+    return true;
+  } else if (s == "N") {
+    return false;
+  } else {
+    throw std::logic_error("Invalid boolean " + std::string(s));
   }
 }
 

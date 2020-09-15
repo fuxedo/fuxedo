@@ -121,6 +121,11 @@ class fml32buf {
   T get(FLDID32 fieldid, FLDOCC32 oc, const T &default_value) {
     return get(fieldid, oc, default_value, identity<T>());
   }
+  template <int N>
+  std::string get(FLDID32 fieldid, FLDOCC32 oc,
+                  const char (&default_value)[N]) {
+    return get(fieldid, oc, default_value, identity<std::string>());
+  }
 
   fml32buf &put(FLDID32 fieldid, FLDOCC32 oc, const fml32buf &value) {
     buf_.mutate([&](FBFR32 *fbfr) {
@@ -154,6 +159,10 @@ class fml32buf {
  private:
   fml32ptr buf_;
 
+  int get(FLDID32 fieldid, FLDOCC32 oc, identity<int>) {
+    return get(fieldid, oc, identity<long>());
+  }
+
   long get(FLDID32 fieldid, FLDOCC32 oc, identity<long>) {
     long ret;
     if (CFget32(ptr(), fieldid, oc, reinterpret_cast<char *>(&ret), nullptr,
@@ -161,6 +170,10 @@ class fml32buf {
       return ret;
     }
     throw fml32buf_error();
+  }
+  int get(FLDID32 fieldid, FLDOCC32 oc, const int &default_value,
+          identity<int>) {
+    return get(fieldid, oc, default_value, identity<long>());
   }
   long get(FLDID32 fieldid, FLDOCC32 oc, const long &default_value,
            identity<long>) {

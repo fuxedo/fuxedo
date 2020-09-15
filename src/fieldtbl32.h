@@ -49,11 +49,11 @@ class field_table_parser : public basic_parser {
   bool parse_line() {
     if (accept('#')) {
       std::string s;
-      comment(&s);
+      rest_of_line(&s);
       entries_.push_back({std::make_unique<std::string>(s), nullptr, nullptr});
     } else if (accept('$')) {
       std::string raw;
-      comment(&raw);
+      rest_of_line(&raw);
       entries_.push_back(
           {nullptr, std::make_unique<std::string>(raw), nullptr});
     } else if (accept('*')) {
@@ -66,7 +66,7 @@ class field_table_parser : public basic_parser {
 
       delim();
       if (accept('#')) {
-        comment();
+        rest_of_line();
       }
     } else {
       std::string fname;
@@ -75,7 +75,7 @@ class field_table_parser : public basic_parser {
 
         // short, long, float, double, char, string, carray
         auto read = delim() && unsigned_number(&num) && delim() &&
-                    name(&type) && comment(&c);
+                    name(&type) && rest_of_line(&c);
         // flags are optional as well
         if (!read) {
           throw basic_parser_error("unrecognized input", row_,
@@ -99,17 +99,6 @@ class field_table_parser : public basic_parser {
     }
 
     return accept('\n');
-  }
-
-  bool name(std::string *s = nullptr) {
-    // accept field name rules
-    return field_name(s);
-  }
-
-  bool comment(std::string *s = nullptr) {
-    while (accept([](int c) { return c != '\n'; }, s))
-      ;
-    return true;
   }
 
   bool delim() {

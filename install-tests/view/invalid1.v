@@ -1,0 +1,2 @@
+VIEW a
+VIEW b

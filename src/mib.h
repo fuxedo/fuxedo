@@ -80,23 +80,44 @@ enum class state_t : uint8_t {
   DEAd,
   NEW,
   ACTive,
-  INActive
+  INActive,
+  undefined
 };
 
 const char *to_string(state_t s);
+const char *to_string(bool b);
+state_t to_state(const std::string_view &s);
+bool to_bool(const std::string_view &s);
 
 struct server {
+  uint16_t group_idx;
   uint16_t srvid;
   uint16_t grpno;
   uint16_t mindispatchthreads;
   uint16_t maxdispatchthreads;
+  uint16_t curdispatchthreads;
+  uint16_t hwdispatchthreads;
+  uint16_t numdispatchthreads;
+  uint16_t basesrvid;
+  uint16_t min;
+  uint16_t max;
   bool autostart;
   pid_t pid;
   time_t last_alive_time;
   size_t rqaddr;
+  size_t rqaddr_idx;
   state_t state;
   char servername[128];
-  char clopt[1024];
+  char clopt[1024];   // -A
+  char envfile[256];  // ""
+  char dependson[1024];
+  char rcmd[256];
+  bool restart;  // "N"
+
+  long grace;  // 86400
+  uint16_t maxgen;
+  long threadstacksize;
+  bool conv;
 
   void suspend() { state = state_t::SUSpended; }
 
@@ -107,6 +128,9 @@ struct queue {
   char rqaddr[32];
   int msqid;
   long mtype;
+  long servercnt;
+
+  uint16_t server_idx;
 };
 
 struct service {
@@ -271,6 +295,9 @@ class mib {
     }
     return groups().at(idx);
   }
+
+  size_t group_index(const std::string_view &srvgrp);
+  size_t server_index(uint16_t srvid, size_t group_idx);
 
   size_t find_server(uint16_t srvid, uint16_t grpno);
   size_t make_server(uint16_t srvid, uint16_t grpno,

@@ -5,6 +5,7 @@ default:
 
 check:
 	make -C unit
+	make -C view 
 	make -C build
 	make -C server
 	make -C tmshutdown
@@ -19,6 +20,7 @@ check:
 
 clean:
 	make -C unit clean
+	make -C view clean
 	make -C build clean
 	make -C server clean
 	make -C tmshutdown clean
