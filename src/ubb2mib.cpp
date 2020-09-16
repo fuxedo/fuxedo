@@ -114,6 +114,7 @@ void ubb2mib(ubbconfig &u, mib &m) {
       auto &server =
           servers.at(m.make_server(30001 + n, grpno, grpconf.second["TMSNAME"],
                                    "-A", std::to_string(grpno) + ".TM"));
+      server.autostart = true;
     }
   }
 
