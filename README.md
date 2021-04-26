@@ -3,8 +3,7 @@
 Making the world a better place through minimal message-oriented transport layers.
 
 
-[![Build Status](https://github.com/fuxedo/fuxedo/workflows/CI/badge.svg)](https://github.com/fuxedo/fuxedo)
-[![Build Status](https://travis-ci.org/fuxedo/fuxedo.svg?branch=master)](https://travis-ci.org/fuxedo/fuxedo)
+[![Build Status](https://github.com/fuxedo/fuxedo/actions/workflows/fuxedo.yml/badge.svg)](https://github.com/fuxedo/fuxedo/actions/workflows/fuxedo.yml)
 [![codecov](https://codecov.io/gh/fuxedo/fuxedo/branch/master/graph/badge.svg)](https://codecov.io/gh/fuxedo/fuxedo)
 [![Coverage Status](https://coveralls.io/repos/github/fuxedo/fuxedo/badge.svg)](https://coveralls.io/github/fuxedo/fuxedo)
 
