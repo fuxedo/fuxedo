@@ -14,10 +14,10 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: configure
-      run: ./autogen.sh && ./configure
+      run: ./autogen.sh && ./configure --prefix=/home/runner/fuxbin
     - name: make
       run: make
     - name: make check
       run: make check
-    - name: make distcheck
-      run: make distcheck
+    - name: make installcheck
+      run: make install && make installcheck
