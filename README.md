@@ -2,6 +2,8 @@
 
 Making the world a better place through minimal message-oriented transport layers.
 
+
+[![Build Status](https://github.com/aivarsk/tuxedo-python/workflows/CI/badge.svg)](https://github.com/aivarsk/tuxedo-python)
 [![Build Status](https://travis-ci.org/fuxedo/fuxedo.svg?branch=master)](https://travis-ci.org/fuxedo/fuxedo)
 [![codecov](https://codecov.io/gh/fuxedo/fuxedo/branch/master/graph/badge.svg)](https://codecov.io/gh/fuxedo/fuxedo)
 [![Coverage Status](https://coveralls.io/repos/github/fuxedo/fuxedo/badge.svg)](https://coveralls.io/github/fuxedo/fuxedo)
