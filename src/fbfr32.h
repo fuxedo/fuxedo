@@ -35,6 +35,11 @@ static unsigned int crc32b(unsigned char *data, size_t len) {
   return ~crc;
 }
 
+static char zeros[] {
+  0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+  0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0
+};
+
 struct fieldhead {
   FLDID32 fieldid;
 };
@@ -153,6 +158,22 @@ struct Fbfr32 {
   }
 
   int chg(FLDID32 fieldid, FLDOCC32 oc, char *value, FLDLEN32 flen) {
+    // value=NULL -> Fdel32
+    if (value == nullptr) {
+      return del(fieldid, oc);
+    }
+
+    // oc=-1 -> Fadd32
+    FLDID32 count = occur(fieldid);
+    if (oc == -1) {
+      oc = count;
+    }
+
+    // Fill missing occurances with default values
+    for (FLDOCC32 o = count; o < oc; o++) {
+      chg(fieldid, o, zeros, 0);
+    }
+
     auto type = Fldtype32(fieldid);
     auto klass = fldclass(fieldid);
 

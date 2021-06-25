@@ -871,6 +871,73 @@ TEST_CASE("Fnext32-with-value", "[fml32]") {
   Ffree32(fbfr);
 }
 
+TEST_CASE("Fchg32-Fadd32", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  REQUIRE(fbfr != nullptr);
+
+  auto fld_short = Fmkfldid32(FLD_SHORT, 10);
+
+  for (short i = 0; i < 3; i++) {
+    REQUIRE(Fchg32(fbfr, fld_short, -1, reinterpret_cast<char *>(&i), 0) != -1);
+  }
+
+  for (short i = 0; i < 3; i++) {
+    auto ptr = Ffind32(fbfr, fld_short, i, nullptr);
+    REQUIRE(ptr != nullptr);
+    REQUIRE(reinterpret<short>(ptr) == i);
+  }
+
+  Ffree32(fbfr);
+}
+
+TEST_CASE("Fchg32-Fdel32", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  REQUIRE(fbfr != nullptr);
+
+  auto fld_short = Fmkfldid32(FLD_SHORT, 10);
+
+  for (short i = 0; i < 3; i++) {
+    REQUIRE(Fchg32(fbfr, fld_short, -1, reinterpret_cast<char *>(&i), 0) != -1);
+  }
+
+  for (short i = 0; i < 3; i++) {
+    auto ptr = Ffind32(fbfr, fld_short, i, nullptr);
+    REQUIRE(ptr != nullptr);
+    REQUIRE(reinterpret<short>(ptr) == i);
+  }
+
+  for (short i = 0; i < 3; i++) {
+    REQUIRE(Fchg32(fbfr, fld_short, 0, nullptr, 0) != -1);
+  }
+  REQUIRE(Foccur32(fbfr, fld_short) == 0);
+
+
+  Ffree32(fbfr);
+}
+
+
+TEST_CASE("Fchg32-gaps", "[fml32]") {
+  auto fbfr = Falloc32(100, 100);
+  REQUIRE(fbfr != nullptr);
+
+  auto fld_short = Fmkfldid32(FLD_SHORT, 10);
+
+  short i = 5;
+  REQUIRE(Fchg32(fbfr, fld_short, 5, reinterpret_cast<char *>(&i), 0) != -1);
+
+  for (short i = 0; i < 5; i++) {
+    auto ptr = Ffind32(fbfr, fld_short, i, nullptr);
+    REQUIRE(ptr != nullptr);
+    REQUIRE(reinterpret<short>(ptr) == 0);
+  }
+
+  auto ptr = Ffind32(fbfr, fld_short, 5, nullptr);
+  REQUIRE(ptr != nullptr);
+  REQUIRE(reinterpret<short>(ptr) == 5);
+
+  Ffree32(fbfr);
+}
+
 TEST_CASE("Fchg32-short", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   REQUIRE(fbfr != nullptr);
