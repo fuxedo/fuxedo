@@ -73,9 +73,15 @@ char *tpalloc(char *type, char *subtype, long size) {
 
   size = size >= tptype->default_size ? size : tptype->default_size;
   auto mem = (tpmem *)malloc(sizeof(tpmem) + size);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
   strncpy(mem->type, type, sizeof(mem->type));
+#pragma GCC diagnostic pop
   if (subtype != nullptr) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
     strncpy(mem->subtype, subtype, sizeof(mem->subtype));
+#pragma GCC diagnostic pop
   } else {
     mem->subtype[0] = '\0';
   }

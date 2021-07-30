@@ -334,7 +334,7 @@ const char *to_string(state_t s) {
   }
 }
 
-state_t to_state(const std::string_view &s) { return state_t::undefined; }
+state_t to_state(const std::string_view &) { return state_t::undefined; }
 
 const char *to_string(bool b) {
   if (b) {

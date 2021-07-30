@@ -104,7 +104,7 @@ static void run_watchdog() {
   }
 }
 
-int tpsvrinit(int argc, char *argv[]) {
+int tpsvrinit(int, char *[]) {
   std::thread t(run_watchdog);
   t.detach();
   return 0;
