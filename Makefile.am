@@ -8,8 +8,7 @@ endif
 AM_CXXFLAGS = -g -Wall -Wextra $(gcov_flags) \
               -I$(top_srcdir)/include \
               -I$(top_srcdir)/third_party/catch \
-              -I$(top_srcdir)/third_party/clara \
-              -I$(top_srcdir)/third_party/GSL
+              -I$(top_srcdir)/third_party/clara
 
 AM_LDFLAGS = $(gcov_ldflags)
 

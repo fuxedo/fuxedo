@@ -15,8 +15,6 @@
 
 #include <string>
 
-#include <gsl/gsl_util>
-
 #include "misc.h"
 
 // FIXME: Linux only
@@ -51,7 +49,10 @@ int userlog(const char *fmt, ...) {
   if (fout == nullptr) {
     return -1;
   }
-  auto _ = gsl::finally([&] { fclose(fout); });
+  struct scope_exit {
+    FILE *f;
+    ~scope_exit() { fclose(f); }
+  } close_fout{fout};
 
   char buf[BUFSIZ];
   ssize_t n;
