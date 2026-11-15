@@ -99,4 +99,4 @@ Check out some other projects:
 
 I'm interested to hear what features of Oracle Tuxedo your project is using and what should be implemented in Fuxedo. If you can share the code or let me take a look under NDA - even better.
 
-For more information, support, features and development contact us at info@fuxedo.io
+For bugs and feature requests, [open an issue on GitHub](https://github.com/fuxedo/fuxedo/issues/new).
