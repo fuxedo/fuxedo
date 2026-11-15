@@ -3,11 +3,14 @@
 
 #include <clara.hpp>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
+#include <sstream>
 #include <iostream>
 #include <string>
 #include <system_error>
 
+#include "cfg.h"
 #include "mib.h"
 #include "ubbreader.h"
 
@@ -23,20 +26,6 @@ namespace fs = std::experimental::filesystem;
 
 void ubb2mib(ubbconfig &u, mib &m);
 
-template <typename T>
-long require(T &dict, const std::string &key, long min, long max,
-             long defvalue) {
-  if (dict.find(key) == dict.end()) {
-    return defvalue;
-    //    throw std::out_of_range(key + " required");
-  }
-  auto value = std::stol(dict[key]);
-  if (value < min || value > max) {
-    throw std::out_of_range(key + " out of range");
-  }
-  return value;
-}
-
 int main(int argc, char *argv[]) {
   bool show_help = false;
   bool noop = false;
@@ -51,10 +40,20 @@ int main(int argc, char *argv[]) {
       clara::Opt(count)["-c"]("print IPC resources needed for configuration") |
       clara::Arg(file, "ubbconfig")("configuration file to load").required();
 
+  for (int i = 1; i < argc; i++) {
+    if (std::strcmp(argv[i], "-") == 0) {
+      argv[i] = const_cast<char *>("/dev/stdin");
+    }
+  }
+
   auto result = parser.parse(clara::Args(argc, argv));
   if (!result || result.value().type() != clara::ParseResultType::Matched) {
     std::cerr << parser;
     return -1;
+  }
+  if (show_help) {
+    std::cout << parser;
+    return 0;
   }
 
   auto outfile = std::getenv("TUXCONFIG");
@@ -63,38 +62,41 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  ubbconfig config;
   try {
+    std::string text;
+    if (file == "-") {
+      // rewritten to /dev/stdin above
+    }
+    // a lone "-" is rewritten to /dev/stdin before parsing
     std::ifstream fin;
     fin.exceptions(std::ifstream::failbit | std::ifstream::badbit);
     fin.open(file);
+    std::ostringstream src;
+    src << fin.rdbuf();
+    text = src.str();
 
-    ubbreader p(fin);
-    config = p.parse();
+    std::istringstream in(text);
+    ubbreader p(in);
+    auto config = p.parse();
 
-    tuxconfig tuxcfg;
-    tuxcfg.size = sizeof(tuxcfg) + fs::file_size(file);
-    tuxcfg.ipckey = std::stoi(config.resources.at("IPCKEY"));
-    tuxcfg.maxservers = require(config.resources, "MAXSERVERS", 1, 8192, 50);
-    tuxcfg.maxservices =
-        require(config.resources, "MAXSERVICES", 1, 1048575, 100);
-    tuxcfg.maxgroups = require(config.resources, "MAXGROUPS", 1, 32768, 100);
-    tuxcfg.maxqueues = require(config.resources, "MAXQUEUES", 1, 8192, 50);
-    tuxcfg.maxaccessers =
-        require(config.resources, "MAXACCESSERS", 1, 32768, 100);
+    auto tables = fux::cfg::build(config);
+
+    mib m(tables.dom, fux::mib::in_heap());
+    ubb2mib(config, m);
+
+    tuxconfig hdr = {};
+    memcpy(hdr.magic, TUXCONFIG_MAGIC, sizeof(hdr.magic));
+    hdr.hdr_size = sizeof(hdr);
+    hdr.version = TUXCONFIG_VERSION;
+    hdr.text_off = sizeof(hdr);
+    hdr.text_size = text.size();
+    hdr.ipckey = tables.dom.ipckey;
+    hdr.flags = TUXCONFIG_FLAG_LOADED;
+    hdr.revision = 1;
 
     std::ofstream fout(outfile, std::ios::binary);
-    fout.write(reinterpret_cast<char *>(&tuxcfg), sizeof(tuxcfg));
-
-    fin.clear();
-    fin.seekg(0);
-    fout << fin.rdbuf();
-
-    //    tuxcfg.maxqueues = std::stoi(config.resources.at("MAXQUEUES"));
-
-    mib m(tuxcfg, fux::mib::in_heap());
-
-    ubb2mib(config, m);
+    fout.write(reinterpret_cast<char *>(&hdr), sizeof(hdr));
+    fout.write(text.data(), text.size());
   } catch (const std::system_error &e) {
     std::cerr << e.code().message() << std::endl;
     return -1;

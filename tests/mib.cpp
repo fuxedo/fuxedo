@@ -8,15 +8,14 @@
 #include "../src/ubbreader.h"
 
 TEST_CASE("services can be advertised", "[mib]") {
-  tuxconfig tuxcfg;
-  tuxcfg.size = 0;
-  tuxcfg.ipckey = 0;
-  tuxcfg.maxservers = 5;
-  tuxcfg.maxservices = 5;
-  tuxcfg.maxgroups = 5;
-  tuxcfg.maxqueues = 5;
+  fux::cfg::domain domain;
+  domain.ipckey = 0;
+  domain.maxservers = 5;
+  domain.maxservices = 5;
+  domain.maxgroups = 5;
+  domain.maxqueues = 5;
 
-  mib m(tuxcfg, fux::mib::in_heap());
+  mib m(domain, fux::mib::in_heap());
   auto srv = m.make_server(1, 1, "server", "clopt", "rqaddr");
   auto q = m.servers().at(srv).rqaddr;
 
@@ -28,14 +27,13 @@ TEST_CASE("services can be advertised", "[mib]") {
 
 SCENARIO("servers can be added", "[mib]") {
   GIVEN("configuration with max 1 server") {
-    tuxconfig tuxcfg;
-    tuxcfg.size = 0;
-    tuxcfg.ipckey = 0;
-    tuxcfg.maxservers = 1;
-    tuxcfg.maxservices = 1;
-    tuxcfg.maxgroups = 1;
-    tuxcfg.maxqueues = 1;
-    mib m(tuxcfg, fux::mib::in_heap());
+    fux::cfg::domain domain;
+    domain.ipckey = 0;
+    domain.maxservers = 1;
+    domain.maxservices = 1;
+    domain.maxgroups = 1;
+    domain.maxqueues = 1;
+    mib m(domain, fux::mib::in_heap());
 
     WHEN("one server is added") {
       auto ptr = m.make_server(1, 1, "server", "clopt", "rqaddr");

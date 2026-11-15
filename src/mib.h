@@ -11,12 +11,14 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
+#include "cfg.h"
 #include "ipc.h"
 #include "misc.h"
 #include "ubb.h"
 #include "mibtypes.h"
 
-tuxconfig getconfig(ubbconfig *ubb = nullptr);
+tuxconfig getconfig(fux::cfg::tables *tables = nullptr,
+                    ubbconfig *ubb = nullptr);
 
 struct transaction_table;
 
@@ -118,10 +120,10 @@ rhs) { return ptr_ != rhs.ptr_; } private: pointer ptr_;
 
 class mib {
  public:
-  mib(const tuxconfig &cfg);
-  mib(const tuxconfig &cfg, fux::mib::in_heap);
+  mib(const fux::cfg::domain &domain);
+  mib(const fux::cfg::domain &domain, fux::mib::in_heap);
 
-  static size_t needed(const tuxconfig &cfg);
+  static size_t needed(const fux::cfg::domain &domain);
 
   void validate();
   void remove();
@@ -131,6 +133,7 @@ class mib {
   uint64_t genuid();
 
   auto &conf() { return mem_->conf; }
+  const fux::cfg::domain &cfg() { return cfg_; }
   auto &domain() { return mem_->domain; }
   auto &mach() { return mem_->mach; }
   auto groups() { return mibarrptr<group>(&mem_->groups); }
@@ -193,7 +196,7 @@ class mib {
   size_t find_advertisement(size_t service, size_t queue, size_t server);
   void init_memory();
 
-  tuxconfig cfg_;
+  fux::cfg::domain cfg_;
   int shmid_;
   mibmem *mem_;
 };

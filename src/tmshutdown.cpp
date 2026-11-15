@@ -27,12 +27,16 @@ int main(int argc, char *argv[]) {
 
   int srvid = -1;
   std::string grpname;
+  std::string srvname;
+  std::string lmid;
 
   auto parser =
       clara::Help(show_help) |
       clara::Opt(yes)["-y"]("answer Yes to all questions") |
       clara::Opt(srvid, "srvid")["-i"]("server's SRVID in TUXCONFIG") |
-      clara::Opt(grpname, "grpname")["-g"]("server's SRVGRP in TUXCONFIG");
+      clara::Opt(grpname, "grpname")["-g"]("server's SRVGRP in TUXCONFIG") |
+      clara::Opt(srvname, "aout")["-s"]("shut down only servers named aout") |
+      clara::Opt(lmid, "lmid")["-l"]("shut down only on the named LMID");
 
   auto result = parser.parse(clara::Args(argc, argv));
   if (!result) {
@@ -47,14 +51,35 @@ int main(int argc, char *argv[]) {
   try {
     mib &m = getmib();
 
+    if (!lmid.empty() && lmid != m.mach().lmid) {
+      std::cerr << "lmid " << lmid << " not found on this machine"
+                << std::endl;
+      return -1;
+    }
+
     fux::fml32buf buf;
 
     auto queues = m.queues();
     auto servers = m.servers();
 
+    size_t grpfilter = mib::badoff;
+    if (!grpname.empty()) {
+      grpfilter = m.group_index(grpname);
+      if (grpfilter == mib::badoff) {
+        std::cerr << "group " << grpname << " not found" << std::endl;
+        return -1;
+      }
+    }
+
     for (int i = servers->len - 1; i >= 0; i--) {
       auto &server = servers[i];
       if (srvid != -1 && srvid != server.srvid) {
+        continue;
+      }
+      if (grpfilter != mib::badoff && server.group_idx != grpfilter) {
+        continue;
+      }
+      if (!srvname.empty() && srvname != server.servername) {
         continue;
       }
       if (server.pid == 0) {
@@ -96,7 +121,7 @@ int main(int argc, char *argv[]) {
     }
 
     tpterm();
-    if (srvid == -1) {
+    if (srvid == -1 && grpname.empty() && srvname.empty()) {
       m.remove();
     }
   } catch (const std::exception &e) {

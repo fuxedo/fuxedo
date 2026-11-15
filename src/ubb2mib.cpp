@@ -78,12 +78,12 @@ void ubb2mib(ubbconfig &u, mib &m) {
   m.mach().blocktime = std::stol(blocktime) * std::stol(scanunit);
 
   auto &domain = m.domain();
-  domain.ipckey = m.conf().ipckey;
-  domain.maxservers = m.conf().maxservers;
-  domain.maxservices = m.conf().maxservices;
-  domain.maxqueues = m.conf().maxqueues;
-  domain.maxgroups = m.conf().maxgroups;
-  domain.maxaccessers = m.conf().maxaccessers;
+  domain.ipckey = m.cfg().ipckey;
+  domain.maxservers = m.cfg().maxservers;
+  domain.maxservices = m.cfg().maxservices;
+  domain.maxqueues = m.cfg().maxqueues;
+  domain.maxgroups = m.cfg().maxgroups;
+  domain.maxaccessers = m.cfg().maxaccessers;
 
   std::map<std::string, uint16_t> group_ids;
   auto groups = m.groups();

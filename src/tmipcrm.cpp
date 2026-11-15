@@ -39,9 +39,14 @@ static void print(std::vector<int> &q, std::vector<int> &m,
 int main(int argc, char *argv[]) {
   bool show_help = false;
   bool yes = false;
+  bool report_only = false;
+  std::string tuxconfig_file;
 
   auto parser = clara::Help(show_help) |
-                clara::Opt(yes)["-y"]("answer Yes to all questions");
+                clara::Opt(yes)["-y"]("answer Yes to all questions") |
+                clara::Opt(report_only)["-n"]("report only, do not remove") |
+                clara::Arg(tuxconfig_file, "TUXCONFIG_file")(
+                    "TUXCONFIG file (overrides environment)");
 
   auto result = parser.parse(clara::Args(argc, argv));
   if (!result) {
@@ -50,9 +55,13 @@ int main(int argc, char *argv[]) {
   }
 
   try {
-    auto cfg = getconfig();
+    if (!tuxconfig_file.empty()) {
+      setenv("TUXCONFIG", tuxconfig_file.c_str(), 1);
+    }
+    fux::cfg::tables tables;
+    getconfig(&tables);
 
-    mib mib(cfg);
+    mib mib(tables.dom);
     std::cout << "Looking for IPC resources in TUXCONFIG file "
               << std::getenv("TUXCONFIG") << std::endl;
     std::vector<int> q, m, s;
@@ -64,6 +73,9 @@ int main(int argc, char *argv[]) {
 
     print(q, m, s);
 
+    if (report_only) {
+      return 0;
+    }
     if (yes) {
       mib.remove(q, m, s);
     } else {

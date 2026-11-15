@@ -56,5 +56,23 @@ def test_buildclient_help():
     assert "buildclient" in proc.stdout + proc.stderr
 
 
+def test_tmipcrm_accepts_positional_tuxconfig_and_n():
+    with scratch("tmipcrm-pos") as dir:
+        ubb = dir / "ubbconfig"
+        ubb.write_text("""*RESOURCES
+IPCKEY 32769
+MASTER tuxapp
+MODEL SHM
+
+*MACHINES
+"m" LMID=tuxapp APPDIR="{0}" TUXCONFIG="{0}/tuxconfig" TUXDIR="{1}"
+""".format(dir, os.environ["TUXDIR"]))
+        tuxconfig = dir / "tuxconfig"
+        run(["tmloadcf", "-y", ubb], env={"TUXCONFIG": tuxconfig})
+        # positional argument overrides the environment, -n reports only
+        run(["tmipcrm", "-n", tuxconfig],
+            env={k: v for k, v in os.environ.items() if k != "TUXCONFIG"})
+
+
 if __name__ == "__main__":
     main(globals())

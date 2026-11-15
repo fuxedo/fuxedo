@@ -26,16 +26,19 @@ struct ubbconfig {
         } {}
 };
 
-// "Binary" version of ubbconfig
-// Really just some significant info at fixed offsets and then the text version
-// ubbconfig
+// "Binary" version of ubbconfig: fixed header followed by the text
+// version. See private/notes/shm-redesign.md for the pinned format.
 struct tuxconfig {
-  size_t size;  // Size and "signature" at the same time
+  char magic[8];  // "FUXCFG01"
+  uint32_t hdr_size;
+  uint32_t version;  // 1
+  uint32_t text_off;
+  uint64_t text_size;
   uint32_t ipckey;
-  uint16_t maxservers;
-  uint16_t maxservices;
-  uint16_t maxqueues;
-  uint16_t maxgroups;
-  uint16_t maxaccessers;
-  //  char ubb[];
+  uint32_t flags;  // bit0: populated by tmloadcf
+  uint64_t revision;
 };
+
+constexpr char TUXCONFIG_MAGIC[8] = {'F', 'U', 'X', 'C', 'F', 'G', '0', '1'};
+constexpr uint32_t TUXCONFIG_VERSION = 1;
+constexpr uint32_t TUXCONFIG_FLAG_LOADED = 0x1;

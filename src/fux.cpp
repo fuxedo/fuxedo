@@ -22,9 +22,9 @@ int main(int argc, char *argv[]) {
   }
 
   try {
-    auto cfg = getconfig();
-
-    mib m(cfg);
+    fux::cfg::tables tables;
+    getconfig(&tables);
+    mib m(tables.dom);
   } catch (const std::exception &e) {
     std::cerr << e.what() << std::endl;
     return -1;

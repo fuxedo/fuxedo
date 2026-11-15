@@ -87,11 +87,16 @@ class ubbreader : public basic_parser {
   bool parse_params(ubb_params *ubbparams) {
     while (true) {
       whitespace();
-      // Continued on next line
+      // Continued on next line, either by leading whitespace or by '\'
       if (accept('\n')) {
         if (!whitespace()) {
           return true;
         }
+      } else if (accept('\\')) {
+        if (!accept('\n')) {
+          throw basic_parser_error("newline expected after \\", row_, "");
+        }
+        whitespace();
       }
 
       std::string key, value;

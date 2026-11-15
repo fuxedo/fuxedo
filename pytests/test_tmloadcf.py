@@ -78,6 +78,17 @@ def test_ipc_resources_flag():
             assert tuxconfig.exists()
 
 
+def test_load_from_stdin():
+    with scratch("tmloadcf-stdin") as dir:
+        ubb = write_ubb(dir)
+        tuxconfig = dir / "tuxconfig"
+        run(["tmloadcf", "-y", "-"], input=ubb.read_text(),
+            env={"TUXCONFIG": tuxconfig})
+        assert tuxconfig.exists()
+        proc = run(["tmunloadcf"], env={"TUXCONFIG": tuxconfig})
+        assert "32769" in proc.stdout
+
+
 def test_missing_tuxconfig_env():
     with scratch("tmloadcf-env") as dir:
         ubb = write_ubb(dir)

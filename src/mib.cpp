@@ -40,7 +40,7 @@ void mib::validate() {
   }
 }
 
-tuxconfig getconfig(ubbconfig *ubb) {
+tuxconfig getconfig(fux::cfg::tables *tables, ubbconfig *ubb) {
   auto outfile = fux::util::getenv("TUXCONFIG", "");
   if (outfile.empty()) {
     throw std::runtime_error("TUXCONFIG environment variable required");
@@ -50,17 +50,28 @@ tuxconfig getconfig(ubbconfig *ubb) {
   fin.exceptions(std::ifstream::failbit | std::ifstream::badbit);
   fin.open(outfile);
 
-  tuxconfig tuxcfg;
+  tuxconfig tuxcfg = {};
   fin.read(reinterpret_cast<char *>(&tuxcfg), sizeof(tuxcfg));
 
-  auto size = fs::file_size(outfile);
-  if (tuxcfg.size != size) {
-    throw std::runtime_error("Bad TUXCONFIG signature, invalid file");
+  if (memcmp(tuxcfg.magic, TUXCONFIG_MAGIC, sizeof(tuxcfg.magic)) != 0 ||
+      tuxcfg.version != TUXCONFIG_VERSION) {
+    throw std::runtime_error("Not a fuxedo TUXCONFIG file (bad magic)");
+  }
+  if (tuxcfg.text_off != sizeof(tuxcfg) ||
+      fs::file_size(outfile) != sizeof(tuxcfg) + tuxcfg.text_size) {
+    throw std::runtime_error("Corrupt TUXCONFIG file");
   }
 
-  if (ubb != nullptr) {
+  if (tables != nullptr || ubb != nullptr) {
+    ubbconfig parsed;
     ubbreader p(fin);
-    *ubb = p.parse();
+    parsed = p.parse();
+    if (tables != nullptr) {
+      *tables = fux::cfg::build(parsed);
+    }
+    if (ubb != nullptr) {
+      *ubb = std::move(parsed);
+    }
   }
 
   return tuxcfg;
@@ -76,12 +87,12 @@ std::string getubb() {
   fin.exceptions(std::ifstream::failbit | std::ifstream::badbit);
   fin.open(outfile);
 
-  tuxconfig tuxcfg;
+  tuxconfig tuxcfg = {};
   fin.read(reinterpret_cast<char *>(&tuxcfg), sizeof(tuxcfg));
-
-  auto size = fs::file_size(outfile);
-  if (tuxcfg.size != size) {
-    throw std::runtime_error("Bad TUXCONFIG signature, invalid file");
+  if (memcmp(tuxcfg.magic, TUXCONFIG_MAGIC, sizeof(tuxcfg.magic)) != 0 ||
+      tuxcfg.version != TUXCONFIG_VERSION ||
+      fs::file_size(outfile) != sizeof(tuxcfg) + tuxcfg.text_size) {
+    throw std::runtime_error("Not a fuxedo TUXCONFIG file");
   }
 
   std::ostringstream sout;
@@ -99,7 +110,7 @@ size_t init(T &t, size_t size, size_t off) {
   return nearest64(t.size * sizeof(typename T::value_type));
 }
 
-size_t mib::needed(const tuxconfig &cfg) {
+size_t mib::needed(const fux::cfg::domain &cfg) {
   return nearest64(sizeof(mibmem)) +
          nearest64(cfg.maxservers * sizeof(server)) +
          nearest64(cfg.maxqueues * sizeof(queue)) +
@@ -435,11 +446,12 @@ mib &getmib() {
   static std::unique_ptr<mib> mibcon;
 
   if (!mibcon.get()) {
-    auto cfg = getconfig();
-    mibcon = std::make_unique<mib>(cfg);
+    fux::cfg::tables tables;
+    getconfig(&tables);
+    mibcon = std::make_unique<mib>(tables.dom);
     if (mibcon->servers()->len == 0) {
       ubbconfig u;
-      getconfig(&u);
+      getconfig(nullptr, &u);
       ubb2mib(u, *mibcon.get());
     }
   }
@@ -447,7 +459,7 @@ mib &getmib() {
   return *mibcon.get();
 }
 
-mib::mib(const tuxconfig &cfg) : cfg_(cfg) {
+mib::mib(const fux::cfg::domain &domain) : cfg_(domain) {
   shmid_ = shmget(cfg_.ipckey, needed(cfg_), 0600 | IPC_CREAT);
   if (shmid_ == -1) {
     throw std::system_error(errno, std::system_category(), "shmget failed");
@@ -461,7 +473,14 @@ mib::mib(const tuxconfig &cfg) : cfg_(cfg) {
   int z = 0;
   if (mem_->state.compare_exchange_strong(z, 1)) {
     mem_->mainsem = fux::ipc::seminit(IPC_PRIVATE, 1);
-    mem_->conf = cfg_;
+    memcpy(mem_->conf.magic, TUXCONFIG_MAGIC, sizeof(mem_->conf.magic));
+    mem_->conf.hdr_size = sizeof(mem_->conf);
+    mem_->conf.version = TUXCONFIG_VERSION;
+    mem_->conf.text_off = sizeof(mem_->conf);
+    mem_->conf.text_size = 0;
+    mem_->conf.ipckey = cfg_.ipckey;
+    mem_->conf.flags = 0;
+    mem_->conf.revision = 0;
     init_memory();
     mem_->state = 2;
   }
@@ -471,7 +490,8 @@ mib::mib(const tuxconfig &cfg) : cfg_(cfg) {
   }
 }
 
-mib::mib(const tuxconfig &cfg, fux::mib::in_heap) : cfg_(cfg) {
+mib::mib(const fux::cfg::domain &domain, fux::mib::in_heap)
+    : cfg_(domain) {
   mem_ = reinterpret_cast<mibmem *>(calloc(1, needed(cfg_)));
   init_memory();
 }

@@ -24,7 +24,9 @@ int main(int argc, char *argv[]) {
   }
 
   try {
-    std::cout << getubb();
+    fux::cfg::tables tables;
+    getconfig(&tables);
+    std::cout << fux::cfg::emit(tables);
 
   } catch (const std::system_error &e) {
     std::cerr << e.code().message() << std::endl;

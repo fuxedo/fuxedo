@@ -27,7 +27,7 @@ lib_LTLIBRARIES = src/libfuxedo.la
 src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/fml32.cpp src/expr.cpp \
                            src/server.cpp src/client.cpp \
-                           src/mib.cpp src/ubb2mib.cpp \
+                           src/mib.cpp src/ubb2mib.cpp src/cfg.cpp \
                            src/userlog.cpp \
                            src/ipc.cpp \
                            src/qmxa.cpp src/nonexa.cpp src/tx.cpp src/trx.cpp \
@@ -92,7 +92,7 @@ src_tmipcrm_LDADD = src/libfuxedo.la
 udataobjdir = @prefix@/udataobj
 udataobj_DATA = RM include/tpadm
 
-TESTS = tests/xatmi tests/fml32 tests/expr tests/mib tests/ipcq tests/base64 tests/userlog tests/trx tests/qm
+TESTS = tests/xatmi tests/fml32 tests/expr tests/mib tests/ipcq tests/base64 tests/userlog tests/trx tests/qm tests/cfg
 check_PROGRAMS = $(TESTS)
 
 AM_TESTS_ENVIRONMENT = FLDTBLDIR32=.:src:tests FIELDTBLS32=dummy,fields
@@ -122,6 +122,9 @@ tests_trx_SOURCES = tests/trx.cpp tests/tests-main.cpp
 tests_trx_LDADD = src/libfuxedo.la
 
 tests_qm_SOURCES = tests/qm.cpp tests/tests-main.cpp
+
+tests_cfg_SOURCES = tests/cfg.cpp tests/tests-main.cpp
+tests_cfg_LDADD = src/libfuxedo.la
 tests_qm_LDADD = src/libfuxedo.la
 
 clang-format:

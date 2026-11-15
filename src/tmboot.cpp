@@ -84,6 +84,8 @@ int main(int argc, char *argv[]) {
   bool no = false;
   bool d1 = false;
   std::string grpname;
+  std::string srvname;
+  std::string lmid;
   int srvid = -1;
 
   /*
@@ -102,7 +104,9 @@ int main(int argc, char *argv[]) {
       clara::Opt(d1)["-d"](
           "causes command line options to be printed on the standard output") |
       clara::Opt(srvid, "srvid")["-i"]("server's SRVID in TUXCONFIG") |
-      clara::Opt(grpname, "grpname")["-g"]("server's SRVGRP in TUXCONFIG");
+      clara::Opt(grpname, "grpname")["-g"]("server's SRVGRP in TUXCONFIG") |
+      clara::Opt(srvname, "aout")["-s"]("boot only servers named aout") |
+      clara::Opt(lmid, "lmid")["-l"]("boot only on the named LMID");
 
   auto result = parser.parse(clara::Args(argc, argv));
   if (!result) {
@@ -112,6 +116,12 @@ int main(int argc, char *argv[]) {
 
   try {
     mib &m = getmib();
+
+    if (!lmid.empty() && lmid != m.mach().lmid) {
+      std::cerr << "lmid " << lmid << " not defined in this configuration"
+                << std::endl;
+      return -1;
+    }
 
     m.validate();
 
@@ -123,11 +133,29 @@ int main(int argc, char *argv[]) {
     setenv("PATH", path.str().c_str(), 1);
 
     auto servers = m.servers();
+    size_t grpfilter = mib::badoff;
+    if (!grpname.empty()) {
+      grpfilter = m.group_index(grpname);
+      if (grpfilter == mib::badoff) {
+        std::cerr << "group " << grpname << " not found" << std::endl;
+        return -1;
+      }
+    }
     for (size_t i = 0; i < servers->len; i++) {
       auto &srv = servers[i];
-      if (srv.autostart) {
-        start(srv, no, d1);
+      if (!srv.autostart) {
+        continue;
       }
+      if (srvid != -1 && srv.srvid != srvid) {
+        continue;
+      }
+      if (grpfilter != mib::badoff && srv.group_idx != grpfilter) {
+        continue;
+      }
+      if (!srvname.empty() && srvname != srv.servername) {
+        continue;
+      }
+      start(srv, no, d1);
     }
   } catch (const std::exception &e) {
     std::cerr << e.what() << std::endl;
