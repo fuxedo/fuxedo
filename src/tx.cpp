@@ -394,6 +394,11 @@ void tx_join(fux::gttid gttid) {
 namespace tx {
 fux::gttid gttid() { return getctxt().gttid; }
 bool transactional() { return !(getctxt().info.xid.formatID == -1); }
+// Lazy variant: does not create a transaction context (and does not require
+// an attached domain) when the thread has not touched transactions at all.
+bool tx_active() {
+  return txctxt.get() != nullptr && txctxt->info.xid.formatID != -1;
+}
 }  // namespace tx
 };  // namespace fux
 

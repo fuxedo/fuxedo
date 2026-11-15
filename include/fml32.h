@@ -127,6 +127,99 @@ int Fextread32(FBFR32 *fbfr, FILE *iop);
 int Fwrite32(FBFR32 *fbfr, FILE *iop);
 int Fread32(FBFR32 *fbfr, FILE *iop);
 
+#define BLOCKBUFSIZE 4096
+#define BUFSIZE 512
+#define C_BOOL 14
+#define C_CARRAY 6 /* character array */
+#define C_CHAR 2 /* character */
+#define C_DECIMAL 8 /* 8 reserved for FLD_DECIMAL (see viewmap.h) */
+#define C_DOUBLE 4 /* double-precision float */
+#define C_FLOAT 3 /* single-precision float */
+#define C_FML 13 /* for embedded ptr to FML buffer */
+#define C_FML32 10 /* embedded FML32 buffer */
+#define C_INT 7 /* 7 reserved for FLD_INT (see viewmap.h) */
+#define C_LDOUBLE 22
+#define C_LLONG 20
+#define C_LONG 1 /* long int */
+#define C_MBSTRING 12 /* embedded multibyte codeset info */
+#define C_NUMTYPE 24
+#define C_PTR 9 /* pointer */
+#define C_SCHAR 16
+#define C_SHORT 0 /* short int */
+#define C_STRING 5 /* string - null terminated */
+#define C_UCHAR 15
+#define C_UINT 18
+#define C_ULLONG 21
+#define C_ULONG 19
+#define C_USHORT 23
+#define C_VIEW32 11 /* embedded VIEW32 */
+#define C_WCHAR 17
+#define FADD 1
+#define FBUFENC 1
+#define FCONCAT 2
+#define FDEL 3
+#define FJOIN 3
+#define FLD_FML 13 /* for embedded ptr to FML buffer */
+#define FLD_MAX 14 /* for field type validation */
+#define FLD_MBSTRING 12 /* embedded multibyte codeset info */
+#define FLD_VIEW32 11 /* embedded VIEW32 */
+#define FLD_XPATH 14 /* for xpath */
+#define FMAXNULLSIZE 2660
+#define FMAXVAL 25 /* top of error message codes */
+#define FMINVAL 0 /* bottom of error message codes */
+#define FML32_H 
+#define FMLMOD 2
+#define FMLTYPE32 "FML32"
+#define FOJOIN 4
+#define FRECORDCACHESIZE 128
+#define FRECORDNAMESIZE 33
+#define FSTDXINT 16 /* Default indexing interval */
+#define FTERMENC 2
+#define FUPDATE 1
+#define FVIEWCACHESIZE 128
+#define FVIEWFLDOVHD FVIEWNAMESIZE
+#define FVIEWNAMESIZE 33
+#define F_BOTH (F_STOF | F_FTOS) /* S,F */
+#define F_COUNT 64 /* C */
+#define F_FTOS 8 /* S */
+#define F_LENGTH 32 /* L */
+#define F_NONE 128 /* NONE flag for null value */
+#define F_OFF 0 /* Z */
+#define F_OFFSET 1
+#define F_PROP 4 /* P */
+#define F_SIZE 2
+#define F_STOF 16 /* F */
+#define Fread32(A,B) FMLread32(A,B)
+#define Fwrite32(A,B) FMLwrite32(A,B)
+#define MAXFBLEN32 0x7ffffffe /* Maximum FBFR3232 length */
+#define MINBUFSIZE 256
+#define RCONFLICTOK 1
+#define RECORDTYPE "RECORD"
+#define ROK 0
+#define TPENC_ASCII 0x01 /* character encoding is ASCII format */
+#define TPENC_BIG_ENDIAN 0x04 /* big endian */
+#define TPENC_EBCDIC 0x02 /* character encoding is EBCDIC format */
+#define TPENC_LITTLE_ENDIAN 0x08 /* little endian */
+#define TPENC_MAINFRAME_FLOAT 0x10 /* mainframe float*/
+#define TPXMLALLOWEMPTY 0x2000 /* None parser flag, ATMI use only */
+#define TPXPARSALWAYS 0x0002
+#define TPXPARSCACHERESET 0x0400
+#define TPXPARSCACHESET 0x0200
+#define TPXPARSCONFATAL 0x0008
+#define TPXPARSDOSCH 0x0020
+#define TPXPARSEREFN 0x0040
+#define TPXPARSNEVER 0x0001
+#define TPXPARSNOEXIT 0x0080
+#define TPXPARSNOINCWS 0x0100
+#define TPXPARSNSPACE 0x0010
+#define TPXPARSSCHFULL 0x0004
+#define TPXPARSSTDURI 0x0800 /* TPXPARSFILE use only */
+#define TPXPARSUSECACHEDGRAM 0x1000 /* TPXPARSFILE use only */
+#define VIEWTYPE32 "VIEW32"
+
+#define FMLread32(x, y) Fread32(x, y)
+#define FMLwrite32(x, y) Fwrite32(x, y)
+
 #ifdef __cplusplus
 }
 #endif

@@ -2,6 +2,7 @@
 #include <atmi.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 #include <userlog.h>
 
 void SERVICE_COMMIT(TPSVCINFO *svcinfo) {

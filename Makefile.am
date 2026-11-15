@@ -32,7 +32,7 @@ src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/ipc.cpp \
                            src/qmxa.cpp src/nonexa.cpp src/tx.cpp src/trx.cpp \
                            src/misc.cpp src/base64.cpp \
-                           src/tpadmcall.cpp src/tmq.cpp
+                           src/tpadmcall.cpp src/tmq.cpp src/qm.cpp
 
 src_libfuxedo_la_LDFLAGS = -lpthread
 
@@ -40,10 +40,14 @@ bin_PROGRAMS = src/mkfldhdr32 src/viewc32 src/ud32 \
                src/fux \
                src/tmipcrm \
                src/tmadmin \
+               src/qmadmin \
                src/tmloadcf src/tmunloadcf \
                src/buildserver src/buildclient src/buildtms \
                src/tmboot src/tmshutdown \
                src/BBL src/TMS
+
+src_qmadmin_SOURCES = src/qmadmin.cpp
+src_qmadmin_LDADD = src/libfuxedo.la
 
 src_buildtms_SOURCES = src/buildtms.cpp
 src_buildserver_SOURCES = src/buildserver.cpp
@@ -88,7 +92,7 @@ src_tmipcrm_LDADD = src/libfuxedo.la
 udataobjdir = @prefix@/udataobj
 udataobj_DATA = RM include/tpadm
 
-TESTS = tests/xatmi tests/fml32 tests/expr tests/mib tests/ipcq tests/base64 tests/userlog tests/trx
+TESTS = tests/xatmi tests/fml32 tests/expr tests/mib tests/ipcq tests/base64 tests/userlog tests/trx tests/qm
 check_PROGRAMS = $(TESTS)
 
 AM_TESTS_ENVIRONMENT = FLDTBLDIR32=.:src:tests FIELDTBLS32=dummy,fields
@@ -132,17 +136,19 @@ installcheck-local:
 	TUXDIR=$(prefix) CXX="$(CXX)" CXXFLAGS="$(CXXFLAGS) $(AM_CXXFLAGS) $(AM_LDFLAGS)" make -C install-tests
 
 install-exec-hook:
-	(cd ${libdir}; $(LN_S) libfuxedo.so libtmib.so)
-	(cd ${libdir}; $(LN_S) libfuxedo.so libtux.so)
-	(cd ${libdir}; $(LN_S) libfuxedo.so libbuft.so)
-	(cd ${libdir}; $(LN_S) libfuxedo.so libfml.so)
-	(cd ${libdir}; $(LN_S) libfuxedo.so libfml32.so)
-	(cd ${libdir}; $(LN_S) libfuxedo.so libengine.so)
+	(cd $(DESTDIR)${libdir}; $(LN_S) -f libfuxedo.so libtmib.so)
+	(cd $(DESTDIR)${libdir}; $(LN_S) -f libfuxedo.so libtux.so)
+	(cd $(DESTDIR)${libdir}; $(LN_S) -f libfuxedo.so libbuft.so)
+	(cd $(DESTDIR)${libdir}; $(LN_S) -f libfuxedo.so libfml.so)
+	(cd $(DESTDIR)${libdir}; $(LN_S) -f libfuxedo.so libfml32.so)
+	(cd $(DESTDIR)${libdir}; $(LN_S) -f libfuxedo.so libengine.so)
+	(cd $(DESTDIR)${libdir}; $(LN_S) -f libfuxedo.so libwsc.so)
 
 uninstall-hook:
-	(cd ${libdir}; rm -f libtmib.so)
-	(cd ${libdir}; rm -f libtux.so)
-	(cd ${libdir}; rm -f libbuft.so)
-	(cd ${libdir}; rm -f libfml.so)
-	(cd ${libdir}; rm -f libfml32.so)
-	(cd ${libdir}; rm -f libengine.so)
+	(cd $(DESTDIR)${libdir}; rm -f libtmib.so)
+	(cd $(DESTDIR)${libdir}; rm -f libtux.so)
+	(cd $(DESTDIR)${libdir}; rm -f libbuft.so)
+	(cd $(DESTDIR)${libdir}; rm -f libfml.so)
+	(cd $(DESTDIR)${libdir}; rm -f libfml32.so)
+	(cd $(DESTDIR)${libdir}; rm -f libengine.so)
+	(cd $(DESTDIR)${libdir}; rm -f libwsc.so)

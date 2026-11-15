@@ -15,6 +15,7 @@ namespace fux {
 namespace tx {
 fux::gttid gttid();
 bool transactional();
+bool tx_active();
 }  // namespace tx
 void tx_resume();
 void tx_suspend();

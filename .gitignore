@@ -47,6 +47,7 @@ tmp/
 /src/tmloadcf
 /src/tmshutdown
 /src/tmunloadcf
+/src/qmadmin
 /src/ud32
 /src/viewc32
 /tests/base64
@@ -64,3 +65,28 @@ tmp/
 /tests/*.log
 /tests/*.trs
 ULOG.*
+
+AGENTS.md
+
+# install-tests artifacts
+/install-tests/*/ubbconfig
+/install-tests/*/tuxconfig
+/install-tests/*/stdout
+/install-tests/*/stderr
+/install-tests/*/access.*
+/install-tests/*/ULOG.*
+/install-tests/unit/test-*
+/install-tests/view/valid*.h
+/install-tests/*/server
+/install-tests/*/server[ab]
+/install-tests/*/client
+/install-tests/*/mtserver
+/install-tests/*/defserver
+/install-tests/*/defmtserver
+/install-tests/*/failserver
+/install-tests/*/tpforward_client
+/install-tests/*/tpreturn_client
+
+# pytests artifacts
+/pytests/scratch/
+/pytests/__pycache__/

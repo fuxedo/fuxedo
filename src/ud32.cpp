@@ -43,6 +43,10 @@ int main(int argc, char *argv[]) {
     std::cerr << parser;
     return -1;
   }
+  if (show_help) {
+    std::cout << parser;
+    return 0;
+  }
 
   FLDID32 SRVCNM = Fldid32(const_cast<char *>("SRVCNM"));
   if (SRVCNM == BADFLDID) {

@@ -52,11 +52,11 @@ struct Fbfr32fields {
       return -1;
     }
 
-    return (type << 24) | num;
+    return ((FLDID32)type << 25) | num;
   }
 
-  static constexpr int Fldtype32(FLDID32 fieldid) { return fieldid >> 24; }
-  static constexpr long Fldno32(FLDID32 fieldid) { return fieldid & 0xffffff; }
+  static constexpr int Fldtype32(FLDID32 fieldid) { return fieldid >> 25; }
+  static constexpr long Fldno32(FLDID32 fieldid) { return fieldid & 0x1ffffff; }
 
   char *name(FLDID32 fieldid) {
     if (!id_to_name_loaded) {

@@ -33,6 +33,9 @@ class extreader : public basic_parser {
   }
 
   bool parse_line(fux::fml32ptr &fml, int indent) {
+    if (sym_ == EOF) {
+      return false;
+    }
     if (accept('\n')) {
       // empty line terminates buffer
       return false;

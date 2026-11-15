@@ -195,10 +195,15 @@ class client {
   }
 
   int tpsblktime(int blktime, long flags) {
-    long units = flags & 0xf0;
-    long what = flags - units;
+    long units = flags & TPBLK__MASK;
+    long what = flags & ~TPBLK__MASK;
     long timeout;
 
+    if (blktime < 0) {
+      TPERROR(TPEINVAL, "Invalid blktime passed to tpsblktime(%d, ...)",
+              blktime);
+      return -1;
+    }
     if (units == TPBLK_SECOND) {
       timeout = blktime * 1000;
     } else if (units == TPBLK_MILLISECOND) {
@@ -222,8 +227,8 @@ class client {
   }
 
   int tpgblktime(long flags) {
-    long units = flags & 0xf0;
-    long what = flags - units;
+    long units = flags & TPBLK__MASK;
+    long what = flags & ~TPBLK__MASK;
     long timeout;
 
     if (what == 0) {
@@ -387,3 +392,27 @@ int tpgblktime(long flags) {
 }
 
 int get_queue(const char *svc) { return getclient().get_queue(svc); }
+
+int tpgetctxt(TPCONTEXT_T *context, long flags) {
+  // Single-context implementation: a process always has the initial
+  // context, like Oracle Tuxedo without TPMULTICONTEXTS.
+  if (context != nullptr) {
+    *context = 0;
+  }
+  fux::atmi::reset_tperrno();
+  return 0;
+}
+
+int tpsetctxt(TPCONTEXT_T context, long flags) {
+  if (context != 0) {
+    TPERROR(TPEPROTO, "only the initial context is supported");
+    return -1;
+  }
+  fux::atmi::reset_tperrno();
+  return 0;
+}
+
+int tppost(char *eventname, char *data, long len, long flags) {
+  TPERROR(TPESYSTEM, "EventBroker not available");
+  return -1;
+}

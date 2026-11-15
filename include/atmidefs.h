@@ -2,7 +2,7 @@
 // Definitions below come from Oracle Tuxedo documentation with minor fixes to
 // make it compile and clang-format
 // https://docs.oracle.com/cd/E72452_01/tuxedo/docs1222/rf3c/rf3c.html
-#define XATMI_SERVICE_NAME_LENGTH 32
+#define XATMI_SERVICE_NAME_LENGTH 128
 
 /* The following definitions must be included in atmi.h
  */
@@ -19,15 +19,18 @@
 #define TPGETANY 0x00000080      /* get any valid reply */
 #define TPNOCHANGE 0x00000100    /* force incoming buffer to match */
 #define RESERVED_BIT1 0x00000200 /* reserved for future use */
+#define RESERVED_BIT3 0x00008000 /* reserved for future use */
+#define RESERVED_BIT4 0x00010000 /* reserved for future use */
+#define RESERVED_BIT5 0x00020000 /* reserved for future use */
 #define TPCONV 0x00000400        /* conversational service */
 #define TPSENDONLY 0x00000800    /* send-only mode */
 #define TPRECVONLY 0x00001000    /* recv-only mode */
 #define TPACK 0x00002000         /* */
 
 /* Flags to tpreturn - also defined in xa.h */
-#define TPFAIL 0x20000000    /* service FAILURE for tpreturn */
+#define TPFAIL 0x00000001    /* service FAILURE for tpreturn */
 #define TPEXIT 0x08000000    /* service FAILURE with server exit */
-#define TPSUCCESS 0x04000000 /* service SUCCESS for tpreturn */
+#define TPSUCCESS 0x00000002 /* service SUCCESS for tpreturn */
 
 /* Flags to tpscmt - Valid TP_COMMIT_CONTROL
  * characteristic values
@@ -69,13 +72,16 @@ struct tpinfo_t {
   char usrname[MAXTIDENT + 2]; /* client user name */
   char cltname[MAXTIDENT + 2]; /* app client name */
   char passwd[MAXTIDENT + 2];  /* application password */
+  char grpname[MAXTIDENT + 2]; /* app client group name */
   long flags;                  /* initialization flags */
   long datalen;                /* length of app specific data */
   long data;                   /* placeholder for app data */
 };
 typedef struct tpinfo_t TPINIT;
 
-#define TPINITNEED(n) (sizeof(TPINIT) + n)
+#define TPINITNEED(u) \
+  (((u) > sizeof(long)) ? (sizeof(TPINIT) - sizeof(long) + (u)) \
+                        : sizeof(TPINIT))
 
 /* The transactionID structure passed to tpsuspend(3c) and tpresume(3c) */
 struct tp_tranid_t {
@@ -85,9 +91,7 @@ struct tp_tranid_t {
 typedef struct tp_tranid_t TPTRANID;
 
 /* Flags for TPINIT */
-#define TPU_MASK                         \
-  0x00000007 /* unsolicited notification \
-              * mask */
+#define TPU_MASK 0x00000047 /* unsolicited notification mask */
 #define TPU_SIG              \
   0x00000001 /* signal based \
               * notification */
@@ -197,7 +201,7 @@ extern long tpurcode;
 #define TPEMATCH 23
 #define TPEDIAGNOSTIC 24
 #define TPEMIB 25
-#define TPMAXVAL 26 /* maximum error message */
+#define TPMAXVAL 28 /* maximum error message */
 
 /* conversations - events */
 #define TPEV_DISCONIMM 0x0001
@@ -240,5 +244,5 @@ struct tpevctl_t {
 };
 typedef struct tpevctl_t TPEVCTL;
 
-#define TPACK_INTL 666
-#define TPNOCOPY 666
+#define TPACK_INTL 0x00004000
+#define TPNOCOPY RESERVED_BIT3 /* no copy for shm msg send */
