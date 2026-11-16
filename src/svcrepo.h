@@ -1,3 +1,4 @@
+#pragma once
 // This file is part of Fuxedo
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
@@ -8,6 +9,7 @@
 struct queue_entry {
   int grpno;
   int msqid;
+  long mtype;
 };
 
 struct service_entry {
@@ -23,7 +25,7 @@ struct service_entry {
 class service_repository {
  public:
   service_repository(mib &m) : m_(m) {}
-  int get_queue(int grpno, const char *svc) {
+  queue_entry get_queue(int grpno, const char *svc) {
     auto &entry = get_entry(svc);
     refresh(entry);
     return load_balance(entry, grpno);
@@ -54,26 +56,31 @@ class service_repository {
       for (size_t i = 0; i < adv->len; i++) {
         auto &a = adv.at(i);
         if (a.service == entry.mib_service) {
-          auto msqid = m_.queues().at(a.queue).msqid;
+          auto &queue = m_.queues().at(a.queue);
+          auto msqid = a.secondary ? queue.secondary_msqid : queue.msqid;
+          if (msqid == -1) {
+            continue;
+          }
           auto grpno = m_.servers().at(a.server).grpno;
-          entry.queues.push_back({grpno, msqid});
+          auto mtype = m_.services().at(a.service).mtype;
+          entry.queues.push_back({grpno, msqid, mtype});
         }
       }
       entry.cached_revision = *(entry.mib_revision);
     }
   }
 
-  int load_balance(service_entry &entry, int grpno) {
+  queue_entry load_balance(service_entry &entry, int grpno) {
     if (entry.queues.empty()) {
       throw std::out_of_range("no queue");
     }
     if (grpno == -1) {
       entry.current_queue = (entry.current_queue + 1) % entry.queues.size();
-      return entry.queues[entry.current_queue].msqid;
+      return entry.queues[entry.current_queue];
     } else {
       for (auto &e : entry.queues) {
         if (e.grpno == grpno) {
-          return e.msqid;
+          return e;
         }
       }
     }

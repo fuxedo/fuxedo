@@ -20,11 +20,11 @@ ubbconfig: ubbconfig.in
 tuxconfig: ubbconfig
 	tmloadcf -y $<
 
-CFLAGS=-I../../third_party/catch/ -I$(TUXDIR)/include
+CFLAGS=-I../../third_party/catch/ -I../../tests -I$(TUXDIR)/include
 
-fml32.o: ../../tests/fml32.cpp
+fml32.o: ../../tests/compat/fml32.cpp
 	$(CXX) -c -o $@ $< $(CFLAGS)
-expr.o: ../../tests/expr.cpp
+expr.o: ../../tests/compat/expr.cpp
 	$(CXX) -c -o $@ $< $(CFLAGS)
 tests-main.o: ../../tests/tests-main.cpp
 	$(CXX) -c -o $@ $< $(CFLAGS)

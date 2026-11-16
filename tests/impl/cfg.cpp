@@ -5,8 +5,8 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "../src/cfg.h"
-#include "../src/ubbreader.h"
+#include "../../src/cfg.h"
+#include "../../src/ubbreader.h"
 
 namespace {
 
@@ -98,7 +98,7 @@ s SRVGRP=G SRVID=5
   REQUIRE(t.servers[0].grace == 86400);
   REQUIRE(t.servers[0].maxgen == 1);
   REQUIRE(t.servers[0].restart == false);
-  REQUIRE(t.servers[0].replyq == false);
+  REQUIRE(t.servers[0].replyq == true);  // REPLYQ=Y by default now
   REQUIRE(t.dom.maxaccessers == 50);
 }
 

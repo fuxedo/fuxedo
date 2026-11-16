@@ -207,6 +207,24 @@ bool qsend(int msqid, msg &data, long timeout, enum flags flags) {
   }
 }
 
+namespace {
+void load_from_file(fux::ipc::msg &data, size_t nbytes) {
+  if (data->ttype != fux::ipc::file) {
+    return;
+  }
+  char filename[nbytes];
+  strcpy(filename, data.as_msgfile().filename);
+  struct stat st;
+  fail_if(stat(filename, &st) == -1);
+  int fd = open(filename, 0);
+  fail_if(fd == -1);
+  data.resize(sizeof(msgbase) + st.st_size);
+  fail_if(read(fd, data.buf() + sizeof(msgbase), st.st_size) != st.st_size);
+  fail_if(close(fd) == -1);
+  fail_if(unlink(filename) == -1);
+}
+}  // namespace
+
 // IPC_NOWAIT
 void qrecv(int msqid, msg &data, long msgtype, int flags) {
   data.resize(MAX_QUEUE_MSG_SIZE);
@@ -217,18 +235,21 @@ void qrecv(int msqid, msg &data, long msgtype, int flags) {
     throw std::system_error(errno, std::system_category());
   }
   data.resize(n + sizeof(long));
-  if (data->ttype == fux::ipc::file) {
-    char filename[n];
-    strcpy(filename, data.as_msgfile().filename);
-    struct stat st;
-    fail_if(stat(filename, &st) == -1);
-    int fd = open(filename, 0);
-    fail_if(fd == -1);
-    data.resize(sizeof(msgbase) + st.st_size);
-    fail_if(read(fd, data.buf() + sizeof(msgbase), st.st_size) != st.st_size);
-    fail_if(close(fd) == -1);
-    fail_if(unlink(filename) == -1);
+  load_from_file(data, n);
+}
+
+bool qrecv_intr(int msqid, msg &data, long msgtype) {
+  data.resize(MAX_QUEUE_MSG_SIZE);
+  ssize_t n = msgrcv(msqid, data.buf(), MAX_QUEUE_MSG_SIZE, msgtype, 0);
+  if (n == -1) {
+    if (errno == EINTR) {
+      return false;
+    }
+    throw std::system_error(errno, std::system_category());
   }
+  data.resize(n + sizeof(long));
+  load_from_file(data, n);
+  return true;
 }
 
 void qdelete(int msqid) { msgctl(msqid, IPC_RMID, NULL); }

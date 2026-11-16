@@ -132,6 +132,9 @@ void get_server(const fux::cfg::server &s, FLDOCC32 oc, fml32buf &out) {
   out.put(TA_CLOPT, oc, s.clopt);
   out.put(TA_RQADDR, oc, s.rqaddr);
   out.put(TA_REPLYQ, oc, s.replyq ? "Y" : "N");
+  if (s.secondaryrq) {
+    out.put(TA_SECONDARYRQ, oc, "Y");
+  }
   out.put(TA_MAXGEN, oc, (long)s.maxgen);
   out.put(TA_RESTART, oc, s.restart ? "Y" : "N");
   out.put(TA_GRACE, oc, s.grace);
@@ -341,7 +344,9 @@ void set_server(fux::cfg::tables &t, fml32buf &in, fml32buf &out) {
   it->grace = in.get<long>(TA_GRACE, 0, it->grace);
   it->maxgen = in.get<long>(TA_MAXGEN, 0, it->maxgen);
   it->restart = in.get<std::string>(TA_RESTART, 0, it->restart ? "Y" : "N") == "Y";
-  it->replyq = in.get<std::string>(TA_REPLYQ, 0, it->replyq ? "Y" : "N") == "Y";
+  it->replyq = in.get<std::string>(TA_REPLYQ, 0, it->replyq ? "Y" : "N") != "N";
+  it->secondaryrq =
+      in.get<std::string>(TA_SECONDARYRQ, 0, it->secondaryrq ? "Y" : "N") == "Y";
 }
 
 static void t_service_get(fml32buf &in, fml32buf &out) {
@@ -385,8 +390,9 @@ static void t_svcgrp_get(fml32buf &in, fml32buf &out) {
     auto &adv = svcgrp.at(i);
     auto &service = m.services().at(adv.service);
     out.put(TA_SERVICENAME, oc, service.servicename);
-    //    out.put(TA_SRVGRP, oc,
-    //    m.groups().at(m.find_group(srv.at(adv.server).grpno)).srvgrp);
+    auto grpidx = m.find_group(srv.at(adv.server).grpno);
+    out.put(TA_SRVGRP, oc,
+            grpidx == mib::badoff ? "" : m.groups().at(grpidx).srvgrp);
     out.put(TA_GRPNO, oc, srv.at(adv.server).grpno);
     out.put(TA_STATE, oc, to_string(adv.state));
     out.put(TA_AUTOTRAN, oc, service.autotran);

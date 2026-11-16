@@ -1,7 +1,12 @@
 // This file is part of Fuxedo
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
+#include <signal.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 #include <setjmp.h>
+#include <deque>
 #include <tpadm.h>
 #include <userlog.h>
 #include <xa.h>
@@ -19,6 +24,7 @@
 #include <vector>
 
 #include "fux.h"
+#include "svcrepo.h"
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
@@ -64,7 +70,7 @@ void tpsvrthrdone() {
 
 void ubb2mib(ubbconfig &u, mib &m);
 
-int get_queue(const char *svc);
+queue_entry get_queue(const char *svc);
 
 struct server_main {
   uint16_t srvid;
@@ -82,11 +88,36 @@ struct server_main {
   std::mutex mutex;
   std::map<const char *, void (*)(TPSVCINFO *), cmp_cstr> advertisements;
 
+  // SECONDARYRQ handoff: the secondary thread receives and forwards
+  // messages here; the main thread is woken with SIGALRM and executes them.
+  std::mutex pending_mutex;
+  std::deque<fux::ipc::msg> pending;
+  int secondary_msqid = -1;
+  pid_t main_tid = 0;
+  std::thread secondary_thread;
+  std::atomic<bool> secondary_stop;
+
   mib &m_;
   std::atomic<bool> stop;
 
-  server_main(mib &m) : m_(m), stop(false), req_counter_(0) {
-    mtype_ = std::numeric_limits<long>::min();
+  server_main(mib &m)
+      : secondary_stop(false), m_(m), stop(false), req_counter_(0) {
+    mtype_ = -(1L << 30);
+  }
+
+  void enqueue_pending(fux::ipc::msg &m) {
+    std::lock_guard<std::mutex> lock(pending_mutex);
+    pending.push_back(std::move(m));
+  }
+
+  bool pop_pending(fux::ipc::msg &out) {
+    std::lock_guard<std::mutex> lock(pending_mutex);
+    if (pending.empty()) {
+      return false;
+    }
+    out = std::move(pending.front());
+    pending.pop_front();
+    return true;
   }
 
   void active() { m_.servers().at(mib_server).state = state_t::ACTive; }
@@ -122,9 +153,23 @@ struct server_main {
         return -1;
       }
     } else {
+      bool secondary = (flags & TPSECONDARYRQ) != 0;
       try {
         auto lock = m_.data_lock();
-        m_.advertise(svcname, mib_queue, mib_server);
+        auto queue = mib_queue;
+        if (secondary) {
+          if (!m_.servers().at(mib_server).secondaryrq) {
+            TPERROR(TPEPROTO, "%s not booted with SECONDARYRQ=Y", svcname);
+            return -1;
+          }
+          m_.make_secondary_rqaddr(mib_server);
+        }
+        if ((flags & TPSINGLETON) != 0 &&
+            m_.find_singleton(svcname, mib_queue, mib_server) != mib::badoff) {
+          TPERROR(TPEPROTO, "%s already advertised as singleton", svcname);
+          return -1;
+        }
+        m_.advertise(svcname, queue, mib_server, secondary);
       } catch (const std::out_of_range &e) {
         TPERROR(TPELIMIT, "%s", e.what());
         return -1;
@@ -155,8 +200,7 @@ struct server_main {
   }
 
   bool handle(long mtype, fux::fml32buf &buf) {
-    // Do not want to see this message again
-    mtype_ = -(mtype - 1);
+    (void)mtype;
     req_counter_ = 0;
 
     if (buf.get<long>(TA_SRVID, 0) == srvid &&
@@ -165,6 +209,11 @@ struct server_main {
       return true;
     }
     return false;
+  }
+
+  void narrow_window() {
+    mtype_ = -((1L << 30) - 1);
+    req_counter_ = 0;
   }
 
   long mtype() {
@@ -214,7 +263,7 @@ struct server_thread {
       fux::tx_end(true);
     }
 
-    int msqid = get_queue(svc);
+    auto target = get_queue(svc);
     res.set_data(data, len);
 
     if (data != nullptr && data != atmibuf) {
@@ -231,7 +280,7 @@ struct server_thread {
     res->cd = req->cd;
     res->gttid = gttid;
 
-    fux::ipc::qsend(msqid, res, 0, fux::ipc::flags::notime);
+    fux::ipc::qsend(target.msqid, res, 0, fux::ipc::flags::notime);
 
     longjmp(tpreturn_env, 1);
   }
@@ -271,6 +320,37 @@ struct server_thread {
 static thread_local std::unique_ptr<server_thread> thread_ptr;
 static server_thread *main_thread_ptr;
 
+// Runs one request whose payload has been imported into tp->atmibuf.
+// Shared by the primary receive path and the SECONDARYRQ handoff drain;
+// requests always execute on this thread (the main dispatch thread).
+static void execute(server_thread *tp) {
+  TPSVCINFO tpsvcinfo = {};
+  checked_copy(tp->req->servicename, tpsvcinfo.name);
+  if (main_ptr->advertisements.find(tpsvcinfo.name) ==
+      main_ptr->advertisements.end()) {
+    // Possible on a shared MSSQ queue when set members do not advertise
+    // identical services; cycle the message like Tuxedo does
+    tp->req->mtype = 1L << 30;
+    main_ptr->narrow_window();
+    fux::ipc::qsend(main_ptr->request_queue, tp->req, 0,
+                    fux::ipc::flags::notime);
+    return;
+  }
+  tpsvcinfo.data = tp->atmibuf;
+  tpsvcinfo.flags = tp->req->flags;
+  tpsvcinfo.len = tp->req.size_data();
+  tpsvcinfo.cd = tp->req->cd;
+
+  if (tp->req->flags & TPTRAN) {
+    fux::tx_join(tp->req->gttid);
+  }
+
+  if (setjmp(tp->tpreturn_env) == 0) {
+    auto it = main_ptr->advertisements.find(tpsvcinfo.name);
+    it->second(&tpsvcinfo);
+  }
+}
+
 static void dispatch() {
   while (true) {
     if (main_ptr->stop) {
@@ -278,6 +358,7 @@ static void dispatch() {
     }
 
     TPSVCINFO tpsvcinfo;
+    bool interrupted = false;
     {
       userlog("Dispatch loop");
       fux::scoped_fuxlock lock(main_ptr->mutex);
@@ -285,45 +366,71 @@ static void dispatch() {
         break;
       }
 
-      fux::ipc::qrecv(main_ptr->request_queue, thread_ptr->req,
-                      main_ptr->mtype(), 0);
+      if (!fux::ipc::qrecv_intr(main_ptr->request_queue, thread_ptr->req,
+                                main_ptr->mtype())) {
+        interrupted = true;
+      } else {
+        thread_ptr->prepare();
+        thread_ptr->req.get_data(&thread_ptr->atmibuf);
+        tpsvcinfo.data = thread_ptr->atmibuf;
+        if (strcmp(thread_ptr->req->servicename, ".stop") == 0) {
+          fux::fml32buf buf(&tpsvcinfo);
 
-      thread_ptr->prepare();
-      thread_ptr->req.get_data(&thread_ptr->atmibuf);
-      tpsvcinfo.data = thread_ptr->atmibuf;
-      if (strcmp(thread_ptr->req->servicename, ".stop") == 0) {
-        fux::fml32buf buf(&tpsvcinfo);
-
-        userlog("Received admin message");
-        if (main_ptr->handle(thread_ptr->req->mtype, buf)) {
-          if (thread_ptr.get() != main_thread_ptr) {
-            main_thread_ptr->req = thread_ptr->req;
-            main_thread_ptr->req.get_data(&main_thread_ptr->atmibuf);
+          userlog("Received admin message");
+          if (main_ptr->handle(thread_ptr->req->mtype, buf)) {
+            if (thread_ptr.get() != main_thread_ptr) {
+              main_thread_ptr->req = thread_ptr->req;
+              main_thread_ptr->req.get_data(&main_thread_ptr->atmibuf);
+            }
+            main_thread_ptr->reply_to_shutdown = true;
+            continue;
           }
-          main_thread_ptr->reply_to_shutdown = true;
-          continue;
-        } else {
-          // return for processing by other MSSQ servers
+          // return for processing by other MSSQ servers: re-type to the
+          // maximum and narrow this server's window so it is not seen again
           userlog("Not the target receiver of message, put back in queue");
+          thread_ptr->req->mtype = 1L << 30;
+          main_ptr->narrow_window();
           fux::ipc::qsend(main_ptr->request_queue, thread_ptr->req, 0,
                           fux::ipc::flags::notime);
+          continue;
         }
       }
     }  // lock
 
-    checked_copy(thread_ptr->req->servicename, tpsvcinfo.name);
-    tpsvcinfo.flags = thread_ptr->req->flags;
-    tpsvcinfo.len = thread_ptr->req.size_data();
-    tpsvcinfo.cd = thread_ptr->req->cd;
-
-    if (thread_ptr->req->flags & TPTRAN) {
-      fux::tx_join(thread_ptr->req->gttid);
+    if (interrupted) {
+      // woken by the secondary thread: execute what it handed over, then
+      // resume receiving on the primary queue
+      fux::ipc::msg handed;
+      while (main_ptr->pop_pending(handed)) {
+        thread_ptr->req = std::move(handed);
+        thread_ptr->prepare();
+        thread_ptr->req.get_data(&thread_ptr->atmibuf);
+        execute(thread_ptr.get());
+      }
+      continue;
     }
+    execute(thread_ptr.get());
+  }
+}
 
-    if (setjmp(thread_ptr->tpreturn_env) == 0) {
-      auto it = main_ptr->advertisements.find(tpsvcinfo.name);
-      it->second(&tpsvcinfo);
+// SECONDARYRQ listener: receives on the set's secondary queue, forwards
+// each message to the main thread through the in-memory handoff queue and
+// wakes it with SIGALRM, then returns to listening immediately.
+static void secondary_listen() {
+  sigset_t set;
+  sigemptyset(&set);
+  sigaddset(&set, SIGALRM);
+  pthread_sigmask(SIG_BLOCK, &set, nullptr);
+
+  userlog("secondary_listen on msqid %d", main_ptr->secondary_msqid);
+
+  while (!main_ptr->secondary_stop) {
+    fux::ipc::msg req;
+    if (!fux::ipc::qrecv_intr(main_ptr->secondary_msqid, req, 0)) {
+      continue;
     }
+    main_ptr->enqueue_pending(req);
+    (void)syscall(SYS_tgkill, getpid(), main_ptr->main_tid, SIGALRM);
   }
 }
 
@@ -403,7 +510,24 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
 
   auto thread_count = m.servers().at(main_ptr->mib_server).mindispatchthreads;
   main_ptr->request_queue = m.make_service_rqaddr(main_ptr->mib_server);
+  if (m.servers().at(main_ptr->mib_server).replyq) {
+    m.servers().at(main_ptr->mib_server).reply_msqid = fux::ipc::qcreate();
+  }
+  main_ptr->main_tid = (pid_t)syscall(SYS_gettid);
   main_ptr->mib_queue = m.servers().at(main_ptr->mib_server).rqaddr;
+  if (m.servers().at(main_ptr->mib_server).secondaryrq) {
+    m.make_secondary_rqaddr(main_ptr->mib_server);
+    main_ptr->secondary_msqid =
+        m.queues().at(main_ptr->mib_queue).secondary_msqid;
+
+    struct sigaction sa = {};
+    sa.sa_handler = +[](int) {};
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGALRM, &sa, nullptr);
+
+    main_ptr->secondary_thread = std::thread(secondary_listen);
+    main_ptr->secondary_thread.detach();
+  }
   main_ptr->argc = argc;
   main_ptr->argv = argv;
   main_ptr->tmsvrargs = tmsvrargs;

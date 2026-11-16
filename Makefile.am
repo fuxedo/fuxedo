@@ -8,7 +8,8 @@ endif
 AM_CXXFLAGS = -g -Wall -Wextra $(gcov_flags) \
               -I$(top_srcdir)/include \
               -I$(top_srcdir)/third_party/catch \
-              -I$(top_srcdir)/third_party/clara
+              -I$(top_srcdir)/third_party/clara \
+              -I$(top_srcdir)/tests
 
 AM_LDFLAGS = $(gcov_ldflags)
 
@@ -91,40 +92,40 @@ src_tmipcrm_LDADD = src/libfuxedo.la
 udataobjdir = @prefix@/udataobj
 udataobj_DATA = RM include/tpadm
 
-TESTS = tests/xatmi tests/fml32 tests/expr tests/mib tests/ipcq tests/base64 tests/userlog tests/trx tests/qm tests/cfg
+TESTS = tests/compat/xatmi tests/compat/fml32 tests/compat/expr tests/impl/mib tests/impl/ipcq tests/compat/base64 tests/impl/userlog tests/impl/trx tests/impl/qm tests/impl/cfg
 check_PROGRAMS = $(TESTS)
 
 AM_TESTS_ENVIRONMENT = FLDTBLDIR32=.:src:tests FIELDTBLS32=dummy,fields
 
-tests_userlog_SOURCES = tests/userlog.cpp tests/tests-main.cpp
-tests_userlog_LDADD = src/libfuxedo.la
+tests_impl_userlog_SOURCES = tests/impl/userlog.cpp tests/tests-main.cpp
+tests_impl_userlog_LDADD = src/libfuxedo.la
 
-tests_base64_SOURCES = tests/base64.cpp tests/tests-main.cpp
-tests_base64_LDADD = src/libfuxedo.la
+tests_compat_base64_SOURCES = tests/compat/base64.cpp tests/tests-main.cpp
+tests_compat_base64_LDADD = src/libfuxedo.la
 
-tests_ipcq_SOURCES = tests/ipcq.cpp tests/tests-main.cpp
-tests_ipcq_LDADD = src/libfuxedo.la
+tests_impl_ipcq_SOURCES = tests/impl/ipcq.cpp tests/tests-main.cpp
+tests_impl_ipcq_LDADD = src/libfuxedo.la
 
-tests_xatmi_SOURCES = tests/xatmi.cpp tests/tests-main.cpp
-tests_xatmi_LDADD = src/libfuxedo.la
+tests_compat_xatmi_SOURCES = tests/compat/xatmi.cpp tests/tests-main.cpp
+tests_compat_xatmi_LDADD = src/libfuxedo.la
 
-tests_fml32_SOURCES = tests/fml32.cpp tests/tests-main.cpp
-tests_fml32_LDADD = src/libfuxedo.la
+tests_compat_fml32_SOURCES = tests/compat/fml32.cpp tests/tests-main.cpp
+tests_compat_fml32_LDADD = src/libfuxedo.la
 
-tests_expr_SOURCES = tests/expr.cpp tests/tests-main.cpp
-tests_expr_LDADD = src/libfuxedo.la
+tests_compat_expr_SOURCES = tests/compat/expr.cpp tests/tests-main.cpp
+tests_compat_expr_LDADD = src/libfuxedo.la
 
-tests_mib_SOURCES = tests/mib.cpp tests/tests-main.cpp
-tests_mib_LDADD = src/libfuxedo.la
+tests_impl_mib_SOURCES = tests/impl/mib.cpp tests/tests-main.cpp
+tests_impl_mib_LDADD = src/libfuxedo.la
 
-tests_trx_SOURCES = tests/trx.cpp tests/tests-main.cpp
-tests_trx_LDADD = src/libfuxedo.la
+tests_impl_trx_SOURCES = tests/impl/trx.cpp tests/tests-main.cpp
+tests_impl_trx_LDADD = src/libfuxedo.la
 
-tests_qm_SOURCES = tests/qm.cpp tests/tests-main.cpp
+tests_impl_qm_SOURCES = tests/impl/qm.cpp tests/tests-main.cpp
 
-tests_cfg_SOURCES = tests/cfg.cpp tests/tests-main.cpp
-tests_cfg_LDADD = src/libfuxedo.la
-tests_qm_LDADD = src/libfuxedo.la
+tests_impl_cfg_SOURCES = tests/impl/cfg.cpp tests/tests-main.cpp
+tests_impl_cfg_LDADD = src/libfuxedo.la
+tests_impl_qm_LDADD = src/libfuxedo.la
 
 clang-format:
 	clang-format -style=Google -i \

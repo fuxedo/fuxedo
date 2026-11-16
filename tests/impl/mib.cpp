@@ -4,8 +4,8 @@
 #include <catch.hpp>
 #include <stdexcept>
 
-#include "../src/mib.h"
-#include "../src/ubbreader.h"
+#include "../../src/mib.h"
+#include "../../src/ubbreader.h"
 
 TEST_CASE("services can be advertised", "[mib]") {
   fux::cfg::domain domain;

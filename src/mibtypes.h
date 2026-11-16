@@ -110,6 +110,9 @@ struct server {
   char dependson[1024];
   char rcmd[256];
   bool restart;  // "N"
+  bool replyq = true;  // REPLYQ=N unsupported for now
+  bool secondaryrq = false;
+  int reply_msqid = -1;  // private queue, REPLYQ=Y
 
   long grace;  // 86400
   uint16_t maxgen;
@@ -124,6 +127,7 @@ struct server {
 struct queue {
   char rqaddr[32];
   int msqid;
+  int secondary_msqid = -1;
   long mtype;
   long servercnt;
 
@@ -131,6 +135,7 @@ struct queue {
 };
 
 struct service {
+  long mtype = 0;  // message type for requests to this service, 2^29+idx
   char servicename[XATMI_SERVICE_NAME_LENGTH];
   state_t state;
   char autotran[2];
@@ -155,4 +160,5 @@ struct advertisement {
   size_t queue;
   size_t server;
   state_t state;
+  bool secondary = false;  // advertised on the set's secondary queue
 };

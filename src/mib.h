@@ -149,7 +149,8 @@ class mib {
                                                   mem_->transactions_off);
   }
 
-  void advertise(const std::string &servicename, size_t queue, size_t server);
+  void advertise(const std::string &servicename, size_t queue, size_t server,
+                 bool secondary = false);
   void unadvertise(const std::string &servicename, size_t queue, size_t server);
 
   size_t find_queue(const std::string &rqaddr);
@@ -177,11 +178,14 @@ class mib {
 
   size_t find_service(const std::string &servicename);
   size_t find_service(const char *servicename);
+  size_t find_singleton(const std::string &servicename, size_t queue,
+                        size_t server);
   size_t make_service(const std::string &servicename);
 
   size_t make_accesser(pid_t pid);
 
   int make_service_rqaddr(size_t server);
+  int make_secondary_rqaddr(size_t server);
 
   fux::ipc::scoped_semlock data_lock() {
     return fux::ipc::scoped_semlock(mem_->mainsem, 0);

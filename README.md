@@ -80,6 +80,20 @@ Currently implemented:
   - Fboolev32
   - Ffloatev32
 
+## Testing layout
+
+- `tests/compat/` - C-API compatibility suite (FML32, expressions, XATMI
+  buffers, base64). Vendor neutral: also compiled and run against Oracle
+  Tuxedo via `install-tests/unit` with `TUXDIR` pointing at either
+  implementation.
+- `tests/impl/` - fuxedo implementation tests (MIB, IPC, /Q, transactions,
+  config). fuxedo only.
+- `install-tests/` - CLI and end-to-end compatibility: buildclient,
+  buildserver, tmboot/tmshutdown, tpcall family; run against whichever
+  `TUXDIR` points to.
+- `pytests/` - Python-driven CLI compatibility tests via tuxedo-python,
+  including the book's `tpadmcall` flow.
+
 ## Compatibility with Oracle Tuxedo
 
 Fuxedo tries to be compatible with Oracle Tuxedo for all functionality implemented so far. That is ensured by executing the same tests cases against both Fuxedo and Oracle Tuxedo:
@@ -99,4 +113,4 @@ Check out some other projects:
 
 I'm interested to hear what features of Oracle Tuxedo your project is using and what should be implemented in Fuxedo. If you can share the code or let me take a look under NDA - even better.
 
-For bugs and feature requests, [open an issue on GitHub](https://github.com/fuxedo/fuxedo/issues/new).
+For bugs and feature requests, [open an issue on GitHub](https://github.com/fuxedo/fuxedo/issues/new). For anything else, write to [hello@fuxedo.io](mailto:hello@fuxedo.io).

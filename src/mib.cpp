@@ -152,7 +152,7 @@ size_t mib::find_advertisement(size_t service, size_t queue, size_t server) {
 }
 
 void mib::advertise(const std::string &servicename, size_t queue,
-                    size_t server) {
+                    size_t server, bool secondary) {
   auto service = find_service(servicename);
   if (service == badoff) {
     service = make_service(servicename);
@@ -173,6 +173,7 @@ void mib::advertise(const std::string &servicename, size_t queue,
   advertisement.queue = queue;
   advertisement.server = server;
   advertisement.state = state_t::ACTive;
+  advertisement.secondary = secondary;
 
   if (i == advertisements()->len) {
     advertisements()->len++;
@@ -216,6 +217,7 @@ size_t mib::make_queue(const std::string &rqaddr) {
   auto &queue = queues().at(queues()->len);
   checked_copy(rqaddr, queue.rqaddr);
   queue.msqid = -1;
+  queue.secondary_msqid = -1;  // raw shm memory is zeroed, no NSDMI here
   queue.mtype = std::numeric_limits<long>::max();
 
   return queues()->len++;
@@ -292,6 +294,7 @@ size_t mib::make_server(uint16_t srvid, uint16_t grpno,
   checked_copy(servername, server.servername);
   checked_copy(clopt, server.clopt);
 
+  server.reply_msqid = -1;  // raw shm memory is zeroed, no NSDMI here
   server.rqaddr = find_queue(rqaddr);
   if (server.rqaddr == badoff) {
     server.rqaddr = make_queue(rqaddr);
@@ -313,6 +316,22 @@ size_t mib::find_service(const char *servicename) {
 }
 size_t mib::find_service(const std::string &servicename) {
   return find_service(servicename.c_str());
+}
+
+size_t mib::find_singleton(const std::string &servicename, size_t queue,
+                           size_t server) {
+  auto service = find_service(servicename);
+  if (service == badoff) {
+    return badoff;
+  }
+  for (size_t i = 0; i < advertisements()->len; i++) {
+    auto &a = advertisements().at(i);
+    if (a.service == service && a.queue == queue && a.server != server &&
+        a.state != state_t::INValid) {
+      return i;
+    }
+  }
+  return badoff;
 }
 
 size_t mib::make_accesser(pid_t pid) {
@@ -371,6 +390,7 @@ size_t mib::make_service(const std::string &servicename) {
   }
 
   auto &service = services().at(services()->len);
+  service.mtype = (1L << 29) + services()->len;
   checked_copy(servicename, service.servicename);
   service.state = state_t::INActive;
   checked_copy("N", service.autotran);
@@ -400,6 +420,17 @@ int mib::make_service_rqaddr(size_t server) {
   return queue.msqid;
 }
 
+int mib::make_secondary_rqaddr(size_t server) {
+  auto &queue = queues().at(servers().at(server).rqaddr);
+  if (queue.secondary_msqid == -1) {
+    queue.secondary_msqid = fux::ipc::qcreate();
+    if (queue.secondary_msqid == -1) {
+      throw std::system_error(errno, std::system_category());
+    }
+  }
+  return queue.secondary_msqid;
+}
+
 void mib::remove() {
   std::vector<int> q, m, s;
   collect(q, m, s);
@@ -412,6 +443,16 @@ void mib::collect(std::vector<int> &q, std::vector<int> &m,
     auto msqid = queues().at(i).msqid;
     if (msqid != -1) {
       q.push_back(msqid);
+    }
+    auto secondary = queues().at(i).secondary_msqid;
+    if (secondary != -1) {
+      q.push_back(secondary);
+    }
+  }
+  for (size_t i = 0; i < servers()->len; i++) {
+    auto reply = servers().at(i).reply_msqid;
+    if (reply != -1) {
+      q.push_back(reply);
     }
   }
   for (size_t i = 0; i < accessers()->len; i++) {

@@ -6,7 +6,7 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "../src/ipc.h"
+#include "../../src/ipc.h"
 
 struct queue_fixture {
   int msqid;

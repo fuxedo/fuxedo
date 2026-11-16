@@ -16,6 +16,7 @@
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
+#include "svcrepo.h"
 #include "trx.h"
 
 #include "resp.h"
@@ -60,14 +61,14 @@ class client {
 
   int tpacall_group(int grpno, const char *svc, char *data, long len,
                     long flags) try {
-    int msqid = repo_.get_queue(grpno, svc);
-    return tpacall_queue(msqid, svc, data, len, flags);
+    auto target = repo_.get_queue(grpno, svc);
+    return tpacall_queue(target, svc, data, len, flags);
   } catch (const std::out_of_range &e) {
     TPERROR(TPENOENT, "Service %s does not exist", svc);
     return -1;
   }
 
-  int tpacall_queue(int msqid, const char *svc, char *data, long len,
+  int tpacall_queue(queue_entry target, const char *svc, char *data, long len,
                     long flags) {
     if (data != nullptr) {
       if (tptypes(data, nullptr, nullptr) == -1) {
@@ -76,6 +77,7 @@ class client {
     }
 
     rq.set_data(data, len);
+    rq->mtype = target.mtype;
     checked_copy(svc, rq->servicename);
     if (flags & TPNOREPLY) {
       rq->replyq = -1;
@@ -95,7 +97,7 @@ class client {
       rq->gttid = fux::bad_gttid;
     }
 
-    if (fux::ipc::qsend(msqid, rq, next_blocktime(), to_flags(flags))) {
+    if (fux::ipc::qsend(target.msqid, rq, next_blocktime(), to_flags(flags))) {
       fux::atmi::reset_tperrno();
       return rq->cd;
     }
@@ -268,7 +270,7 @@ class client {
     return blocktime;
   }
 
-  int get_queue(const char *svc) { return repo_.get_queue(-1, svc); }
+  queue_entry get_queue(const char *svc) { return repo_.get_queue(-1, svc); }
 
  private:
   fux::ipc::flags to_flags(long flags) {
@@ -348,8 +350,11 @@ int tpacall_group(int grpno, char *svc, char *data, long len, long flags) {
 
 int tpacall_queue(int msqid, const char *svc, char *data, long len,
                   long flags) {
+  queue_entry target{0, msqid, 1};
   return fux::atmi::exception_boundary(
-      [&] { return getclient().tpacall_queue(msqid, svc, data, len, flags); },
+      [&] {
+        return getclient().tpacall_queue(target, svc, data, len, flags);
+      },
       -1);
 }
 
@@ -391,7 +396,7 @@ int tpgblktime(long flags) {
       [&] { return getclient().tpgblktime(flags); }, -1);
 }
 
-int get_queue(const char *svc) { return getclient().get_queue(svc); }
+queue_entry get_queue(const char *svc) { return getclient().get_queue(svc); }
 
 int tpgetctxt(TPCONTEXT_T *context, long flags) {
   // Single-context implementation: a process always has the initial

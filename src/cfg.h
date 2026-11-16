@@ -66,7 +66,8 @@ struct server {
   uint16_t maxgen = 1;
   long threadstacksize = 0;
   bool restart = false;
-  bool replyq = false;
+  bool replyq = true;  // REPLYQ=N unsupported for now
+  bool secondaryrq = false;
   bool autostart = true;
 
   bool operator==(const server &o) const {
@@ -78,7 +79,7 @@ struct server {
            rcmd == o.rcmd && rqaddr == o.rqaddr && grace == o.grace &&
            maxgen == o.maxgen && threadstacksize == o.threadstacksize &&
            restart == o.restart && replyq == o.replyq &&
-           autostart == o.autostart;
+           secondaryrq == o.secondaryrq && autostart == o.autostart;
   }
 };
 

@@ -4,8 +4,8 @@
 #include <catch.hpp>
 #include <stdexcept>
 
-#include "../src/ipc.h"
-#include "../src/trx.h"
+#include "../../src/ipc.h"
+#include "../../src/trx.h"
 
 TEST_CASE("transaction_table size limit", "[trx]") {
   auto n = transaction_table::needed(1, 50);

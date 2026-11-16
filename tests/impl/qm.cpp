@@ -9,7 +9,7 @@
 #include <filesystem>
 #include <unistd.h>
 
-#include "../src/qm.h"
+#include "../../src/qm.h"
 
 namespace fs = std::filesystem;
 

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuxedo - an open source implementation of X/Open XATMI and Oracle Tuxedo APIs</title>
+<meta name="description" content="Fuxedo is an open source C/C++ middleware implementing X/Open XATMI and Oracle Tuxedo APIs, with byte-compatible FML32 buffers, System V IPC, and administration over the Tuxedo MIB.">
+<style>
+  body { font-family: Georgia, 'Times New Roman', serif; color: #222;
+         max-width: 44em; margin: 0 auto; padding: 2em 1.2em; line-height: 1.55; }
+  h1 { text-align: center; margin-bottom: 0; font-size: 2.2em; }
+  h1 img { width: 40px; height: 40px; vertical-align: -8px; margin-right: 8px; }
+  .tagline { text-align: center; font-style: italic; color: #666; margin-top: 0.2em; }
+  h2 { font-size: 1.2em; margin-top: 1.8em; border-bottom: 1px solid #ddd;
+       padding-bottom: 2px; }
+  .button { display: block; text-align: center; margin: 2em 0; }
+  .button a { background: #2255aa; color: #fff; padding: 0.6em 1.6em;
+              border-radius: 4px; text-decoration: none; font-size: 1.1em; }
+  .button a:hover { background: #1a4488; }
+  footer { margin-top: 3em; font-size: 0.9em; color: #666;
+           border-top: 1px solid #ddd; padding-top: 1em; }
+  code { background: #f4f4f4; padding: 0 4px; border-radius: 3px;
+         font-size: 0.92em; }
+</style>
+</head>
+<body>
+
+<h1><img src="fuxedo.svg" alt="">Fuxedo</h1>
+<p class="tagline">An open source alternative to Oracle Tuxedo</p>
+
+<p>Fuxedo is an open source implementation of the X/Open XATMI
+specification and a growing set of Oracle Tuxedo extensions. The aim is
+source compatibility: recompile your application against Fuxedo and run
+it. Configuration files keep the Tuxedo formats, so the tools you already
+know (tmloadcf, tmboot, tmadmin, qmadmin) work the way the manuals say
+they should.</p>
+
+<p>The name is a wordplay on &ldquo;free&rdquo; and Tuxedo, and on the
+<a href="https://www.stuckeyandmurray.com/fuxedo/About.html">fuxedo</a>
+itself: a one-piece suit that combines the elegance of a tuxedo with the
+convenience of a jumpsuit. That is roughly the engineering goal too.</p>
+
+<p class="button"><a href="https://github.com/fuxedo/fuxedo">Get Fuxedo on
+GitHub</a></p>
+
+<h2>Design ideas</h2>
+
+<p><strong>The configuration is a file, not a database.</strong>
+TUXCONFIG is a small header in front of the plain UBBCONFIG text. tmloadcf
+parses and validates the text, then builds the bulletin board in shared
+memory. tmunloadcf prints the text back. Administration goes through the
+same MIB classes Tuxedo documents (T_DOMAIN, T_GROUP, T_SERVER), and
+tpadmcall works on the configuration file directly, which is how the
+configuration can be created programmatically from scratch, no running
+system needed.</p>
+
+<p><strong>System V IPC, on purpose.</strong> Fuxedo keeps the mechanics
+Tuxedo behavior is built around: message queues, shared memory, semaphores.
+Servers block in msgrcv the way Tuxedo servers do, requests carry
+per-service message types, and an MSSQ set is exactly what the name says:
+several servers, one queue. Where Tuxedo's documented behavior says a
+message cycles through a set until the right server takes it, Fuxedo does
+that too.</p>
+
+<p><strong>FML32 at the byte level.</strong> Field ids, buffer layouts,
+and exported payloads match Oracle Tuxedo exactly, so FML32 buffers travel
+between systems without translation, and compiled boolean expressions
+work against any buffer. Nested sub-buffers included.</p>
+
+<p><strong>Queues you can ls.</strong> The /Q component stores a queue
+device as a directory, queues as folders, and messages as files, committed
+with an atomic rename. Everything is persistent, everything is visible,
+and qmadmin speaks the same command language as the original.</p>
+
+<p><strong>Same tests, two implementations.</strong> The compatibility
+suite runs unmodified against both Fuxedo and Oracle Tuxedo, and the
+behavior reference cases are captured with strace from a real Tuxedo
+instance, so matching the documented behavior is a testable claim rather
+than a hope.</p>
+
+<p><strong>Scriptable from Python.</strong> The tuxedo-python bindings run
+unchanged on top: servers, clients, the MIB administration calls, and the
+demo applications from the book
+<em>Modernizing Oracle Tuxedo Applications with Python</em>.</p>
+
+<h2>More</h2>
+
+<p>Source, build instructions, and the current status live in the
+<a href="https://github.com/fuxedo/fuxedo">GitHub repository</a>. For bugs
+and feature requests, <a
+href="https://github.com/fuxedo/fuxedo/issues/new">open an issue</a>. For
+anything else, write to <a
+href="mailto:hello@fuxedo.io">hello@fuxedo.io</a>.</p>
+
+<footer>
+Fuxedo is free to use, modify, and distribute for commercial and
+non-commercial purposes (MIT license).
+</footer>
+
+</body>
+</html>

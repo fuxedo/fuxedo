@@ -5,7 +5,7 @@
 #include <string>
 
 // for base64 prototypes
-#include "../src/misc.h"
+#include "../../src/misc.h"
 
 static std::string b64encode(const std::string &s) {
   std::string result;

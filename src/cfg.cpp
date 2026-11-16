@@ -140,7 +140,8 @@ tables build(const ubbconfig &ubb) {
         to_long(param(srvconf.second, "THREADSTACKSIZE"), "THREADSTACKSIZE", 0,
                 100000000, 0);
     s.restart = param(srvconf.second, "RESTART") == "Y";
-    s.replyq = param(srvconf.second, "REPLYQ") == "Y";
+    s.replyq = param(srvconf.second, "REPLYQ") != "N";
+    s.secondaryrq = param(srvconf.second, "SECONDARYRQ") == "Y";
     auto grp = std::find_if(t.groups.begin(), t.groups.end(), [&](auto &g) {
       return g.srvgrp == s.srvgrp;
     });
@@ -222,7 +223,8 @@ std::string emit(const tables &t) {
              "\" RQADDR=" + s.rqaddr + " REPLYQ=" +
              (s.replyq ? "Y" : "N") + " MAXGEN=" + std::to_string(s.maxgen) +
              " RESTART=" + (s.restart ? "Y" : "N") +
-             " GRACE=" + std::to_string(s.grace);
+             " GRACE=" + std::to_string(s.grace) +
+             " SECONDARYRQ=" + (s.secondaryrq ? "Y" : "N");
       if (!s.envfile.empty()) {
         out += " ENVFILE=\"" + s.envfile + "\"";
       }

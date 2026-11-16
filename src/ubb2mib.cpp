@@ -139,6 +139,8 @@ void ubb2mib(ubbconfig &u, mib &m) {
       server.autostart = n < min;
       server.mindispatchthreads = minthreads;
       server.maxdispatchthreads = maxthreads;
+      server.replyq = srvconf.second["REPLYQ"] != "N";
+      server.secondaryrq = srvconf.second["SECONDARYRQ"] == "Y";
     }
   }
 }

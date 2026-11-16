@@ -97,6 +97,9 @@ class msg {
 int qcreate();
 bool qsend(int msqid, msg &data, long timeout, enum flags flags);
 void qrecv(int msqid, msg &data, long msgtype, int flags);
+// Blocking receive that returns false instead of throwing when interrupted
+// by a signal (EINTR). Used by server dispatch loops.
+bool qrecv_intr(int msqid, msg &data, long msgtype);
 void qdelete(int msqid);
 
 }  // namespace ipc

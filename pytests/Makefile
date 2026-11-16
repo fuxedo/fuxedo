@@ -13,7 +13,8 @@ $(error TUXDIR is not set)
 endif
 
 TUXEDO_PYTHON ?= ../private/reference/tuxedo-python
-PYBUILD := $(shell ls -d $(TUXEDO_PYTHON)/build/lib.* 2>/dev/null | head -1)
+export TUXEDO_PYTHON
+PYBUILD := $(shell ls -d $(abspath $(TUXEDO_PYTHON))/build/lib.* 2>/dev/null | head -1)
 
 export PATH := $(TUXDIR)/bin:$(PATH)
 export LD_LIBRARY_PATH := $(TUXDIR)/lib:$(LD_LIBRARY_PATH)
