@@ -6,24 +6,46 @@
 <title>Fuxedo - an open source implementation of X/Open XATMI and Oracle Tuxedo APIs</title>
 <meta name="description" content="Fuxedo is an open source C/C++ middleware implementing X/Open XATMI and Oracle Tuxedo APIs, with byte-compatible FML32 buffers, System V IPC, and administration over the Tuxedo MIB.">
 <style>
-  body { font-family: Georgia, 'Times New Roman', serif; color: #222;
-         max-width: 44em; margin: 0 auto; padding: 2em 1.2em; line-height: 1.55; }
-  h1 { text-align: center; margin-bottom: 0; font-size: 2.2em; }
+  /* Retro enterprise palette: printed-manual ivory, BEA-red accents,
+     terminal-green console bars, Motif-style bevels. Inspired by the
+     era, no borrowed assets. */
+  body { background: #e9e4d3;
+         font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a;
+         margin: 0; padding: 2.5em 1.2em; line-height: 1.55; }
+  .page { max-width: 44em; margin: 0 auto; background: #fbf7ea;
+          border: 1px solid #8f8871;
+          box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #b3ab90,
+                      3px 3px 0 rgba(0,0,0,0.12);
+          padding: 2.2em 2.6em; }
+  h1 { text-align: center; margin-bottom: 0; font-size: 2.2em;
+       color: #14120c; }
   h1 img { width: 40px; height: 40px; vertical-align: -8px; margin-right: 8px; }
-  .tagline { text-align: center; font-style: italic; color: #666; margin-top: 0.2em; }
-  h2 { font-size: 1.2em; margin-top: 1.8em; border-bottom: 1px solid #ddd;
-       padding-bottom: 2px; }
-  .button { display: block; text-align: center; margin: 2em 0; }
-  .button a { background: #2255aa; color: #fff; padding: 0.6em 1.6em;
-              border-radius: 4px; text-decoration: none; font-size: 1.1em; }
-  .button a:hover { background: #1a4488; }
-  footer { margin-top: 3em; font-size: 0.9em; color: #666;
-           border-top: 1px solid #ddd; padding-top: 1em; }
-  code { background: #f4f4f4; padding: 0 4px; border-radius: 3px;
+  .tagline { text-align: center; font-style: italic; color: #5c5540;
+             margin-top: 0.2em; font-family: 'Courier New', monospace; }
+  h2 { font-size: 0.95em; margin-top: 2em;
+       font-family: 'Courier New', monospace; font-weight: bold;
+       background: #10312a; color: #9fe8b0; padding: 5px 10px;
+       border: 1px solid #0a201b;
+       box-shadow: inset 1px 1px 0 #2a5a4c, inset -1px -1px 0 #071a15; }
+  p strong { color: #14120c; }
+  a { color: #8f1d14; }
+  a:hover { color: #c0392b; }
+  .button { display: block; text-align: center; margin: 2.2em 0; }
+  .button a { display: inline-block; background: #ded8c2; color: #14120c;
+              padding: 0.55em 1.6em; text-decoration: none; font-size: 1.05em;
+              font-family: 'Courier New', monospace; font-weight: bold;
+              border: 2px solid;
+              border-color: #ffffff #6f6852 #6f6852 #ffffff; }
+  .button a:hover { background: #eae4cf; }
+  .button a:active { border-color: #6f6852 #ffffff #ffffff #6f6852; }
+  footer { margin-top: 3em; font-size: 0.9em; color: #5c5540;
+           border-top: 1px solid #b3ab90; padding-top: 1em; }
+  code { background: #efe9d6; padding: 0 4px; border: 1px solid #cfc7ab;
          font-size: 0.92em; }
 </style>
 </head>
 <body>
+<div class="page">
 
 <h1><img src="fuxedo.svg" alt="">Fuxedo</h1>
 <p class="tagline">An open source alternative to Oracle Tuxedo</p>
@@ -62,10 +84,12 @@ several servers, one queue. Where Tuxedo's documented behavior says a
 message cycles through a set until the right server takes it, Fuxedo does
 that too.</p>
 
-<p><strong>FML32 at the byte level.</strong> Field ids, buffer layouts,
-and exported payloads match Oracle Tuxedo exactly, so FML32 buffers travel
-between systems without translation, and compiled boolean expressions
-work against any buffer. Nested sub-buffers included.</p>
+<p><strong>FML32, familiar down to the field ids.</strong> The API matches
+Tuxedo, field numbers and types follow the same tables, and what crosses
+process or system boundaries stays compatible: tpimport/tpexport payloads
+and compiled boolean expressions (Fboolco32 trees, memory prefixes and
+all) work on both sides. Inside a process each implementation keeps its
+own buffer layout. Nested sub-buffers included.</p>
 
 <p><strong>Queues you can ls.</strong> The /Q component stores a queue
 device as a directory, queues as folders, and messages as files, committed
@@ -73,10 +97,9 @@ with an atomic rename. Everything is persistent, everything is visible,
 and qmadmin speaks the same command language as the original.</p>
 
 <p><strong>Same tests, two implementations.</strong> The compatibility
-suite runs unmodified against both Fuxedo and Oracle Tuxedo, and the
-behavior reference cases are captured with strace from a real Tuxedo
-instance, so matching the documented behavior is a testable claim rather
-than a hope.</p>
+suite runs unmodified against both Fuxedo and Oracle Tuxedo, so behavior
+matches the documentation on either side, and stays matched as the project
+grows.</p>
 
 <p><strong>Scriptable from Python.</strong> The tuxedo-python bindings run
 unchanged on top: servers, clients, the MIB administration calls, and the
@@ -96,6 +119,7 @@ href="mailto:hello@fuxedo.io">hello@fuxedo.io</a>.</p>
 Fuxedo is free to use, modify, and distribute for commercial and
 non-commercial purposes (MIT license).
 </footer>
+</div>
 
 </body>
 </html>
