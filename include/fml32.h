@@ -110,6 +110,19 @@ void Fboolpr32(char *tree, FILE *iop);
 int Fboolev32(FBFR32 *fbfr, char *tree);
 double Ffloatev32(FBFR32 *fbfr, char *tree);
 
+int Fvftos32(FBFR32 *fbfr, char *cstruct, char *viewname);
+int Fvstof32(FBFR32 *fbfr, char *cstruct, int mode, char *viewname);
+int Fvnull32(char *cstruct, char *cname, FLDOCC32 oc, char *viewname);
+int Fvsinit32(char *cstruct, char *viewname);
+int Fvselinit32(char *cstruct, char *cname, char *viewname);
+int Fvopt32(char *cname, int option, char *viewname);
+int Fvneeded32(char *viewname);
+void Fvrefresh32();
+char *Fvboolco32(char *expression, char *viewname);
+int Fvboolev32(char *cstruct, char *tree, char *viewname);
+double Fvfloatev32(char *cstruct, char *tree, char *viewname);
+int Fvboolpr32(char *tree, FILE *iop, char *viewname);
+
 char *CFfind32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, FLDLEN32 *len,
                int type);
 int CFadd32(FBFR32 *fbfr, FLDID32 fieldid, char *value, FLDLEN32 len, int type);

@@ -480,7 +480,7 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   }
   if (show_help) {
     std::cout << parser;
-    return 0;
+    return 1;
   }
 
   if (verbose) {

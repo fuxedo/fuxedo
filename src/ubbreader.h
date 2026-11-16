@@ -25,7 +25,15 @@ class ubbreader : public basic_parser {
         tmp.clear();
       } else if (parameter(&object)) {
         whitespace();
-        if (section == "RESOURCES") {
+        if (object == "DEFAULT:" || object == "DEFAULT") {
+          // Default parameters for the entries of this section
+          ubb_params defparams;
+          parse_params(&defparams);
+          auto &defs = defaults_[section];
+          for (auto &kv : defparams) {
+            defs[kv.first] = kv.second;
+          }
+        } else if (section == "RESOURCES") {
           std::string value;
           if (!parameter(&value)) {
             throw basic_parser_error("RESOURCES section must have PARAM VALUE",
@@ -40,12 +48,19 @@ class ubbreader : public basic_parser {
         } else {
           ubb_params ubbparams;
           parse_params(&ubbparams);
+          // Section defaults apply unless the entry overrides them
+          ubb_params merged(defaults_[section]);
+          for (auto &kv : ubbparams) {
+            merged[kv.first] = kv.second;
+          }
           if (section == "SERVERS") {
-            config.servers.push_back(std::make_pair(object, ubbparams));
+            config.servers.push_back(std::make_pair(object, merged));
           } else if (section == "GROUPS") {
-            config.groups.push_back(std::make_pair(object, ubbparams));
+            config.groups.push_back(std::make_pair(object, merged));
           } else if (section == "MACHINES") {
-            config.machines.push_back(std::make_pair(object, ubbparams));
+            config.machines.push_back(std::make_pair(object, merged));
+          } else if (section == "SERVICES") {
+            config.services.push_back(std::make_pair(object, merged));
           }
         }
         object.clear();
@@ -62,6 +77,8 @@ class ubbreader : public basic_parser {
   }
 
  private:
+  std::map<std::string, ubb_params> defaults_;
+
   bool parse_till_eol() {
     whitespace();
     if (accept('#')) {

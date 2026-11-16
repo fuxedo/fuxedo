@@ -6,12 +6,8 @@
 #include <cstddef>
 #include <cstring>
 
+#include "fbfr32.h"
 #include "misc.h"
-
-void fml32init(void *, size_t);
-void fml32reinit(void *, size_t);
-void fml32finit(void *);
-size_t fml32used(void *);
 
 namespace fux::mem {
 

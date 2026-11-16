@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <map>
 #include <memory>
@@ -13,6 +14,7 @@
 #include <fml32.h>
 #include "basic_parser.h"
 #include "misc.h"
+#include "view32.h"
 
 #include <iostream>
 
@@ -128,7 +130,11 @@ class invalid_field_type : public basic_parser_error {
 
 class expression_parser : public basic_parser {
  public:
-  expression_parser(std::istream &f) : basic_parser(f) {}
+  using resolver =
+      std::function<uint32_t(const std::string &, int, int)>;
+
+  expression_parser(std::istream &f, resolver resolve)
+      : basic_parser(f), resolve_(std::move(resolve)) {}
 
   char *parse() {
     if (parse_expr()) {
@@ -262,29 +268,11 @@ class expression_parser : public basic_parser {
       } else {
         oc = "0";
       }
-      auto fieldid = Fldid32(const_cast<char *>(tok.c_str()));
-      if (fieldid == BADFLDID) {
-        throw unknown_field_name("Unknown field name", row_, col_,
-                                 "field name '" + tok + "'");
-      }
-      switch (Fldtype32(fieldid)) {
-        case FLD_SHORT:
-        case FLD_LONG:
-        case FLD_FLOAT:
-        case FLD_DOUBLE:
-        case FLD_CHAR:
-        case FLD_STRING:
-        case FLD_CARRAY:
-          break;
-        default:
-          throw invalid_field_type("Invalid field type", row_, col_,
-                                   "field name '" + tok + "'");
-      }
+      auto id = resolve_(tok, row_, col_);
       if (oc == "?") {
-        e = tree_.append(field_any, reinterpret_cast<char *>(&fieldid),
-                         sizeof(fieldid));
+        e = tree_.append(field_any, reinterpret_cast<char *>(&id), sizeof(id));
       } else {
-        e = tree_.append(fieldid, std::stol(oc));
+        e = tree_.append(id, std::stol(oc));
       }
     } else if (unsigned_number(&tok)) {
       if (tok.find('.') != std::string::npos) {
@@ -358,6 +346,7 @@ class expression_parser : public basic_parser {
   // FIXME: to emulate lookahead/advance of binops because we don't have a lexer
   std::string op_;
   ast_tree tree_;
+  resolver resolve_;
 };
 
 char *Fboolco32(char *expression) {
@@ -367,7 +356,27 @@ char *Fboolco32(char *expression) {
   }
   try {
     std::istringstream s(expression);
-    expression_parser p(s);
+    expression_parser p(s, [](const std::string &tok, int row, int col) {
+      auto fieldid = Fldid32(const_cast<char *>(tok.c_str()));
+      if (fieldid == BADFLDID) {
+        throw unknown_field_name("Unknown field name", row, col,
+                                 "field name '" + tok + "'");
+      }
+      switch (Fldtype32(fieldid)) {
+        case FLD_SHORT:
+        case FLD_LONG:
+        case FLD_FLOAT:
+        case FLD_DOUBLE:
+        case FLD_CHAR:
+        case FLD_STRING:
+        case FLD_CARRAY:
+          break;
+        default:
+          throw invalid_field_type("Invalid field type", row, col,
+                                   "field name '" + tok + "'");
+      }
+      return fieldid;
+    });
     return p.parse();
   } catch (const unknown_field_name &e) {
     Ferror32 = FBADNAME;
@@ -381,58 +390,6 @@ char *Fboolco32(char *expression) {
   return nullptr;
 }
 
-static char *boolpr(char *tree, FILE *iop) {
-  uint8_t op = static_cast<uint8_t>(*tree++);
-  if (op == const_long) {
-    long value;
-    std::copy_n(tree, sizeof(value), reinterpret_cast<char *>(&value));
-    tree += sizeof(value);
-    fprintf(iop, "( %ld ) ", value);
-  } else if (op == const_double) {
-    double value;
-    std::copy_n(tree, sizeof(value), reinterpret_cast<char *>(&value));
-    tree += sizeof(value);
-    fprintf(iop, "( %f ) ", value);
-  } else if (op == const_string) {
-    auto len = strlen(tree);
-    fprintf(iop, "( '%s' ) ", tree);
-    tree += len + 1;
-  } else if (op == field) {
-    FLDID32 fieldid;
-    std::copy_n(tree, sizeof(fieldid), reinterpret_cast<char *>(&fieldid));
-    tree += sizeof(fieldid);
-    FLDOCC32 oc;
-    std::copy_n(tree, sizeof(oc), reinterpret_cast<char *>(&oc));
-    tree += sizeof(oc);
-    fprintf(iop, "( %s[%d] ) ", Fname32(fieldid), oc);
-  } else if (op == field_any) {
-    FLDID32 fieldid;
-    std::copy_n(tree, sizeof(fieldid), reinterpret_cast<char *>(&fieldid));
-    tree += sizeof(fieldid);
-    fprintf(iop, "( %s[?] ) ", Fname32(fieldid));
-  } else if (op == unary_minus || op == logical_negation ||
-             op == bitwise_negation) {
-    fprintf(iop, "( %s", tree_ops[op]);
-    tree = boolpr(tree, iop);
-    fprintf(iop, ") ");
-  } else if (op > first_invalid && op < last_invalid) {
-    fprintf(iop, "( ");
-    tree = boolpr(tree, iop);
-    fprintf(iop, "%s ", tree_ops[op]);
-    tree = boolpr(tree, iop);
-    fprintf(iop, ") ");
-  }
-  return tree;
-}
-
-void Fboolpr32(char *tree, FILE *iop) {
-  if (tree != nullptr) {
-    boolpr(tree + 4, iop);
-    fprintf(iop, "\n");
-  }
-}
-
-// C++17 std::variant ?
 class eval_value {
  public:
   char *tree;
@@ -497,6 +454,7 @@ class eval_value {
 };
 
 template <template <class> class Op>
+// C++17 std::variant ?
 eval_value apply(char *tree, eval_value &lhs, eval_value &rhs) {
   auto use_double = lhs.is_double() || rhs.is_double();
   if (use_double) {
@@ -545,6 +503,151 @@ static eval_value boolev_field(FBFR32 *fbfr, char *tree, FLDID32 fieldid,
   }
 }
 
+// Maps tree field nodes to values: FML fields for Fboolco32(), view members
+// for Fvboolco32().
+class field_source {
+ public:
+  virtual ~field_source() = default;
+  virtual eval_value read(char *tree, uint32_t id, FLDOCC32 oc) = 0;
+  virtual FLDOCC32 count(uint32_t id) = 0;
+  virtual const char *name(uint32_t id) const = 0;
+};
+
+class fml_source : public field_source {
+ public:
+  explicit fml_source(FBFR32 *fbfr) : fbfr_(fbfr) {}
+
+  eval_value read(char *tree, uint32_t id, FLDOCC32 oc) override {
+    return boolev_field(fbfr_, tree, id, oc);
+  }
+
+  FLDOCC32 count(uint32_t id) override { return Foccur32(fbfr_, id); }
+
+  const char *name(uint32_t id) const override { return Fname32(id); }
+
+ private:
+  FBFR32 *fbfr_;
+};
+
+class view_source : public field_source {
+ public:
+  view_source(char *cstruct, fux::view::viewdef &view)
+      : cstruct_(cstruct), view_(view) {}
+
+  eval_value read(char *tree, uint32_t id, FLDOCC32 oc) override {
+    auto &m = view_.members[id];
+    const char *el = cstruct_ + m.off + oc * m.elsize;
+    switch (m.type) {
+      case FLD_SHORT:
+        return eval_value(tree, static_cast<long>(
+                                     *reinterpret_cast<const int16_t *>(el)));
+      case FLD_LONG:
+        return eval_value(tree, *reinterpret_cast<const long *>(el));
+      case FLD_FLOAT:
+        return eval_value(tree, static_cast<double>(
+                                    *reinterpret_cast<const float *>(el)));
+      case FLD_DOUBLE:
+        return eval_value(tree, *reinterpret_cast<const double *>(el));
+      case FLD_CHAR: {
+        char_buf()[0] = el[0];
+        char_buf()[1] = 0;
+        return eval_value(tree, char_buf().data());
+      }
+      case FLD_STRING:
+      case FLD_CARRAY:
+        return eval_value(tree, el);
+      default:
+        throw std::runtime_error("unsupported member type");
+    }
+  }
+
+  FLDOCC32 count(uint32_t id) override { return view_.members[id].count; }
+
+  const char *name(uint32_t id) const override {
+    return view_.members[id].cname.c_str();
+  }
+
+ private:
+  static std::array<char, 2> &char_buf() {
+    static thread_local std::array<char, 2> buf;
+    return buf;
+  }
+
+  char *cstruct_;
+  fux::view::viewdef &view_;
+};
+
+static char *boolpr(field_source &src, char *tree, FILE *iop) {
+  uint8_t op = static_cast<uint8_t>(*tree++);
+  if (op == const_long) {
+    long value;
+    std::copy_n(tree, sizeof(value), reinterpret_cast<char *>(&value));
+    tree += sizeof(value);
+    fprintf(iop, "( %ld ) ", value);
+  } else if (op == const_double) {
+    double value;
+    std::copy_n(tree, sizeof(value), reinterpret_cast<char *>(&value));
+    tree += sizeof(value);
+    fprintf(iop, "( %f ) ", value);
+  } else if (op == const_string) {
+    auto len = strlen(tree);
+    fprintf(iop, "( '%s' ) ", tree);
+    tree += len + 1;
+  } else if (op == field) {
+    uint32_t id;
+    std::copy_n(tree, sizeof(id), reinterpret_cast<char *>(&id));
+    tree += sizeof(id);
+    FLDOCC32 oc;
+    std::copy_n(tree, sizeof(oc), reinterpret_cast<char *>(&oc));
+    tree += sizeof(oc);
+    fprintf(iop, "( %s[%d] ) ", src.name(id), oc);
+  } else if (op == field_any) {
+    uint32_t id;
+    std::copy_n(tree, sizeof(id), reinterpret_cast<char *>(&id));
+    tree += sizeof(id);
+    fprintf(iop, "( %s[?] ) ", src.name(id));
+  } else if (op == unary_minus || op == logical_negation ||
+             op == bitwise_negation) {
+    fprintf(iop, "( %s", tree_ops[op]);
+    tree = boolpr(src, tree, iop);
+    fprintf(iop, ") ");
+  } else if (op > first_invalid && op < last_invalid) {
+    fprintf(iop, "( ");
+    tree = boolpr(src, tree, iop);
+    fprintf(iop, "%s ", tree_ops[op]);
+    tree = boolpr(src, tree, iop);
+    fprintf(iop, ") ");
+  }
+  return tree;
+}
+
+void Fboolpr32(char *tree, FILE *iop) {
+  if (tree != nullptr) {
+    fml_source src(nullptr);
+    boolpr(src, tree + 4, iop);
+    fprintf(iop, "\n");
+  }
+}
+
+int Fvboolpr32(char *tree, FILE *iop, char *viewname) {
+  if (tree == nullptr || iop == nullptr || viewname == nullptr) {
+    Ferror32 = FEINVAL;
+    return -1;
+  }
+  return fux::fml32::exception_boundary(
+      [&]() -> int {
+        auto view = fux::view::get(viewname);
+        if (view == nullptr) {
+          return -1;
+        }
+        view_source src(nullptr, *view);
+        boolpr(src, tree + 4, iop);
+        fprintf(iop, "\n");
+        return 0;
+      },
+      -1);
+}
+
 static eval_value boolev_cmp(char *tree, char op, eval_value lhs,
                              eval_value rhs) {
   auto lexical_compare = lhs.is_const_string() || rhs.is_const_string() ||
@@ -587,7 +690,7 @@ static eval_value boolev_cmp(char *tree, char op, eval_value lhs,
   throw std::runtime_error("unsupported comparison operator");
 }
 
-eval_value boolev(FBFR32 *fbfr, char *tree) {
+eval_value boolev(field_source &src, char *tree) {
   char op = *tree++;
   if (op == const_long) {
     long value;
@@ -601,18 +704,18 @@ eval_value boolev(FBFR32 *fbfr, char *tree) {
     auto len = strlen(tree);
     return eval_value(tree + len + 1, tree, /*is_const=*/true);
   } else if (op == field) {
-    FLDID32 fieldid;
-    std::copy_n(tree, sizeof(fieldid), reinterpret_cast<char *>(&fieldid));
-    tree += sizeof(fieldid);
+    uint32_t id;
+    std::copy_n(tree, sizeof(id), reinterpret_cast<char *>(&id));
+    tree += sizeof(id);
     FLDOCC32 oc;
     std::copy_n(tree, sizeof(oc), reinterpret_cast<char *>(&oc));
     tree += sizeof(oc);
 
-    return boolev_field(fbfr, tree, fieldid, oc);
+    return src.read(tree, id, oc);
   } else if (op == field_any) {
     throw std::runtime_error("unsupported use of '?' field subscript");
   } else if (op >= unary_minus && op <= bitwise_negation) {
-    auto val = boolev(fbfr, tree);
+    auto val = boolev(src, tree);
     tree = val.tree;
     if (op == unary_minus) {
       return eval_value(tree, -val.to_long());
@@ -622,9 +725,9 @@ eval_value boolev(FBFR32 *fbfr, char *tree) {
       return eval_value(tree, ~val.to_long());
     }
   } else if (op >= multiplication && op < less_than) {
-    auto lhs = boolev(fbfr, tree);
+    auto lhs = boolev(src, tree);
     tree = lhs.tree;
-    auto rhs = boolev(fbfr, tree);
+    auto rhs = boolev(src, tree);
     tree = rhs.tree;
 
     if (op == multiplication) {
@@ -651,15 +754,15 @@ eval_value boolev(FBFR32 *fbfr, char *tree) {
     // Try many LHS values until TRUE
     if (*tree == field_any) {
       tree++;
-      FLDID32 fieldid;
-      std::copy_n(tree, sizeof(fieldid), reinterpret_cast<char *>(&fieldid));
-      tree += sizeof(fieldid);
-      auto rhs = boolev(fbfr, tree);
+      uint32_t id;
+      std::copy_n(tree, sizeof(id), reinterpret_cast<char *>(&id));
+      tree += sizeof(id);
+      auto rhs = boolev(src, tree);
       tree = rhs.tree;
 
-      FLDOCC32 count = Foccur32(fbfr, fieldid);
+      FLDOCC32 count = src.count(id);
       for (FLDOCC32 oc = 0; oc < count; oc++) {
-        auto lhs = boolev_field(fbfr, nullptr, fieldid, oc);
+        auto lhs = src.read(nullptr, id, oc);
         auto ret = boolev_cmp(tree, op, lhs, rhs);
         if (ret.to_long() != 0) {
           return ret;
@@ -667,9 +770,9 @@ eval_value boolev(FBFR32 *fbfr, char *tree) {
       }
       return eval_value(tree, 0);
     } else {
-      auto lhs = boolev(fbfr, tree);
+      auto lhs = boolev(src, tree);
       tree = lhs.tree;
-      auto rhs = boolev(fbfr, tree);
+      auto rhs = boolev(src, tree);
       tree = rhs.tree;
 
       return boolev_cmp(tree, op, lhs, rhs);
@@ -687,7 +790,8 @@ int Fboolev32(FBFR32 *fbfr, char *tree) {
     FERROR(FNOTFLD, "tree is NULL");
     return -1;
   }
-  auto v = boolev(fbfr, tree + 4);
+  fml_source src(fbfr);
+  auto v = boolev(src, tree + 4);
   return v.to_long() != 0;
 }
 
@@ -700,6 +804,96 @@ double Ffloatev32(FBFR32 *fbfr, char *tree) {
     FERROR(FNOTFLD, "tree is NULL");
     return -1;
   }
-  auto v = boolev(fbfr, tree + 4);
+  fml_source src(fbfr);
+  auto v = boolev(src, tree + 4);
   return v.to_double();
+}
+
+char *Fvboolco32(char *expression, char *viewname) {
+  if (expression == nullptr || viewname == nullptr) {
+    Ferror32 = FEINVAL;
+    return nullptr;
+  }
+  auto view = fux::view::get(viewname);
+  if (view == nullptr) {
+    return nullptr;
+  }
+  try {
+    std::istringstream s(expression);
+    expression_parser p(s, [&view](const std::string &tok, int row, int col) {
+      auto *m = fux::view::find_member(*view, tok);
+      if (m == nullptr || (m->flags & (F_COUNT | F_LENGTH)) != 0) {
+        throw unknown_field_name("Unknown field name", row, col,
+                                 "member name '" + tok + "'");
+      }
+      switch (m->type) {
+        case FLD_SHORT:
+        case FLD_LONG:
+        case FLD_FLOAT:
+        case FLD_DOUBLE:
+        case FLD_CHAR:
+        case FLD_STRING:
+        case FLD_CARRAY:
+          break;
+        default:
+          throw invalid_field_type("Invalid field type", row, col,
+                                   "member name '" + tok + "'");
+      }
+      return static_cast<uint32_t>(m - view->members.data());
+    });
+    return p.parse();
+  } catch (const unknown_field_name &e) {
+    Ferror32 = FBADNAME;
+  } catch (const invalid_field_type &e) {
+    Ferror32 = FEBADOP;
+  } catch (const basic_parser_error &e) {
+    Ferror32 = FSYNTAX;
+  } catch (...) {
+    Ferror32 = FSYNTAX;
+  }
+  return nullptr;
+}
+
+int Fvboolev32(char *cstruct, char *tree, char *viewname) {
+  if (cstruct == nullptr) {
+    FERROR(FEINVAL, "cstruct is NULL");
+    return -1;
+  }
+  if (tree == nullptr) {
+    FERROR(FEINVAL, "tree is NULL");
+    return -1;
+  }
+  return fux::fml32::exception_boundary(
+      [&]() -> int {
+        auto view = fux::view::get(viewname);
+        if (view == nullptr) {
+          return -1;
+        }
+        view_source src(cstruct, *view);
+        auto v = boolev(src, tree + 4);
+        return v.to_long() != 0;
+      },
+      -1);
+}
+
+double Fvfloatev32(char *cstruct, char *tree, char *viewname) {
+  if (cstruct == nullptr) {
+    FERROR(FEINVAL, "cstruct is NULL");
+    return -1;
+  }
+  if (tree == nullptr) {
+    FERROR(FEINVAL, "tree is NULL");
+    return -1;
+  }
+  return fux::fml32::exception_boundary(
+      [&]() -> double {
+        auto view = fux::view::get(viewname);
+        if (view == nullptr) {
+          return -1;
+        }
+        view_source src(cstruct, *view);
+        auto v = boolev(src, tree + 4);
+        return v.to_double();
+      },
+      -1);
 }

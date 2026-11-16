@@ -10,9 +10,10 @@ import socket
 from fuxtest import is_fuxedo, main, run, scratch
 
 UBB = """*RESOURCES
-IPCKEY 32769
+IPCKEY {ipckey}
 MASTER tuxapp
 MODEL SHM
+SECURITY NONE
 
 *MACHINES
 "{host}" LMID=tuxapp APPDIR="{dir}" TUXCONFIG="{dir}/tuxconfig" TUXDIR="{tuxdir}"
@@ -29,7 +30,8 @@ def write_ubb(dir):
     ubb = dir / "ubbconfig"
     ubb.write_text(
         UBB.format(host=socket.gethostname(), dir=dir,
-                   tuxdir=os.environ["TUXDIR"]))
+                   tuxdir=os.environ["TUXDIR"],
+                   ipckey=32769 + os.getpid() % 1000))
     return ubb
 
 
@@ -60,7 +62,7 @@ def test_load_and_unload():
         assert tuxconfig.exists()
         proc = run(["tmunloadcf"], env={"TUXCONFIG": tuxconfig})
         assert "*RESOURCES" in proc.stdout
-        assert "32769" in proc.stdout
+        assert str(32769 + os.getpid() % 1000) in proc.stdout
         # loading twice with -y works on both
         run(["tmloadcf", "-y", ubb], env={"TUXCONFIG": tuxconfig})
 
@@ -71,7 +73,8 @@ def test_ipc_resources_flag():
         tuxconfig = dir / "tuxconfig"
         proc = run(["tmloadcf", "-c", ubb], env={"TUXCONFIG": tuxconfig})
         if not is_fuxedo():
-            assert "IPC" in proc.stdout or "resources" in proc.stdout.lower()
+            out = proc.stdout.lower()
+            assert "ipc" in out or "resources" in out
             assert not tuxconfig.exists()
         else:
             # gap: -c is accepted but the load still happens (tasks.md P0.3)
@@ -86,7 +89,7 @@ def test_load_from_stdin():
             env={"TUXCONFIG": tuxconfig})
         assert tuxconfig.exists()
         proc = run(["tmunloadcf"], env={"TUXCONFIG": tuxconfig})
-        assert "32769" in proc.stdout
+        assert str(32769 + os.getpid() % 1000) in proc.stdout
 
 
 def test_missing_tuxconfig_env():
@@ -94,8 +97,8 @@ def test_missing_tuxconfig_env():
         ubb = write_ubb(dir)
         env = {k: v for k, v in os.environ.items() if k != "TUXCONFIG"}
         proc = run(["tmloadcf", "-y", ubb], expect=-1, env=env)
-        # subprocess maps exit(-1) to 255
-        assert proc.returncode == 255
+        # fuxedo exits -1, Oracle exits 1
+        assert proc.returncode in (1, 255)
 
 
 def test_bad_config_fails():

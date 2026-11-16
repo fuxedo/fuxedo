@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
   }
   if (show_help) {
     std::cout << parser;
-    return 0;
+    return 1;
   }
 
   char command[4 * 1024];

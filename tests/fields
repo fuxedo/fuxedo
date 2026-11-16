@@ -29,3 +29,25 @@ fld_double 3 double
 fld_float 4 float
 fld_string 5 string
 fld_carray 6 carray
+
+# VIEW32 test fields
+*base 10000
+VSHORT 1 short
+VLONG 2 long
+VCHAR 3 char
+VFLOAT 4 float
+VDOUBLE 5 double
+VSTRING 6 string
+VCARRAY 7 carray
+VNUMS 8 short
+VNAMES 9 string
+VITEMS 10 carray
+VENAME 11 string
+VEAGE 12 long
+VEMARK 13 float
+VESTREET 14 string
+VECITY 15 string
+VSALARY 16 float
+VCOUNT 17 long
+VDESC 18 string
+VTOTAL 19 long

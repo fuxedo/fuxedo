@@ -20,7 +20,12 @@ export PATH := $(TUXDIR)/bin:$(PATH)
 export LD_LIBRARY_PATH := $(TUXDIR)/lib:$(LD_LIBRARY_PATH)
 export PYTHONPATH := $(PYBUILD):$(CURDIR)
 export FLDTBLDIR32 := $(TUXDIR)/udataobj
+# 22.1 moved SRVCNM and friends from tpadm to Usysfl32
+ifneq ($(wildcard $(TUXDIR)/udataobj/Usysfl32),)
+export FIELDTBLS32 := tpadm,Usysfl32
+else
 export FIELDTBLS32 := tpadm
+endif
 
 TESTS := $(sort $(wildcard test_*.py))
 
@@ -30,9 +35,12 @@ check: module $(TESTS)
 	@echo "pytests: all tests passed"
 
 module:
-	@if [ -z "$(PYBUILD)" ]; then \
-		echo "building tuxedo-python module from $(TUXEDO_PYTHON)"; \
+	@if [ -z "$(PYBUILD)" ] || [ ! -f $(TUXEDO_PYTHON)/build/.tuxdir ] || \
+	    [ "$$(cat $(TUXEDO_PYTHON)/build/.tuxdir 2>/dev/null)" != "$(TUXDIR)" ]; then \
+		echo "building tuxedo-python module from $(TUXEDO_PYTHON) against $(TUXDIR)"; \
+		rm -rf $(TUXEDO_PYTHON)/build/temp.*; \
 		(cd $(TUXEDO_PYTHON) && TUXDIR=$(TUXDIR) python3 setup.py build) || exit 1; \
+		echo "$(TUXDIR)" > $(TUXEDO_PYTHON)/build/.tuxdir; \
 	fi
 
 $(TESTS): module

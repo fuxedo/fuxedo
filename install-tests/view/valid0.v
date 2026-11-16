@@ -1,3 +1,3 @@
 VIEW valid0
-carray bin - 1 - - -
+carray bin - 1 - 2 -
 END

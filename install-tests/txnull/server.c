@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include <tx.h>
 #include <userlog.h>
 
 void SERVICE_COMMIT(TPSVCINFO *svcinfo) {

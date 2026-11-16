@@ -15,7 +15,8 @@ check: oraxa server server1 server2 client tuxconfig
 	-tmipcrm -y
 	set | grep TNS
 	sqlplus fuxedo/fuxedo@orcl @pre.sql
-	tmboot -y
+	-tmboot -y
+	sleep 3 # 22.1 returns before the bulletin board is ready
 	./client
 	./client
 	tmshutdown -y

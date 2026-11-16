@@ -5,6 +5,7 @@ Oracle ud32 requires a domain to print.
 """
 
 import os
+import socket
 import shutil
 
 from fuxtest import is_fuxedo, main, run, scratch
@@ -16,10 +17,18 @@ def test_mkfldhdr32_generates_header():
         shutil.copy(os.path.join(tuxdir, "udataobj", "tpadm"), dir / "tpadm")
         run(["mkfldhdr32", "-d", dir, dir / "tpadm"])
         header = (dir / "tpadm.h").read_text()
-        assert "#define TA_CLASS" in header
+        spaced = " ".join(header.split("\t"))
+        assert "#define TA_CLASS" in spaced
         # field id values are aligned between fuxedo and Oracle
         assert "167778162" in header
-        assert "#define SRVCNM" in header
+        usys = os.path.join(tuxdir, "udataobj", "Usysfl32")
+        if os.path.exists(usys):
+            # 22.1 moved SRVCNM from tpadm to Usysfl32
+            shutil.copy(usys, dir / "Usysfl32")
+            run(["mkfldhdr32", "-d", dir, dir / "Usysfl32"])
+            header = (dir / "Usysfl32.h").read_text()
+            spaced = " ".join(header.split("\t"))
+        assert "#define SRVCNM" in spaced
 
 
 def test_mkfldhdr32_missing_table_fails():
@@ -57,16 +66,22 @@ def test_buildclient_help():
 
 
 def test_tmipcrm_accepts_positional_tuxconfig_and_n():
+    if not is_fuxedo():
+        # 22.1 tmipcrm refuses to run without a booted bulletin board
+        print("skipping tmipcrm positional test on non-fuxedo install")
+        return
     with scratch("tmipcrm-pos") as dir:
         ubb = dir / "ubbconfig"
         ubb.write_text("""*RESOURCES
-IPCKEY 32769
+IPCKEY {ipckey}
 MASTER tuxapp
 MODEL SHM
+SECURITY NONE
 
 *MACHINES
-"m" LMID=tuxapp APPDIR="{0}" TUXCONFIG="{0}/tuxconfig" TUXDIR="{1}"
-""".format(dir, os.environ["TUXDIR"]))
+"{host}" LMID=tuxapp APPDIR="{dir}" TUXCONFIG="{dir}/tuxconfig" TUXDIR="{tuxdir}"
+""".format(dir=dir, tuxdir=os.environ["TUXDIR"], host=socket.gethostname(),
+           ipckey=33769 + os.getpid() % 1000))
         tuxconfig = dir / "tuxconfig"
         run(["tmloadcf", "-y", ubb], env={"TUXCONFIG": tuxconfig})
         # positional argument overrides the environment, -n reports only

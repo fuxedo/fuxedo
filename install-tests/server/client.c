@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 int main(int argc, char *argv[]) {
   char *sndbuf = tpalloc("STRING", NULL, 6);
@@ -13,7 +14,14 @@ int main(int argc, char *argv[]) {
   assert(rcvbuf != NULL);
 
   long rcvlen = 6;
-  int ret = tpcall("SERVICE", sndbuf, 0, &rcvbuf, &rcvlen, 0);
+  // tmboot on some vendors returns before the servers take calls
+  int ret = -1;
+  for (int i = 0; i < 50 && ret == -1; i++) {
+    ret = tpcall("SERVICE", sndbuf, 0, &rcvbuf, &rcvlen, 0);
+    if (ret == -1) {
+      usleep(100 * 1000);
+    }
+  }
   if (ret == -1) {
     fprintf(stderr, "%s\n", tpstrerror(tperrno));
   }

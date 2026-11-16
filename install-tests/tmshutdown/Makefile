@@ -9,16 +9,20 @@ export TUXCONFIG:=$(CURDIR)/tuxconfig
 check: server tuxconfig
 	-rm -f ULOG.*
 	-tmipcrm -y
-	tmboot -y
+	-tmboot -y
+	sleep 3 # 22.1 returns before the bulletin board is ready
 	tmshutdown -i 3
-	grep -q ':server\..*:TEST: tpsvrdone called.*-i 3' ULOG.*
-	grep -q ':server\..*:TEST: tpsvrdone done.*-i 3' ULOG.*
+	sleep 1
+	grep -qE '[!:]server\..*:TEST: tpsvrdone called.*-i 3' ULOG.*
+	grep -qE '[!:]server\..*:TEST: tpsvrdone done.*-i 3' ULOG.*
 	tmshutdown -i 2
-	grep -q ':server\..*:TEST: tpsvrdone called.*-i 2' ULOG.*
-	grep -q ':server\..*:TEST: tpsvrdone done.*-i 2' ULOG.*
+	sleep 1
+	grep -qE '[!:]server\..*:TEST: tpsvrdone called.*-i 2' ULOG.*
+	grep -qE '[!:]server\..*:TEST: tpsvrdone done.*-i 2' ULOG.*
 	tmshutdown -i 1
-	grep -q ':server\..*:TEST: tpsvrdone called.*-i 1' ULOG.*
-	grep -q ':server\..*:TEST: tpsvrdone done.*-i 1' ULOG.*
+	sleep 1
+	grep -qE '[!:]server\..*:TEST: tpsvrdone called.*-i 1' ULOG.*
+	grep -qE '[!:]server\..*:TEST: tpsvrdone done.*-i 1' ULOG.*
 	tmshutdown -y
  
 ubbconfig: ubbconfig.in

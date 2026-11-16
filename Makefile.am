@@ -26,6 +26,7 @@ lib_LTLIBRARIES = src/libfuxedo.la
 
 src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/fml32.cpp src/expr.cpp \
+                           src/view32.cpp src/fv32.cpp \
                            src/server.cpp src/client.cpp \
                            src/mib.cpp src/ubb2mib.cpp src/cfg.cpp \
                            src/userlog.cpp \
@@ -36,7 +37,7 @@ src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
 
 src_libfuxedo_la_LDFLAGS = -lpthread
 
-bin_PROGRAMS = src/mkfldhdr32 src/viewc32 src/ud32 \
+bin_PROGRAMS = src/mkfldhdr32 src/viewc32 src/viewdis32 src/ud32 \
                src/fux \
                src/tmipcrm \
                src/tmadmin \
@@ -74,6 +75,9 @@ src_mkfldhdr32_LDADD = src/libfuxedo.la
 src_viewc32_SOURCES = src/viewc32.cpp
 src_viewc32_LDADD = src/libfuxedo.la
 
+src_viewdis32_SOURCES = src/viewdis32.cpp
+src_viewdis32_LDADD = src/libfuxedo.la
+
 src_ud32_SOURCES = src/ud32.cpp
 src_ud32_LDADD = src/libfuxedo.la
 
@@ -92,10 +96,17 @@ src_tmipcrm_LDADD = src/libfuxedo.la
 udataobjdir = @prefix@/udataobj
 udataobj_DATA = RM include/tpadm
 
-TESTS = tests/compat/xatmi tests/compat/fml32 tests/compat/expr tests/impl/mib tests/impl/ipcq tests/compat/base64 tests/impl/userlog tests/impl/trx tests/impl/qm tests/impl/cfg
+TESTS = tests/compat/xatmi tests/compat/fml32 tests/compat/expr tests/compat/view32 tests/impl/mib tests/impl/ipcq tests/compat/base64 tests/impl/userlog tests/impl/trx tests/impl/qm tests/impl/cfg
 check_PROGRAMS = $(TESTS)
 
-AM_TESTS_ENVIRONMENT = FLDTBLDIR32=.:src:tests FIELDTBLS32=dummy,fields
+AM_TESTS_ENVIRONMENT = FLDTBLDIR32=.:src:tests FIELDTBLS32=dummy,fields \
+                       VIEWDIR32=tests/compat VIEWFILES32=view32test.V
+
+BUILT_SOURCES = tests/compat/view32test.h tests/compat/view32test.V
+CLEANFILES = tests/compat/view32test.h tests/compat/view32test.V
+
+tests/compat/view32test.h tests/compat/view32test.V: $(top_srcdir)/tests/compat/view32test.v $(top_builddir)/src/viewc32$(EXEEXT)
+	cd tests/compat && FLDTBLDIR32=$(abs_top_srcdir)/tests FIELDTBLS32=fields $(abs_top_builddir)/src/viewc32 $(abs_top_srcdir)/tests/compat/view32test.v
 
 tests_impl_userlog_SOURCES = tests/impl/userlog.cpp tests/tests-main.cpp
 tests_impl_userlog_LDADD = src/libfuxedo.la
@@ -114,6 +125,10 @@ tests_compat_fml32_LDADD = src/libfuxedo.la
 
 tests_compat_expr_SOURCES = tests/compat/expr.cpp tests/tests-main.cpp
 tests_compat_expr_LDADD = src/libfuxedo.la
+
+tests_compat_view32_SOURCES = tests/compat/view32.cpp tests/tests-main.cpp
+tests_compat_view32_LDADD = src/libfuxedo.la
+tests_compat_view32_CPPFLAGS = -I$(top_builddir)/tests/compat
 
 tests_impl_mib_SOURCES = tests/impl/mib.cpp tests/tests-main.cpp
 tests_impl_mib_LDADD = src/libfuxedo.la

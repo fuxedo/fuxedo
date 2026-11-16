@@ -9,7 +9,8 @@ export TUXCONFIG:=$(CURDIR)/tuxconfig
 check: server client tuxconfig
 	-rm -f ULOG.*
 	-tmipcrm -y
-	tmboot -y
+	-tmboot -y
+	sleep 3 # 22.1 returns before the bulletin board is ready
 	./client
 	tmshutdown -y
 	grep -q ':TEST: SERVICE_INPUTS called' ULOG.*

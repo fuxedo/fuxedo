@@ -2,140 +2,63 @@
 // This file is part of Fuxedo
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
-#include <fml32.h>
+#include <cstdint>
+#include <istream>
 #include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
+#include <fml32.h>
 #include "basic_parser.h"
 
-static const std::string supported_flags = "CL";
-class view_parser : public basic_parser {
+struct Fbfr32;
+
+namespace fux::view {
+
+struct member {
+  std::string cname;
+  std::string fbname;  // field table name, empty if unmapped
+  FLDID32 fldid = 0;
+  int type = FLD_LONG;  // FLD_SHORT, FLD_LONG, FLD_CHAR, FLD_FLOAT,
+                        // FLD_DOUBLE, FLD_STRING, FLD_CARRAY
+  int32_t count = 1;
+  int flags = F_STOF | F_FTOS;  // two-way mapping unless restricted
+  int32_t elsize = 0;
+  std::vector<char> nullval;
+  std::vector<char> fill;      // NULL fill: nullval, P-padded, for sinit/Fvnull32
+  std::vector<char> fill_nop;  // same without the P propagation, for Fvstof32
+  bool null_none = false;  // NONE: no value is considered NULL
+  int32_t off = -1;
+  int32_t acm_off = -1;
+  int32_t alm_off = -1;
+};
+
+struct viewdef {
+  std::string name;
+  std::vector<std::string> code;  // $ lines copied into the header
+  std::vector<member> members;
+  int32_t vsize = 0;
+};
+
+// Source viewfile parser. Throws basic_parser_error with FVFSYNTAX-worthy
+// messages; the caller maps to Ferror32.
+class viewfile_parser : public basic_parser {
  public:
-  view_parser(std::istream &f) : basic_parser(f), done_(false) {}
+  viewfile_parser(std::istream &f) : basic_parser(f) {}
 
-  void parse() {
-    while (parse_line())
-      ;
-    if (sym_ != EOF) {
-      throw basic_parser_error("unrecognized input", row_, "");
-    }
-    if (!done_) {
-      throw basic_parser_error("invalid/incomplete file", row_, "");
-    }
-  }
-
-  struct field {
-    std::string type, cname, fbname;
-    long count;
-    std::string flag, size, nullv;
-  };
-
-  // todo C++17 std::variant
-  struct entry {
-    // raw
-    std::unique_ptr<std::string> r;
-    // field
-    std::unique_ptr<field> f;
-    // view
-    std::unique_ptr<std::string> view;
-    std::unique_ptr<std::string> end;
-  };
-
-  const std::vector<field> &fields() const { return fields_; }
-  const std::vector<entry> &entries() const { return entries_; }
+  std::vector<viewdef> parse();
 
  private:
-  bool parse_line() {
-    if (accept('#')) {
-      rest_of_line();
-    } else if (accept('$')) {
-      std::string raw;
-      rest_of_line(&raw);
-      entries_.push_back(
-          {std::make_unique<std::string>(raw), nullptr, nullptr, nullptr});
-    } else {
-      std::string first;
-      if (field_name(&first)) {
-        if (first == "END") {
-          if (name_.empty()) {
-            throw basic_parser_error("No view definition", row_,
-                                     "VIEW\tVIEWNAME\nEND");
-          }
-          done_ = true;
-      entries_.push_back(
-          {nullptr, nullptr, nullptr, std::make_unique<std::string>("end")});
-        } else if (first == "VIEW") {
-          if (!name_.empty()) {
-            throw basic_parser_error("Duplicate view name", row_,
-                                     "VIEW\tVIEWNAME");
-          }
-          if (!delim() || !field_name(&name_)) {
-            throw basic_parser_error("View name expected", row_,
-                                     "VIEW\tVIEWNAME");
-          }
-        entries_.push_back(
-          {nullptr, nullptr, std::make_unique<std::string>(name_), nullptr});
-        } else {
-          std::string type = first;
-
-          std::string cname, fbname, count, flag, size, nullv;
-
-          // short, long, float, double, char, string, carray
-          auto read = delim() && name(&cname) && delim() &&
-                      opt_field(&fbname) && delim() &&
-                      unsigned_number(&count) && delim() && opt_field(&flag) &&
-                      delim() && opt_number(&size) && delim() &&
-                      rest_of_line(&nullv);
-          if (!read) {
-            throw basic_parser_error(
-                "unrecognized input", row_,
-                "type\ncname\tfbname\tcount\tflag\tsize\tnull");
-          }
-
-          if (size.size() > 0) {
-            if (type != "string" && type != "carray" && type != "dec_t") {
-              throw basic_parser_error("Size supported only for string, carray and dec_t types", row_, "");
-            }
-          }
-
-          for (auto c : flag) {
-            if (supported_flags.find(c) == std::string::npos) {
-              throw basic_parser_error("Invalid flags", row_, "Only " + supported_flags + " supported");
-            }
-          }
-
-          fields_.push_back({type, cname, fbname, std::stol(count), flag, size, nullv});
-          entries_.push_back(
-              {nullptr, std::make_unique<field>(fields_.back()), nullptr, nullptr});
-        }
-      } else {
-        accept([](int c) { return ::isspace(c) && c != '\n'; });
-      }
-    }
-
-    return accept('\n');
-  }
+  bool parse_line(viewdef *&cur);
 
   bool opt_field(std::string *s = nullptr) { return accept('-') || name(s); }
   bool opt_number(std::string *s = nullptr) {
     return accept('-') || unsigned_number(s);
   }
-
-  bool null_value(std::string *s) {
-    s->clear();
-    if (accept('-')) {
-      return true;
-    }
-    if (accept('"')) {
-      while (accept([](int c) { return c != '"'; }, s))
-        ;
-      return accept('"');
-    } else {
-      return rest_of_line(s);
-    }
+  bool opt_flags(std::string *s = nullptr) {
+    return accept('-') || flag_list(s);
   }
-
   bool delim() {
     if (accept([](int c) { return c == ' ' || c == '\t'; })) {
       while (accept([](int c) { return c == ' ' || c == '\t'; }))
@@ -144,9 +67,46 @@ class view_parser : public basic_parser {
     }
     return false;
   }
+  // comma-separated flag list: C, F, L, N, P, S
+  bool flag_list(std::string *s) {
+    if (accept([](int c) { return ::isalpha(c); }, s)) {
+      while (accept([](int c) { return ::isalpha(c) || c == ','; }, s))
+        ;
+      return true;
+    }
+    return false;
+  }
 
-  bool done_;
-  std::string name_;
-  std::vector<field> fields_;
-  std::vector<entry> entries_;
+  std::vector<viewdef> views_;
 };
+
+// Turns parsed views into compiled ones: validates types and flags,
+// resolves fbname through Fldid32 (unless no_fml), computes NULL values,
+// detects duplicate cname/fldid. Appends human readable problems to `errors`
+// and `warnings`; returns false if any errors were found.
+bool resolve(std::vector<viewdef> &views, bool no_fml,
+             std::vector<std::string> &errors, std::vector<std::string> &warnings);
+
+// Computes member offsets and the structure size following the C ABI.
+void layout(viewdef &view);
+
+// Binary viewfile (.V) codec.
+void write_file(std::ostream &out, const std::vector<viewdef> &views);
+std::vector<viewdef> read_file(std::istream &in);
+
+// Runtime registry backed by VIEWFILES32/VIEWDIR32 with an LRU cache.
+// Returns nullptr and sets Ferror32 (FBADVIEW/FVFOPEN/FVFSYNTAX/FEUNIX) when
+// the view cannot be found. The returned object is a mutable per-process
+// copy: Fvopt32 changes live in it until eviction or refresh().
+std::shared_ptr<viewdef> get(const std::string &name);
+void refresh();
+
+// Conversion engine operating on an attached Fbfr32.
+int to_struct(Fbfr32 *fbfr, char *cstruct, viewdef &view);
+int from_struct(Fbfr32 *fbfr, char *cstruct, int mode, viewdef &view);
+bool is_null(const member &m, const char *el);
+void sinit(char *cstruct, viewdef &view);
+void selinit(char *cstruct, member &m);
+const member *find_member(const viewdef &view, const std::string &cname);
+
+}  // namespace fux::view

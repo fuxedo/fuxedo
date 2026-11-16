@@ -913,14 +913,14 @@ struct Fbfr32 {
 
 // Hooks for buffer type below
 
-void fml32init(void *mem, size_t size) {
+inline void fml32init(void *mem, size_t size) {
   reinterpret_cast<Fbfr32 *>(mem)->init(size);
 }
 
-void fml32reinit(void *mem, size_t size) {
+inline void fml32reinit(void *mem, size_t size) {
   reinterpret_cast<Fbfr32 *>(mem)->reinit(size);
 }
 
-void fml32finit(void *mem) { reinterpret_cast<Fbfr32 *>(mem)->finit(); }
+inline void fml32finit(void *mem) { reinterpret_cast<Fbfr32 *>(mem)->finit(); }
 
-size_t fml32used(void *mem) { return reinterpret_cast<Fbfr32 *>(mem)->used(); }
+inline size_t fml32used(void *mem) { return reinterpret_cast<Fbfr32 *>(mem)->used(); }
