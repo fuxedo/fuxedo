@@ -3,8 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fuxedo - an open source implementation of X/Open XATMI and Oracle Tuxedo APIs</title>
-<meta name="description" content="Fuxedo is an open source C/C++ middleware implementing X/Open XATMI and Oracle Tuxedo APIs, with byte-compatible FML32 buffers, System V IPC, and administration over the Tuxedo MIB.">
+<title>Fuxedo - Open Source Oracle Tuxedo Alternative (XATMI, FML32, /Q)</title>
+<meta name="description" content="Fuxedo is an open source alternative to Oracle Tuxedo: API-level, command-level, and System V IPC-level compatibility. X/Open XATMI, FML32 typed buffers, tmloadcf, tmboot, MSSQ, and /Q queues. Migration is a recompile away.">
+<meta name="keywords" content="Oracle Tuxedo alternative, open source Tuxedo, Tuxedo replacement, XATMI, ATMI, FML32, FML, tmboot, tmloadcf, tmadmin, qmadmin, MSSQ, message queue, transaction processing middleware, application server C C++">
+<link rel="canonical" href="https://fuxedo.io/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fuxedo.io/">
+<meta property="og:title" content="Fuxedo - Open Source Oracle Tuxedo Alternative">
+<meta property="og:description" content="API-level, command-level, and System V IPC-level compatibility with Oracle Tuxedo. X/Open XATMI, FML32 buffers, the same administration commands. Migration is a recompile away.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Fuxedo - Open Source Oracle Tuxedo Alternative">
+<meta name="twitter:description" content="The same XATMI API, the same commands, the same System V IPC mechanics. Fuxedo is an open source alternative to Oracle Tuxedo.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "Fuxedo",
+  "alternateName": "Open Source Oracle Tuxedo Alternative",
+  "description": "Open source implementation of the X/Open XATMI specification and Oracle Tuxedo extensions: API-level, command-level, and System V IPC-level compatibility, FML32 typed buffers, MSSQ sets, and /Q queues. MIT licensed.",
+  "url": "https://fuxedo.io/",
+  "codeRepository": "https://github.com/fuxedo/fuxedo",
+  "license": "https://opensource.org/licenses/MIT",
+  "programmingLanguage": ["C++", "C", "Python"],
+  "applicationCategory": "Transaction processing middleware",
+  "operatingSystem": "Linux",
+  "isBasedOn": "X/Open XATMI specification"
+}
+</script>
 <style>
   /* Retro enterprise palette: printed-manual ivory, BEA-red accents,
      terminal-green console bars, Motif-style bevels. Inspired by the
@@ -47,15 +72,19 @@
 <body>
 <div class="page">
 
-<h1><img src="fuxedo.svg" alt="">Fuxedo</h1>
-<p class="tagline">An open source alternative to Oracle Tuxedo</p>
+<h1><img src="fuxedo.svg" alt="Fuxedo logo">Fuxedo</h1>
+<p class="tagline">The open source alternative to Oracle Tuxedo</p>
 
 <p>Fuxedo is an open source implementation of the X/Open XATMI
-specification and a growing set of Oracle Tuxedo extensions. The aim is
-source compatibility: recompile your application against Fuxedo and run
-it. Configuration files keep the Tuxedo formats, so the tools you already
-know (tmloadcf, tmboot, tmadmin, qmadmin) work the way the manuals say
-they should.</p>
+specification and the Oracle Tuxedo extensions that applications actually
+use. It is <strong>compatible at three levels</strong>: the
+<strong>API</strong> (the same C calls, the same FML32 buffers, the same
+MIB administration classes), the <strong>commands</strong> (tmloadcf,
+tmunloadcf, tmboot, tmshutdown, tmadmin, qmadmin, ud32 and friends, same
+flags and formats), and the <strong>System V IPC mechanics</strong> (the
+same message queues, shared memory, and semaphores, used the way Tuxedo
+uses them). If your application runs on Tuxedo, migration is a recompile
+away, and no new behavior surprises come with it.</p>
 
 <p>The name is a wordplay on &ldquo;free&rdquo; and Tuxedo, and on the
 <a href="https://www.stuckeyandmurray.com/fuxedo/About.html">fuxedo</a>
@@ -64,6 +93,33 @@ convenience of a jumpsuit. That is roughly the engineering goal too.</p>
 
 <p class="button"><a href="https://github.com/fuxedo/fuxedo">Get Fuxedo on
 GitHub</a></p>
+
+<h2>Compatibility</h2>
+
+<p><strong>API level.</strong> tpinit, tpcall, tpacall, tpbegin, FML32 and
+its boolean expressions, tpadvertise, tpenqueue: the same functions with
+the same semantics, so application source compiles and behaves the same.
+Internal details that programs cannot observe, such as buffer indexes, are
+free to differ.</p>
+
+<p><strong>Command level.</strong> The administrator&rsquo;s toolbox keeps
+its manuals: tmloadcf loads the configuration, tmboot boots it,
+tmshutdown stops it, tmadmin inspects the bulletin board, qmadmin runs the
+queues, and tmunloadcf prints the configuration back. Scripts written for
+Tuxedo keep working.</p>
+
+<p><strong>System V IPC level.</strong> Servers serve from blocking
+msgrcv() on System V queues, MSSQ sets share one queue among several
+servers, the bulletin board lives in shared memory, and locks are
+semaphores. The mechanics you have tuned kernels and runbooks around are
+the mechanics you get.</p>
+
+<p><strong>No surprises, one improvement.</strong> Where a behavior is
+observable, it matches; where internals can differ without being seen,
+they may (queue storage is folders and files, wire bytes inside the IPC
+queues are our own). The one deliberate deviation: calls do not degrade
+the way a full queue under a one-second retry would let them, so a busy
+system keeps answering.</p>
 
 <h2>Design ideas</h2>
 
@@ -76,20 +132,11 @@ tpadmcall works on the configuration file directly, which is how the
 configuration can be created programmatically from scratch, no running
 system needed.</p>
 
-<p><strong>System V IPC, on purpose.</strong> Fuxedo keeps the mechanics
-Tuxedo behavior is built around: message queues, shared memory, semaphores.
-Servers block in msgrcv the way Tuxedo servers do, requests carry
-per-service message types, and an MSSQ set is exactly what the name says:
-several servers, one queue. Where Tuxedo's documented behavior says a
-message cycles through a set until the right server takes it, Fuxedo does
-that too.</p>
-
 <p><strong>FML32, familiar down to the field ids.</strong> The API matches
 Tuxedo, field numbers and types follow the same tables, and what crosses
 process or system boundaries stays compatible: tpimport/tpexport payloads
 and compiled boolean expressions (Fboolco32 trees, memory prefixes and
-all) work on both sides. Inside a process each implementation keeps its
-own buffer layout. Nested sub-buffers included.</p>
+all) work on both sides. Nested sub-buffers included.</p>
 
 <p><strong>Queues you can ls.</strong> The /Q component stores a queue
 device as a directory, queues as folders, and messages as files, committed
