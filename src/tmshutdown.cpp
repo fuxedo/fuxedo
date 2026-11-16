@@ -19,6 +19,7 @@
 
 #include "mib.h"
 
+
 int tpacall_queue(int msqid, const char *svc, char *data, long len, long flags);
 
 int main(int argc, char *argv[]) {

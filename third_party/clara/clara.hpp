@@ -502,6 +502,31 @@ namespace detail {
                     m_tokenBuffer.push_back( { TokenType::Argument, *it } );
            }
         }
+
+        // True when the matched option token was immediately followed, in
+        // the same command line word, by more tokens - i.e. the "-d1" form
+        // that the tokenizer split into "-d" "-1".
+        auto hasGluedValue() const -> bool {
+            return m_tokenBuffer.size() >= 2;
+        }
+
+        // Consume the rest of the current command line word as the value of
+        // a matched value-taking option: "-d1" -> "1", "-dabc" -> "abc".
+        auto consumeGluedValue() -> std::string {
+            std::string value;
+            for( size_t i = 1; i < m_tokenBuffer.size(); ++i ) {
+                auto const &piece = m_tokenBuffer[i];
+                if( piece.type == TokenType::Option && piece.token.size() == 2 )
+                    value += piece.token[1];
+                else
+                    value += piece.token;
+            }
+            m_tokenBuffer.resize( 0 );
+            if( it != itEnd )
+                ++it;
+            loadBuffer();
+            return value;
+        }
     };
 
 
@@ -1008,6 +1033,13 @@ namespace detail {
                         if( result.value() == ParseResultType::ShortCircuitAll )
                             return InternalParseResult::ok( ParseState( result.value(), remainingTokens ) );
                     } else {
+                        if( remainingTokens.hasGluedValue() ) {
+                            auto value = remainingTokens.consumeGluedValue();
+                            auto result = m_ref->setValue( value );
+                            if( !result )
+                                return InternalParseResult( result );
+                            return InternalParseResult::ok( ParseState( ParseResultType::Matched, remainingTokens ) );
+                        }
                         remainingTokens.fetchArgument();
                         if( !remainingTokens )
                             return InternalParseResult::runtimeError( "Expected argument following " + token.token );

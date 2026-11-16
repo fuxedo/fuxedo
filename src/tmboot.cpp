@@ -15,6 +15,7 @@
 #include "mib.h"
 #include "misc.h"
 
+
 static void start(server &srv, bool no, bool d1) {
   std::vector<const char *> argv;
   argv.push_back(srv.servername);
@@ -82,7 +83,7 @@ int main(int argc, char *argv[]) {
   bool show_help = false;
   bool yes = false;
   bool no = false;
-  bool d1 = false;
+  std::string dlevel;
   std::string grpname;
   std::string srvname;
   std::string lmid;
@@ -100,8 +101,7 @@ int main(int argc, char *argv[]) {
       clara::Opt(yes)["-y"]("answer Yes to all questions") |
       clara::Opt(no)["-n"](
           "the execution sequence is printed, but not performed") |
-      // FIXME: clara can't handle "-d1"
-      clara::Opt(d1)["-d"](
+      clara::Opt(dlevel, "debug level")["-d"](
           "causes command line options to be printed on the standard output") |
       clara::Opt(srvid, "srvid")["-i"]("server's SRVID in TUXCONFIG") |
       clara::Opt(grpname, "grpname")["-g"]("server's SRVGRP in TUXCONFIG") |
@@ -113,6 +113,7 @@ int main(int argc, char *argv[]) {
     std::cerr << parser;
     return -1;
   }
+  bool d1 = !dlevel.empty() && dlevel != "0";
 
   try {
     mib &m = getmib();
