@@ -43,9 +43,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install libnsl2 (22.1 runtime dependency)
+    - name: Install 22.1 dependencies
+      # libnsl2: 22.1 runtime dependency. libtirpc-dev: 22.1's buildclient
+      # links every client with -ltirpc.
       if: matrix.needs-nsl != ''
-      run: sudo apt-get update && sudo apt-get install -y libnsl2
+      run: sudo apt-get update && sudo apt-get install -y libnsl2 libtirpc-dev
 
     - name: Fetch the prebuilt Oracle Tuxedo tree
       env:
