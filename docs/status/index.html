@@ -68,16 +68,15 @@ runs against all three homes.</p>
 is parsed but not enforced; EventBroker (tppost/tpsubscribe) is a stub;
 conversational tpconnect/tpsend/tprecv is untested end to end;
 cross-domain transactions (DMTLOG) are designed but not implemented;
-tmadmin's diagnostic surface (bbparms, dump, shmstats) is thin; only
-single-machine SHM domains, no MP clustering; FML32 indexes are not
-stored (a flat layout by design, at a small lookup cost).</p>
+tmadmin's diagnostic surface (bbparms, dump, shmstats) is thin; FML32
+indexes are not stored (a flat layout by design, at a small lookup
+cost). Multi-machine MP clustering is deliberately out of scope.</p>
 
 <h2>Roadmap</h2>
 
 <p>In rough order: cross-domain transactions with the DMTLOG device,
-data-dependent routing, EventBroker, MP domain support, and a
-compile-time compatibility switch for the 12.1/22.1 behavior
-divergences. The gap list and the API coverage matrix live in the
+data-dependent routing, EventBroker, and a compile-time compatibility
+switch for the 12.1/22.1 behavior divergences. The gap list and the API coverage matrix live in the
 repository, updated as items land.</p>
 
 <h2>Follow the project</h2>
