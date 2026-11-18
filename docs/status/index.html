@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuxedo Status and Roadmap - what works, what is next, how to follow</title>
+<meta name="description" content="Current maturity of Fuxedo: verified Oracle Tuxedo 12.2/22.1 compatibility in CI, done features (MSSQ, /Q, transactions, domains, workstations, XML buffers), the honest gap list, and the roadmap.">
+<meta name="keywords" content="Fuxedo status, Fuxedo roadmap, Fuxedo release, open source Tuxedo maturity, Fuxedo vs Oracle Tuxedo features">
+<link rel="canonical" href="https://fuxedo.io/status/">
+<link rel="stylesheet" href="/styles.css">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fuxedo.io/status/">
+<meta property="og:title" content="Fuxedo Status and Roadmap - what works, what is next, how to follow">
+<meta property="og:description" content="Current maturity of Fuxedo: verified Oracle Tuxedo 12.2/22.1 compatibility in CI, done features (MSSQ, /Q, transactions, domains, workstations, XML buffers), the honest gap list, and the roadmap.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Fuxedo Status and Roadmap - what works, what is next, how to follow">
+<meta name="twitter:description" content="Current maturity of Fuxedo: verified Oracle Tuxedo 12.2/22.1 compatibility in CI, done features (MSSQ, /Q, transactions, domains, workstations, XML buffers), the honest gap list, and the roadmap.">
+<style>
+  .site-nav { text-align: center; margin: 1.2em 0 0; font-family: 'Courier New', monospace; font-size: 0.95em; }
+  .site-nav a { display: inline-block; margin: 0 0.5em; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">Fuxedo</h1>
+<p class="tagline">What works, what is next, how to follow</p>
+
+<nav class="site-nav">
+<a href="/">Home</a>
+<a href="/quickstart/">Quickstart</a>
+<a href="/migration/">Migration</a>
+<a href="/training/">Training</a>
+<a href="/status/">Status</a>
+<a href="/faq/">FAQ</a>
+<a href="https://github.com/fuxedo/fuxedo">GitHub</a>
+</nav>
+
+<h2>Status</h2>
+
+<p>Fuxedo is under active development and usable today for development
+and testing; the compatibility suite runs unmodified against Oracle
+Tuxedo 12.2.2 and 22.1 on every commit, which is the project's
+definition of "matches".</p>
+
+<h2>Done and verified</h2>
+
+<p>The ATMI client and server API (tpinit, tpcall, tpacall, tpgetrply,
+tpforward, tpreturn, tpadvertise/x with TPSINGLETON and TPSECONDARYRQ),
+FML32 with Oracle-compatible field ids and boolean expressions, VIEW32,
+XML buffers with tpxmltofml32 and BUFTYPECONV, STRING and CARRAY,
+tpimport/tpexport. Administration: tmloadcf, tmunloadcf, tmboot,
+tmshutdown, tmadmin, qmadmin, ud32, tmipcrm, crdl/crlog, the MIB
+classes, and runtime updates (adv, unadv, suspend, resume,
+changetrace). Operations: MSSQ sets with secondary queues, REPLYQ,
+automatic restart with MAXGEN/RESTART/GRACE. Transactions: multi-group
+2PC with per-group TMS servers, a folder-based TLOG, and heuristic
+detection. /Q queues as folders and files with TMQUEUE and TMQFORWARD.
+Networking: GWTDOMAIN gateways with dmadmin, TLS links with
+trust-on-first-use pins, and workstation clients via WSL and WSNADDR.
+Python throughout via <a
+href="https://aivarsk.com/tuxedo-python/">tuxedo-python</a>, whose demo
+runs against all three homes.</p>
+
+<h2>Known gaps</h2>
+
+<p>Honest list, no asterisks: data-dependent routing (*ROUTING section)
+is parsed but not enforced; EventBroker (tppost/tpsubscribe) is a stub;
+conversational tpconnect/tpsend/tprecv is untested end to end;
+cross-domain transactions (DMTLOG) are designed but not implemented;
+tmadmin's diagnostic surface (bbparms, dump, shmstats) is thin; only
+single-machine SHM domains, no MP clustering; FML32 indexes are not
+stored (a flat layout by design, at a small lookup cost).</p>
+
+<h2>Roadmap</h2>
+
+<p>In rough order: cross-domain transactions with the DMTLOG device,
+data-dependent routing, EventBroker, MP domain support, and a
+compile-time compatibility switch for the 12.1/22.1 behavior
+divergences. The gap list and the API coverage matrix live in the
+repository, updated as items land.</p>
+
+<h2>Follow the project</h2>
+
+<p>Watch <a href="https://github.com/fuxedo/fuxedo">the repository</a>
+for releases (GitHub emails on new ones if you watch with "all
+activity"), subscribe to the <a
+href="https://github.com/fuxedo/fuxedo/releases.atom">releases RSS
+feed</a>, read the commit stream, or write to <a
+href="mailto:hello@fuxedo.io">hello@fuxedo.io</a> for the occasional
+project letter. Versioned releases and their notes will live on the
+<a href="https://github.com/fuxedo/fuxedo/releases">GitHub releases
+page</a>; the first tag is planned once the DMTLOG work lands.</p>
+
+<footer>
+Fuxedo is released under the <a
+href="https://opensource.org/licenses/MIT">MIT license</a>. Oracle
+Tuxedo is a trademark of Oracle Corporation; Fuxedo is an independent
+implementation, not affiliated with or endorsed by Oracle. Questions:
+<a href="mailto:hello@fuxedo.io">hello@fuxedo.io</a>.
+</footer>
+
+</div>
+</body>
+</html>

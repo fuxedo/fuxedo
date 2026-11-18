@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Migrating from Oracle Tuxedo to Fuxedo - license cost, audits, and how the move works</title>
+<meta name="description" content="Why teams look past Oracle Tuxedo: licensing cost, audit exposure, platform risk. How migration to Fuxedo works as a recompile, what matches at API, command, and System V IPC level, and why Fuxedo is the brownfield exit ramp: same UBBCONFIG, same commands, same SysV mechanics, recompile and go.">
+<meta name="keywords" content="Oracle Tuxedo migration, Tuxedo license cost, Tuxedo alternative, leave Oracle Tuxedo, Tuxedo audit, brownfield migration, UBBCONFIG compatibility">
+<link rel="canonical" href="https://fuxedo.io/migration/">
+<link rel="stylesheet" href="/styles.css">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fuxedo.io/migration/">
+<meta property="og:title" content="Migrating from Oracle Tuxedo to Fuxedo - license cost, audits, and how the move works">
+<meta property="og:description" content="Why teams look past Oracle Tuxedo: licensing cost, audit exposure, platform risk. How migration to Fuxedo works as a recompile, what matches at API, command, and System V IPC level, and why Fuxedo is the brownfield exit ramp: same UBBCONFIG, same commands, same SysV mechanics, recompile and go.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Migrating from Oracle Tuxedo to Fuxedo - license cost, audits, and how the move works">
+<meta name="twitter:description" content="Why teams look past Oracle Tuxedo: licensing cost, audit exposure, platform risk. How migration to Fuxedo works as a recompile, what matches at API, command, and System V IPC level, and why Fuxedo is the brownfield exit ramp: same UBBCONFIG, same commands, same SysV mechanics, recompile and go.">
+<style>
+  .site-nav { text-align: center; margin: 1.2em 0 0; font-family: 'Courier New', monospace; font-size: 0.95em; }
+  .site-nav a { display: inline-block; margin: 0 0.5em; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">Fuxedo</h1>
+<p class="tagline">Leaving Tuxedo without leaving your application</p>
+
+<nav class="site-nav">
+<a href="/">Home</a>
+<a href="/quickstart/">Quickstart</a>
+<a href="/migration/">Migration</a>
+<a href="/training/">Training</a>
+<a href="/status/">Status</a>
+<a href="/faq/">FAQ</a>
+<a href="https://github.com/fuxedo/fuxedo">GitHub</a>
+</nav>
+
+<h2>Why teams leave</h2>
+
+<p>The application is fine. The middleware bill is the problem. Oracle
+Tuxedo is priced per processor and the numbers grow with the machines,
+not with the value; audits arrive; the platform you built on becomes a
+recurring negotiation. None of that makes the ATMI programming model
+wrong, which is why "rewrite everything" is such an expensive answer.</p>
+
+<h2>The migration shape</h2>
+
+<p>Fuxedo matches Oracle Tuxedo at three levels, and the levels are the
+whole trick:</p>
+
+<p><strong>API level.</strong> The same C calls with the same semantics:
+tpinit, tpcall, tpacall, tpgetrply, tpenqueue, tpadvertise, tpbegin,
+FML32 including boolean expressions. Application source compiles
+against Fuxedo headers as-is, and the compatibility suite runs the same
+tests against Oracle Tuxedo 12.2.2 and 22.1 to keep the claim
+verified.</p>
+
+<p><strong>Command level.</strong> tmloadcf, tmunloadcf, tmboot,
+tmshutdown, tmadmin, qmadmin, ud32 keep their flags and shapes, so
+operations runbooks, monitoring scripts, and the on-call muscle memory
+carry over.</p>
+
+<p><strong>System V IPC level.</strong> Servers block in msgrcv on the
+same message queues, the bulletin board lives in shared memory, MSSQ
+sets share one queue. Kernel tuning and ipcs instincts still apply, and
+tools like <a
+href="https://aivarsk.com/2024/05/01/monitoring-tuxedo-with-ebpf/">eBPF
+queue monitoring</a> work on both.</p>
+
+<p>A typical migration: install Fuxedo side by side, build the
+application against it, boot the domain from the same UBBCONFIG, run
+the test suite, cut over. SQL resources and Oracle XA stay on Oracle;
+the middleware does not have to.</p>
+
+<h2>The brownfield exit ramp</h2>
+
+<p>There are two honest ways to leave licensed middleware. One is a
+framework-style rewrite: a modern runtime with a familiar-flavored API
+and its own configuration semantics, where the application is ported
+piece by piece onto a new model. That path is really a development
+project, and it is the right answer when you want to rebuild anyway.</p>
+
+<p>The other way is the brownfield exit ramp, and it is what Fuxedo
+is: same UBBCONFIG, same commands, same System V mechanics, recompile
+and go. The estate keeps its ATMI semantics, its operations runbooks,
+its kernel tuning, and its debugging instincts; the thing it sheds is
+the license negotiation. Where internals can differ without a program
+being able to tell, they may; where anything observable differs, that
+is a bug, and the compatibility suite against Oracle Tuxedo 12.2.2 and
+22.1 is there to catch it.</p>
+
+<p><a href="mailto:hello@fuxedo.io">Talk to us</a> about an assessment
+for your domain: point us at your UBBCONFIG and the service inventory,
+get back a concrete migration plan and effort estimate.</p>
+
+<footer>
+Fuxedo is released under the <a
+href="https://opensource.org/licenses/MIT">MIT license</a>. Oracle
+Tuxedo is a trademark of Oracle Corporation; Fuxedo is an independent
+implementation, not affiliated with or endorsed by Oracle. Questions:
+<a href="mailto:hello@fuxedo.io">hello@fuxedo.io</a>.
+</footer>
+
+</div>
+</body>
+</html>

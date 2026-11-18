@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuxedo Quickstart: install, tmloadcf, tmboot, tpcall in five minutes</title>
+<meta name="description" content="Boot your first Fuxedo domain in five minutes: install from source, tmloadcf a minimal UBBCONFIG, tmboot, and place a tpcall. Open source Oracle Tuxedo alternative with API-level and command-level compatibility.">
+<meta name="keywords" content="Fuxedo quickstart, Oracle Tuxedo tutorial, tmloadcf example, tmboot example, tpcall example, open source Tuxedo install">
+<link rel="canonical" href="https://fuxedo.io/quickstart/">
+<link rel="stylesheet" href="/styles.css">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fuxedo.io/quickstart/">
+<meta property="og:title" content="Fuxedo Quickstart: install, tmloadcf, tmboot, tpcall in five minutes">
+<meta property="og:description" content="Boot your first Fuxedo domain in five minutes: install from source, tmloadcf a minimal UBBCONFIG, tmboot, and place a tpcall. Open source Oracle Tuxedo alternative with API-level and command-level compatibility.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Fuxedo Quickstart: install, tmloadcf, tmboot, tpcall in five minutes">
+<meta name="twitter:description" content="Boot your first Fuxedo domain in five minutes: install from source, tmloadcf a minimal UBBCONFIG, tmboot, and place a tpcall. Open source Oracle Tuxedo alternative with API-level and command-level compatibility.">
+<style>
+  .site-nav { text-align: center; margin: 1.2em 0 0; font-family: 'Courier New', monospace; font-size: 0.95em; }
+  .site-nav a { display: inline-block; margin: 0 0.5em; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">Fuxedo</h1>
+<p class="tagline">From zero to a running service in five minutes</p>
+
+<nav class="site-nav">
+<a href="/">Home</a>
+<a href="/quickstart/">Quickstart</a>
+<a href="/migration/">Migration</a>
+<a href="/training/">Training</a>
+<a href="/status/">Status</a>
+<a href="/faq/">FAQ</a>
+<a href="https://github.com/fuxedo/fuxedo">GitHub</a>
+</nav>
+
+<h2>Quickstart</h2>
+
+<p>The fastest honest path: build from source (a few minutes on any
+modern Linux), boot a domain, place a call. No database, no container,
+no license key.</p>
+
+<p><strong>1. Build and install.</strong></p>
+
+<pre><code>sudo apt-get install -y build-essential autoconf automake libtool pkg-config libssl-dev   # or your distro's equivalents
+git clone https://github.com/fuxedo/fuxedo.git
+cd fuxedo
+./autogen.sh
+./configure --prefix="$HOME/fux"
+make -j"$(nproc)"
+make install</code></pre>
+
+<p><strong>2. Point the environment at it.</strong></p>
+
+<pre><code>export TUXDIR="$HOME/fux"
+export PATH="$TUXDIR/bin:$PATH"
+export LD_LIBRARY_PATH="$TUXDIR/lib:${LD_LIBRARY_PATH:-}"</code></pre>
+
+<p><strong>3. A minimal UBBCONFIG.</strong> Save as <code>ubb</code>,
+using your hostname (<code>uname -n</code>) and a scratch directory:</p>
+
+<pre><code>*RESOURCES
+IPCKEY 123456
+MASTER fuxapp
+MODEL SHM
+
+*MACHINES
+"myhost" LMID=fuxapp APPDIR="/tmp/fuxdemo" TUXCONFIG="/tmp/fuxdemo/tuxconfig" TUXDIR="$HOME/fux"
+
+*GROUPS
+G1 LMID=fuxapp GRPNO=1
+
+*SERVERS
+"reply.py" SRVGRP=G1 SRVID=1
+
+*SERVICES
+REPLY</code></pre>
+
+<pre><code>mkdir -p /tmp/fuxdemo &amp;&amp; cd /tmp/fuxdemo</code></pre>
+
+<p><strong>4. The server</strong>, <code>reply.py</code> (executable,
+shebang required; get the bindings with
+<code>pip install pybind11 &amp;&amp; TUXDIR="$HOME/fux" python3 -m pip install .</code>
+from the tuxedo-python clone, or link the build directory onto
+<code>PYTHONPATH</code>):</p>
+
+<pre><code>#!/usr/bin/env python3
+import sys
+import tuxedo as t
+
+class Server:
+    def tpsvrinit(self, args):
+        t.tpadvertise('REPLY')
+        return 0
+    def REPLY(self, args):
+        return t.tpreturn(t.TPSUCCESS, 0, args)
+
+if __name__ == '__main__':
+    t.run(Server(), sys.argv)</code></pre>
+
+<pre><code>chmod +x reply.py
+tmloadcf -y ubb
+tmboot -y</code></pre>
+
+<p><strong>5. Place the call.</strong></p>
+
+<pre><code>python3 -c 'import tuxedo as t; t.tpinit(None); \
+  print(t.tpcall("REPLY", {"HELLO": "world"}).data)'</code></pre>
+
+<p>That is the whole shape of the system: a text configuration loaded
+into a binary TUXCONFIG, servers booted into groups, services advertised
+into the bulletin board, calls routed over System V queues. From here
+the <a href="https://aivarsk.com/tuxedo-python/">tuxedo-python</a>
+bindings, the <a href="https://github.com/fuxedo/fuxedo">demo and test
+suites</a>, and the <a href="/training/">training</a> take it to
+production depth.</p>
+
+<footer>
+Fuxedo is released under the <a
+href="https://opensource.org/licenses/MIT">MIT license</a>. Oracle
+Tuxedo is a trademark of Oracle Corporation; Fuxedo is an independent
+implementation, not affiliated with or endorsed by Oracle. Questions:
+<a href="mailto:hello@fuxedo.io">hello@fuxedo.io</a>.
+</footer>
+
+</div>
+</body>
+</html>

@@ -30,43 +30,10 @@
   "isBasedOn": "X/Open XATMI specification"
 }
 </script>
+<link rel="stylesheet" href="/styles.css">
 <style>
-  /* Retro enterprise palette: printed-manual ivory, BEA-red accents,
-     terminal-green console bars, Motif-style bevels. Inspired by the
-     era, no borrowed assets. */
-  body { background: #e9e4d3;
-         font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a;
-         margin: 0; padding: 2.5em 1.2em; line-height: 1.55; }
-  .page { max-width: 44em; margin: 0 auto; background: #fbf7ea;
-          border: 1px solid #8f8871;
-          box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #b3ab90,
-                      3px 3px 0 rgba(0,0,0,0.12);
-          padding: 2.2em 2.6em; }
-  h1 { text-align: center; margin-bottom: 0; font-size: 2.2em;
-       color: #14120c; }
-  h1 img { width: 40px; height: 40px; vertical-align: -8px; margin-right: 8px; }
-  .tagline { text-align: center; font-style: italic; color: #5c5540;
-             margin-top: 0.2em; font-family: 'Courier New', monospace; }
-  h2 { font-size: 0.95em; margin-top: 2em;
-       font-family: 'Courier New', monospace; font-weight: bold;
-       background: #10312a; color: #9fe8b0; padding: 5px 10px;
-       border: 1px solid #0a201b;
-       box-shadow: inset 1px 1px 0 #2a5a4c, inset -1px -1px 0 #071a15; }
-  p strong { color: #14120c; }
-  a { color: #8f1d14; }
-  a:hover { color: #c0392b; }
-  .button { display: block; text-align: center; margin: 2.2em 0; }
-  .button a { display: inline-block; background: #ded8c2; color: #14120c;
-              padding: 0.55em 1.6em; text-decoration: none; font-size: 1.05em;
-              font-family: 'Courier New', monospace; font-weight: bold;
-              border: 2px solid;
-              border-color: #ffffff #6f6852 #6f6852 #ffffff; }
-  .button a:hover { background: #eae4cf; }
-  .button a:active { border-color: #6f6852 #ffffff #ffffff #6f6852; }
-  footer { margin-top: 3em; font-size: 0.9em; color: #5c5540;
-           border-top: 1px solid #b3ab90; padding-top: 1em; }
-  code { background: #efe9d6; padding: 0 4px; border: 1px solid #cfc7ab;
-         font-size: 0.92em; }
+  .site-nav { text-align: center; margin: 1.2em 0 0; font-family: 'Courier New', monospace; font-size: 0.95em; }
+  .site-nav a { display: inline-block; margin: 0 0.5em; text-decoration: none; }
 </style>
 </head>
 <body>
@@ -74,6 +41,15 @@
 
 <h1><img src="fuxedo.svg" alt="Fuxedo logo">Fuxedo</h1>
 <p class="tagline">The open source alternative to Oracle Tuxedo</p>
+
+<nav class="site-nav">
+<a href="/quickstart/">Quickstart</a>
+<a href="/migration/">Migration</a>
+<a href="/training/">Training</a>
+<a href="/status/">Status</a>
+<a href="/faq/">FAQ</a>
+<a href="https://github.com/fuxedo/fuxedo">GitHub</a>
+</nav>
 
 <p>Fuxedo is an open source implementation of the X/Open XATMI
 specification and the Oracle Tuxedo extensions that applications actually
@@ -182,6 +158,45 @@ kernel can be asked what /proc and ipcs will not tell:
 and /proc based queue monitoring</a>, including the caller to callee
 wait view and ipcqmon, works against both Fuxedo and Oracle Tuxedo.</p>
 
+<h2>Why believe it</h2>
+
+<p>Fuxedo is built and maintained by <a
+href="https://aivarsk.com/about.html">Aivars Kalvans</a>, author of the
+Packt book <em>Modernizing Oracle Tuxedo Applications with Python</em>
+and of the tuxedo-python bindings, with close to two decades of running
+C++ Tuxedo applications in production. The compatibility suite runs
+unmodified against Oracle Tuxedo 12.2.2 and 22.1 in continuous
+integration, on every commit, so the API claims stay verified rather
+than aspirational.</p>
+
+<p><a href="https://github.com/fuxedo/fuxedo"><img
+src="https://img.shields.io/github/stars/fuxedo/fuxedo?style=flat"
+alt="GitHub stars"> <img
+src="https://img.shields.io/github/last-commit/fuxedo/fuxedo?style=flat"
+alt="last commit"></a></p>
+
+<p>The honest status, the gap list, and what is next live on the
+<a href="/status/">status page</a>.</p>
+
+<h2>Commercial</h2>
+
+<p>Fuxedo itself is free software, MIT licensed, commercial use
+included, no copyleft and no per-CPU counting. Around it there is a
+shelf for teams that want a human on call:</p>
+
+<ul>
+<li><a href="/training/">Oracle Tuxedo and Fuxedo training</a>,
+instructor-led, two or three days, hands-on.</li>
+<li>Migration assessments: point us at your UBBCONFIG and domain layout,
+get a concrete plan and effort estimate for moving off licensed
+Tuxedo.</li>
+<li>Support and consulting on Fuxedo, Tuxedo internals, IPC queue
+behavior, and performance incidents.</li>
+</ul>
+
+<p>For any of it, write to <a
+href="mailto:hello@fuxedo.io">hello@fuxedo.io</a>.</p>
+
 <h2>More</h2>
 
 <p>Source, build instructions, and the current status live in the
@@ -192,8 +207,12 @@ anything else, write to <a
 href="mailto:hello@fuxedo.io">hello@fuxedo.io</a>.</p>
 
 <footer>
-Fuxedo is free to use, modify, and distribute for commercial and
-non-commercial purposes (MIT license).
+Fuxedo is released under the <a
+href="https://opensource.org/licenses/MIT">MIT license</a>: free to use,
+modify, and distribute for commercial and non-commercial purposes, with
+the license text in the repository's COPYING file. Oracle Tuxedo is a
+trademark of Oracle Corporation; Fuxedo is an independent
+implementation, not affiliated with or endorsed by Oracle.
 </footer>
 </div>
 

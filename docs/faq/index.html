@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuxedo FAQ - license, Oracle relationship, production readiness</title>
+<meta name="description" content="Answers: MIT license and commercial use, relationship to Oracle Tuxedo, production readiness, what differs from Oracle Tuxedo, support options, how migration works.">
+<meta name="keywords" content="Fuxedo FAQ, Fuxedo license, Fuxedo Oracle, Fuxedo production, Fuxedo support, open source Tuxedo questions">
+<link rel="canonical" href="https://fuxedo.io/faq/">
+<link rel="stylesheet" href="/styles.css">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fuxedo.io/faq/">
+<meta property="og:title" content="Fuxedo FAQ - license, Oracle relationship, production readiness">
+<meta property="og:description" content="Answers: MIT license and commercial use, relationship to Oracle Tuxedo, production readiness, what differs from Oracle Tuxedo, support options, how migration works.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Fuxedo FAQ - license, Oracle relationship, production readiness">
+<meta name="twitter:description" content="Answers: MIT license and commercial use, relationship to Oracle Tuxedo, production readiness, what differs from Oracle Tuxedo, support options, how migration works.">
+<style>
+  .site-nav { text-align: center; margin: 1.2em 0 0; font-family: 'Courier New', monospace; font-size: 0.95em; }
+  .site-nav a { display: inline-block; margin: 0 0.5em; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">Fuxedo</h1>
+<p class="tagline">Short answers to the usual questions</p>
+
+<nav class="site-nav">
+<a href="/">Home</a>
+<a href="/quickstart/">Quickstart</a>
+<a href="/migration/">Migration</a>
+<a href="/training/">Training</a>
+<a href="/status/">Status</a>
+<a href="/faq/">FAQ</a>
+<a href="https://github.com/fuxedo/fuxedo">GitHub</a>
+</nav>
+
+<h2>FAQ</h2>
+
+<p><strong>Which license?</strong> MIT. Use it, modify it, ship it in
+commercial products; the text is in the repository's COPYING file. No
+copyleft, no per-CPU counting, no runtime license server.</p>
+
+<p><strong>Is this legal? What does Oracle think?</strong> Fuxedo is an
+independent implementation of the published X/Open XATMI specification
+plus the documented Oracle Tuxedo extensions. Interoperability
+constants (field ids, flag values, error codes, command names) are
+facts, not property. Oracle Tuxedo is a trademark of Oracle
+Corporation; Fuxedo is not affiliated with or endorsed by Oracle.</p>
+
+<p><strong>Is it production ready?</strong> For development and testing,
+yes, today. The compatibility suite runs against Oracle Tuxedo 12.2.2
+and 22.1 in CI on every commit; the gap list on the <a
+href="/status/">status page</a> is kept honest. For your production
+decision, run your own test suite against it: that is what it is built
+for.</p>
+
+<p><strong>What exactly differs from Oracle Tuxedo?</strong> Only what
+programs cannot observe: /Q stores messages as files in folders instead
+of a binary queue device, FML32 buffers skip the index section, wire
+bytes inside the IPC queues are Fuxedo's own. Everything an application
+or an administrator can see is pinned to the Oracle behavior, with one
+deliberate improvement: a busy system does not degrade under the
+one-second full-queue retry.</p>
+
+<p><strong>How do I migrate?</strong> Install side by side, build
+against Fuxedo headers, boot from the same UBBCONFIG, run your tests.
+The <a href="/migration/">migration page</a> has the full
+shape.</p>
+
+<p><strong>Who is behind it?</strong> <a
+href="https://aivarsk.com/about.html">Aivars Kalvans</a>: author of
+<em>Modernizing Oracle Tuxedo Applications with Python</em>, creator of
+the tuxedo-python bindings, roughly two decades of C++ Tuxedo systems
+in production, and the person answering <a
+href="mailto:hello@fuxedo.io">hello@fuxedo.io</a>.</p>
+
+<p><strong>Is there commercial support?</strong> Training, migration
+assessments, and consulting: see <a href="/training/">training</a> or
+write to <a href="mailto:hello@fuxedo.io">hello@fuxedo.io</a>. The
+software itself stays free.</p>
+
+<footer>
+Fuxedo is released under the <a
+href="https://opensource.org/licenses/MIT">MIT license</a>. Oracle
+Tuxedo is a trademark of Oracle Corporation; Fuxedo is an independent
+implementation, not affiliated with or endorsed by Oracle. Questions:
+<a href="mailto:hello@fuxedo.io">hello@fuxedo.io</a>.
+</footer>
+
+</div>
+</body>
+</html>
