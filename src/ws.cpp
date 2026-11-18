@@ -17,9 +17,9 @@
 #include <userlog.h>
 
 #include "misc.h"
+#include "compat.h"
 #include "trx.h"
 #include "wire.h"
-
 namespace fux::ws {
 
 namespace {
@@ -442,6 +442,11 @@ int wsconn::tpsblktime(int blktime, long flags) {
     TPERROR(TPEINVAL, "Invalid arguments passed to tpsblktime");
     return -1;
   }
+  if (units == TPBLK_MILLISECOND && fux::compat::is221) {
+    // sub-second blocking units are rejected on 22.x
+    TPERROR(TPEINVAL, "Invalid flags passed to tpsblktime(..., %ld)", flags);
+    return -1;
+  }
   long timeout = units == TPBLK_SECOND ? blktime * 1000 : blktime;
   if (what == TPBLK_NEXT) {
     blocktime_next_ = timeout;
@@ -471,7 +476,12 @@ int wsconn::tpgblktime(long flags) {
   }
   if (units == TPBLK_SECOND) {
     timeout /= 1000;
-  } else if (units != TPBLK_MILLISECOND) {
+  } else if (units == TPBLK_MILLISECOND) {
+    if (fux::compat::is221) {
+      TPERROR(TPEINVAL, "Invalid flags passed to tpgblktime(%ld)", flags);
+      return -1;
+    }
+  } else {
     TPERROR(TPEINVAL, "Invalid flags passed to tpgblktime(%ld)", flags);
     return -1;
   }

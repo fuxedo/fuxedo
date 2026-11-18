@@ -26,6 +26,7 @@ namespace fs = std::experimental::filesystem;
 #include <userlog.h>
 
 #include "fux.h"
+#include "config.h"
 #include "ipc.h"
 
 #include "mib.h"

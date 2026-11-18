@@ -31,6 +31,7 @@ struct machine {
   std::string tuxdir;
   std::string ulogpfx;
   std::string tlogdevice;
+  std::string envfile;
   long blocktime = 0;  // milliseconds
 };
 

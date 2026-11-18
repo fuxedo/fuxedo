@@ -8,6 +8,10 @@
 #include <cstdlib>
 #include <cstring>
 
+#ifdef FUXEDO_TUX_COMPAT
+#include "compat.h"
+#endif
+
 #include "misc.h"
 
 TEST_CASE("invalid boolean expr", "[fml32]") {
@@ -58,10 +62,14 @@ TEST_CASE("boolean expression conversions", "[fml32]") {
   REQUIRE(boolev(fbfr, "VALUE == 1"));
   REQUIRE(boolev(fbfr, "VALUE == 1.0"));
 
-  // if one side is string constant second is converted to string; 12.2
-  // formats doubles with %f, 22.1 with %g
+  // if one side is string constant second is converted to string; 12.x
+  // formats doubles with %f, 22.x with %g
   REQUIRE(boolev(fbfr, "'1' == 1"));
+#ifdef FUXEDO_TUX_COMPAT
+  REQUIRE(boolev(fbfr, "'1.000000' == 1.0") == !fux::compat::is221);
+#else
   boolev(fbfr, "'1.000000' == 1.0");
+#endif
   boolev(fbfr, "'001' == 1");
   tpfree((char *)fbfr);
 }
@@ -111,9 +119,16 @@ TEST_CASE("boolean expression '?' subscript", "[fml32]") {
 
   REQUIRE(boolev(fbfr, "NAME[?] == 'name1'"));
 
-  // 12.2 and 22.1 decode escapes in string constants differently
+  // 12.x decodes \hh hex escapes in string constants; 22.x quotes the next
+  // character literally instead
+#ifdef FUXEDO_TUX_COMPAT
+  REQUIRE(boolev(fbfr, "NAME[?] == '\\6Ea\\6de\\31'") == !fux::compat::is221);
+  REQUIRE(boolev(fbfr, "NAME[?] == '\\6E\\61\\6d\\65\\31'") ==
+          !fux::compat::is221);
+#else
   boolev(fbfr, "NAME[?] == '\\6Ea\\6de\\31'");
   boolev(fbfr, "NAME[?] == '\\6E\\61\\6d\\65\\31'");
+#endif
 
   REQUIRE(boolev(fbfr, "NAME[?] == 'name3'"));
   REQUIRE(!boolev(fbfr, "NAME[?] == 'name4'"));
@@ -164,10 +179,22 @@ TEST_CASE("boolean expression regex full string matching", "[fml32]") {
 TEST_CASE("boolean expression unary", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   REQUIRE(!boolev(fbfr, "!(!NAME)"));
-  // 22.1 rejects adjacent unary operators at compile time
+#ifdef FUXEDO_TUX_COMPAT
+  // 22.x rejects adjacent unary operators at compile time (FSYNTAX)
+  if (fux::compat::is221) {
+    REQUIRE(Fboolco32(DECONST("!!NAME")) == nullptr);
+    REQUIRE(Ferror32 == FSYNTAX);
+  } else {
+    char *tree = Fboolco32(DECONST("!!NAME"));
+    REQUIRE(tree != nullptr);
+    REQUIRE(Fboolev32(fbfr, tree) == 0);
+    free(tree);
+  }
+#else
   if (Fboolco32(DECONST("!!NAME")) != nullptr) {
     REQUIRE(!boolev(fbfr, "!!NAME"));
   }
+#endif
 
   auto NAME = Fldid32(DECONST("NAME"));
   REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("13"), 0) != -1);
@@ -181,8 +208,12 @@ TEST_CASE("boolean expression Ffloatev32", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
 
   REQUIRE(numev(fbfr, "1+2") == 3);
-  // 22.1 evaluates nested ~ only once
+#ifdef FUXEDO_TUX_COMPAT
+  // 12.x applies nested ~ as an involution, 22.x evaluates it only once
+  REQUIRE(numev(fbfr, "1+~(~2)") == (fux::compat::is221 ? -2 : 3));
+#else
   numev(fbfr, "1+~(~2)");
+#endif
   REQUIRE(numev(fbfr, "+1+2") == 3);
   REQUIRE(numev(fbfr, "1+-2") == -1);
   REQUIRE(numev(fbfr, "-1+-2") == -3);
@@ -190,8 +221,12 @@ TEST_CASE("boolean expression Ffloatev32", "[fml32]") {
   REQUIRE(numev(fbfr, "1*2*3*4/8") == 3);
   REQUIRE(numev(fbfr, "5%2") == 1);
 
-  // 12.2 evaluates a missing field as 0, 22.1 yields 0 for the expression
+  // 12.x evaluates a missing field as 0, 22.x yields 0 for the expression
+#ifdef FUXEDO_TUX_COMPAT
+  REQUIRE(numev(fbfr, "1+SALARY") == (fux::compat::is221 ? 0 : 1));
+#else
   numev(fbfr, "1+SALARY");
+#endif
 
   auto SALARY = Fldid32(DECONST("SALARY"));
   float salary = 100.0;
@@ -199,8 +234,11 @@ TEST_CASE("boolean expression Ffloatev32", "[fml32]") {
 
   REQUIRE(numev(fbfr, "1+SALARY") == 101);
 
-  // 12.2 evaluates a missing field as 0, 22.1 yields 0 for the expression
+#ifdef FUXEDO_TUX_COMPAT
+  REQUIRE(numev(fbfr, "AGE + 1") == (fux::compat::is221 ? 0 : 1));
+#else
   numev(fbfr, "AGE + 1");
+#endif
 
   auto AGE = Fldid32(DECONST("AGE"));
   long age = 18;
@@ -222,8 +260,12 @@ TEST_CASE("boolean eval", "[fml32]") {
   REQUIRE(!boolev(fbfr, "1 != 1"));
   REQUIRE(boolev(fbfr, "1 != -1"));
   REQUIRE(boolev(fbfr, "1 != ~1"));
-  // 22.1 evaluates nested ~ only once
+#ifdef FUXEDO_TUX_COMPAT
+  // 12.x applies nested ~ as an involution, 22.x evaluates it only once
+  REQUIRE(boolev(fbfr, "1 == ~(~1)") == !fux::compat::is221);
+#else
   boolev(fbfr, "1 == ~(~1)");
+#endif
 
   Ffree32(fbfr);
 }
@@ -236,9 +278,23 @@ TEST_CASE("invalid inputs", "[fml32]") {
   REQUIRE(Ferror32 == FEINVAL);
 
   REQUIRE(Fboolev32(nullptr, tree) == -1);
-  // the Ferror codes for NULL arguments differ between 12.2 and 22.1 and
-  // are left unspecified here
+  // 12.x sets FNOTFLD for NULL arguments; 22.x leaves Ferror unset
+#ifdef FUXEDO_TUX_COMPAT
+  if (fux::compat::is221) {
+    REQUIRE(Ferror32 != FNOTFLD);
+  } else {
+    REQUIRE(Ferror32 == FNOTFLD);
+  }
+#endif
+
   REQUIRE(Fboolev32(fbfr, tree) == -1);
+#ifdef FUXEDO_TUX_COMPAT
+  if (fux::compat::is221) {
+    REQUIRE(Ferror32 != FNOTFLD);
+  } else {
+    REQUIRE(Ferror32 == FNOTFLD);
+  }
+#endif
   REQUIRE(Ffloatev32(nullptr, tree) == -1);
   REQUIRE(Ffloatev32(fbfr, tree) == -1);
 
@@ -271,9 +327,14 @@ TEST_CASE("Fboolpr32", "[fml32]") {
   REQUIRE(compiled("1 == 1") == "((1)==(1))");
   REQUIRE(compiled("1 != -1") == "((1)!=(-(1)))");
   REQUIRE(compiled("1 != ~1") == "((1)!=(~(1)))");
-  // 12.2 prints doubles with %f, 22.1 with %g
+  // 12.x prints doubles with %f, 22.x with %g
+#ifdef FUXEDO_TUX_COMPAT
+  REQUIRE(compiled("1.0 == 1") ==
+          (fux::compat::is221 ? "((1)==(1))" : "((1.000000)==(1))"));
+#else
   auto one = compiled("1.0 == 1");
   REQUIRE((one == "((1.000000)==(1))" || one == "((1)==(1))"));
+#endif
   REQUIRE(compiled("NAME == 1") == "((NAME[0])==(1))");
   REQUIRE(compiled("NAME[?] == 1") == "((NAME[?])==(1))");
 

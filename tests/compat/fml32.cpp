@@ -14,6 +14,10 @@
 
 #include <iostream>
 
+#ifdef FUXEDO_TUX_COMPAT
+#include "compat.h"
+#endif
+
 #include "misc.h"
 
 static void fldid32_check(int type) {
@@ -1714,11 +1718,21 @@ TEST_CASE("tpexport & tpimport args", "[mem]") {
   REQUIRE(tperrno == TPEINVAL);
   REQUIRE(tpexport(str, 4 * 1024, ostr, nullptr, 0) == -1);
   REQUIRE(tperrno == TPEINVAL);
+#ifdef FUXEDO_TUX_COMPAT
+  // 12.x rejects unknown flag bits with TPEINVAL, 22.x accepts them
+  if (fux::compat::is221) {
+    REQUIRE(tpexport(str, 4 * 1024, ostr, &olen, 666) != -1);
+  } else {
+    REQUIRE(tpexport(str, 4 * 1024, ostr, &olen, 666) == -1);
+    REQUIRE(tperrno == TPEINVAL);
+  }
+#else
   // 12.2 rejects unknown flag bits with TPEINVAL, 22.1 accepts them; both
   // are tolerated here
   if (tpexport(str, 4 * 1024, ostr, &olen, 666) == -1) {
     REQUIRE(tperrno == TPEINVAL);
   }
+#endif
 
   REQUIRE(tpexport(str, 4 * 1024, ostr, &olen, 0) != -1);
 
@@ -1727,9 +1741,23 @@ TEST_CASE("tpexport & tpimport args", "[mem]") {
   REQUIRE(tpimport(ostr, olen, nullptr, &olen, 0) == -1);
   REQUIRE(tperrno == TPEINVAL);
   char *tmp = nullptr;
+  auto ilen = olen;
+#ifdef FUXEDO_TUX_COMPAT
+  // 12.x rejects a NULL target pointer with TPEINVAL, 22.x allocates the
+  // buffer instead
+  if (fux::compat::is221) {
+    REQUIRE(tpimport(ostr, ilen, &tmp, &olen, 0) != -1);
+    REQUIRE(tmp != nullptr);
+    REQUIRE(tptypes(tmp, nullptr, nullptr) == 4 * 1024 - 1);
+    tpfree(tmp);
+  } else {
+    REQUIRE(tpimport(ostr, ilen, &tmp, &olen, 0) == -1);
+    REQUIRE(tperrno == TPEINVAL);
+  }
+  olen = ilen;
+#else
   // 12.2 rejects a NULL target pointer with TPEINVAL, 22.1 allocates the
   // buffer instead; both are tolerated here
-  auto ilen = olen;
   if (tpimport(ostr, ilen, &tmp, &olen, 0) == -1) {
     REQUIRE(tperrno == TPEINVAL);
     olen = ilen;
@@ -1738,9 +1766,15 @@ TEST_CASE("tpexport & tpimport args", "[mem]") {
     tpfree(tmp);
     olen = ilen;
   }
+#endif
   REQUIRE(tpimport(DECONST("01"), 666, &copy, &olen, TPEX_STRING) == -1);
+#ifdef FUXEDO_TUX_COMPAT
+  // 12.x reports TPEPROTO, 22.x reports TPESYSTEM for malformed input
+  REQUIRE(tperrno == (fux::compat::is221 ? TPESYSTEM : TPEPROTO));
+#else
   // 12.2 reports TPEPROTO, 22.1 reports TPESYSTEM for malformed input
   REQUIRE((tperrno == TPEPROTO || tperrno == TPESYSTEM));
+#endif
 
   REQUIRE(tpimport(ostr, olen, &copy, &olen, 0) != -1);
 

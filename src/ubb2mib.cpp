@@ -57,6 +57,7 @@ void ubb2mib(ubbconfig &u, mib &m) {
   checked_copy(mach.second.at("APPDIR"), m.mach().appdir);
   checked_copy(mach.second["ULOGPFX"], m.mach().ulogpfx);
   checked_copy(mach.second["TLOGDEVICE"], m.mach().tlogdevice);
+  checked_copy(mach.second["ENVFILE"], m.mach().envfile);
 
   std::string blocktime = u.resources["BLOCKTIME"];
   if (blocktime.empty()) {

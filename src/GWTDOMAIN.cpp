@@ -43,6 +43,7 @@
 #include "dmcfg.h"
 #include "dmib.h"
 #include "dmlink.h"
+#include "tlog.h"
 #include "wire.h"
 #include "fux.h"
 #include "mib.h"
@@ -82,6 +83,11 @@ std::unique_ptr<fux::link::security> sec;
 fux::cfg::dmconfig dm;
 std::string lap;
 std::string lap_id;
+// The Domains transaction log for this access point: a named log inside
+// the crdl-created DMTLOGDEV device, auto-created at boot the way GWADM
+// does. Empty when the access point has no DMTLOGDEV - such a gateway
+// group must refuse transactional requests.
+std::optional<fux::tlog::log> dmtlog;
 std::vector<remote_ap> remotes;
 std::map<int, link> links;
 long blocktime_ms = 6000;
@@ -288,8 +294,10 @@ void handle_request(int fd, fux::link::frame &f) {
   }
   links[fd].last_io = now;
   if (flags & TPTRAN) {
-    // No DMTLOG yet: transactional domain traffic is refused.
-    userlog("GWTDOMAIN: transactional request for %s refused (no DMTLOG)",
+    // cross-domain two-phase commit is not implemented yet; the DMTLOG
+    // machinery underneath is ready for it
+    userlog("GWTDOMAIN: transactional request for %s refused (cross-domain "
+            "transactions are not supported yet)",
             name.c_str());
     queue_reply(fd, corrid, TPEABORT, 0, dummy_export());
     return;
@@ -495,8 +503,11 @@ void forward_service(TPSVCINFO *svcinfo) {
     return;
   }
   if (svcinfo->flags & TPTRAN) {
-    // No DMTLOG yet: refuse and let the caller's branch fail.
-    userlog("GWTDOMAIN: transactional call to %s refused (no DMTLOG)",
+    // cross-domain two-phase commit is not implemented yet; fail the
+    // caller's branch instead of running the remote service without a
+    // transaction
+    userlog("GWTDOMAIN: transactional call to %s refused (cross-domain "
+            "transactions are not supported yet)",
             svcinfo->name);
     ::tpreturn(TPFAIL, 0, svcinfo->data, 0, 0);
     return;
@@ -657,6 +668,23 @@ int tpsvrinit(int argc, char *argv[]) {
   lap = local->accesspoint;
   lap_id = local->accesspointid;
   blocktime_ms = local->blocktime * 1000;
+
+  if (!local->dmtlogdev.empty()) {
+    try {
+      dmtlog = fux::tlog::log::open_or_create(
+          local->dmtlogdev + "/" + local->dmtlogname, local->dmtlogsize);
+      auto outstanding = dmtlog->recent();
+      if (!outstanding.empty()) {
+        userlog("GWTDOMAIN: %zu outstanding domain transaction record(s) in "
+                "%s, recovery pending",
+                outstanding.size(), local->dmtlogname.c_str());
+      }
+    } catch (const std::exception &e) {
+      userlog("GWTDOMAIN: cannot open domain transaction log %s in %s: %s",
+              local->dmtlogname.c_str(), local->dmtlogdev.c_str(), e.what());
+      return -1;
+    }
+  }
 
   const fux::cfg::dm_tdomain_addr *mine = nullptr;
   for (auto &t : dm.tdomain) {

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <string>
 
+#include "compat.h"
 #include "mib.h"
 
 static std::string input(const std::string &prompt) {
@@ -60,6 +61,15 @@ int main(int argc, char *argv[]) {
     }
     fux::cfg::tables tables;
     getconfig(&tables);
+
+    if (fux::compat::is221 &&
+        mib::check_node(tables.dom.ipckey) != node_state::running) {
+      // 22.x refuses to run without an attached bulletin board, even for
+      // report-only; 12.x works offline
+      std::cerr << "tmipcrm: cannot attach to the bulletin board"
+                << std::endl;
+      return -1;
+    }
 
     mib mib(tables.dom);
     std::cout << "Looking for IPC resources in TUXCONFIG file "

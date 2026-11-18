@@ -32,6 +32,10 @@ class log {
   // Opens an existing device. Throws if the meta is missing.
   static log open(const std::string &device);
 
+  // Opens the device, creating it when missing - the way the platform
+  // auto-creates a DMTLOG table at gateway boot when no -N was given.
+  static log open_or_create(const std::string &device, uint64_t size);
+
   uint64_t offset() const { return offset_; }
   uint64_t size() const { return size_; }
 

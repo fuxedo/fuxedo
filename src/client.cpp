@@ -13,6 +13,7 @@
 #include <memory>
 #include <vector>
 
+#include "compat.h"
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
@@ -277,6 +278,11 @@ int client::tpsblktime(int blktime, long flags) {
   if (units == TPBLK_SECOND) {
     timeout = blktime * 1000;
   } else if (units == TPBLK_MILLISECOND) {
+    if (fux::compat::is221) {
+      // sub-second blocking units are rejected on 22.x
+      TPERROR(TPEINVAL, "Invalid flags passed to tpsblktime(..., %ld)", flags);
+      return -1;
+    }
     timeout = blktime;
   } else {
     TPERROR(TPEINVAL, "Invalid flags passed to tpsblktime(..., %ld)", flags);
@@ -315,6 +321,10 @@ int client::tpgblktime(long flags) {
   if (units == TPBLK_SECOND) {
     timeout /= 1000;
   } else if (units == TPBLK_MILLISECOND) {
+    if (fux::compat::is221) {
+      TPERROR(TPEINVAL, "Invalid flags passed to tpgblktime(%ld)", flags);
+      return -1;
+    }
     timeout /= 1;
   } else {
     TPERROR(TPEINVAL, "Invalid flags passed to tpgblktime(%ld)", flags);

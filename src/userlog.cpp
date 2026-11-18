@@ -58,11 +58,11 @@ int userlog(const char *fmt, ...) {
   ssize_t n;
   if (millisec) {
     n = snprintf(buf, sizeof(buf),
-                 "%02d%02d%02d.%03d.%s:%s.%d: ", timeinfo.tm_hour,
+                 "%02d%02d%02d.%03d.%s!%s.%d: ", timeinfo.tm_hour,
                  timeinfo.tm_min, timeinfo.tm_sec, int(tv.tv_usec / 1000),
                  nodename.c_str(), proc_name, getpid());
   } else {
-    n = snprintf(buf, sizeof(buf), "%02d%02d%02d.%s:%s.%d: ", timeinfo.tm_hour,
+    n = snprintf(buf, sizeof(buf), "%02d%02d%02d.%s!%s.%d: ", timeinfo.tm_hour,
                  timeinfo.tm_min, timeinfo.tm_sec, nodename.c_str(), proc_name,
                  getpid());
   }

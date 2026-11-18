@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstring>
 
+#include "compat.h"
 #include "fbfr32.h"
 #include "misc.h"
 
@@ -163,8 +164,13 @@ int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags) {
     TPERROR(TPEINVAL, "istr is NULL");
     return -1;
   }
-  if (obuf == nullptr || *obuf == nullptr) {
+  if (obuf == nullptr) {
     TPERROR(TPEINVAL, "obuf is NULL");
+    return -1;
+  }
+  if (!fux::compat::is221 && (flags & ~TPEX_STRING) != 0) {
+    // 12.x rejects unknown flag bits; 22.x accepts and ignores them
+    TPERROR(TPEINVAL, "Invalid flags");
     return -1;
   }
 
@@ -176,12 +182,51 @@ int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags) {
   if (flags & TPEX_STRING) {
     ilen = strlen(istr);
     if (ilen % 4) {
-      TPERROR(TPEPROTO, "Invalid base64 string");
+      // 12.x reports TPEPROTO, 22.x reports TPESYSTEM for malformed input
+      if (fux::compat::is221) {
+        TPERROR(TPESYSTEM, "Invalid base64 string");
+      } else {
+        TPERROR(TPEPROTO, "Invalid base64 string");
+      }
       return -1;
     }
     needed += ilen / 4 * 3;
   } else {
     needed += ilen;
+  }
+
+  if (*obuf == nullptr) {
+    // 22.x allocates the target buffer (the caller frees it with tpfree());
+    // 12.x reports TPEINVAL
+    if (!fux::compat::is221) {
+      TPERROR(TPEINVAL, "*obuf is NULL");
+      return -1;
+    }
+    constexpr auto prefix = offsetof(tpmem, type);
+    char type[sizeof(tpmem::type) + 1] = {};
+    char subtype[sizeof(tpmem::subtype) + 1] = {};
+    char wire[prefix + 8] = {};
+    if (flags & TPEX_STRING) {
+      constexpr auto wire_b64 = base64chars(sizeof(wire));
+      if (ilen < static_cast<long>(wire_b64)) {
+        TPERROR(TPESYSTEM, "Import buffer too small for a buffer header");
+        return -1;
+      }
+      base64decode(istr, wire_b64, wire, sizeof(wire));
+    } else {
+      if (ilen < static_cast<long>(prefix)) {
+        TPERROR(TPESYSTEM, "Import buffer too small for a buffer header");
+        return -1;
+      }
+      std::copy_n(istr, prefix, wire);
+    }
+    // the wire format starts at tpmem::type
+    std::copy_n(wire, sizeof(tpmem::type), type);
+    std::copy_n(wire + sizeof(tpmem::type), sizeof(tpmem::subtype), subtype);
+    *obuf = tpalloc(type, subtype, needed - prefix);
+    if (*obuf == nullptr) {
+      return -1;
+    }
   }
 
   auto omem = memptr(*obuf);
@@ -219,7 +264,9 @@ int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags) {
     TPERROR(TPEINVAL, "Invalid arguments");
     return -1;
   }
-  if (!(flags == 0 || flags == TPEX_STRING)) {
+  if (!fux::compat::is221 && (flags & ~TPEX_STRING) != 0) {
+    // 12.x rejects unknown flag bits (including 22.x-only TPEX_XDR64LONG);
+    // 22.x accepts and ignores them
     TPERROR(TPEINVAL, "Invalid flags");
     return -1;
   }

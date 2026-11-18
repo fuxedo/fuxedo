@@ -13,6 +13,7 @@
 #include "cfg.h"
 #include "dmcfg.h"
 #include "misc.h"
+#include "tlog.h"
 #include "ubb2mib.h"
 #include "ubbreader.h"
 
@@ -53,6 +54,19 @@ static int load(const std::string &text, const std::string &outfile,
                   << " not associated with GWADM server in TUXCONFIG file"
                   << std::endl;
         return 1;
+      }
+      if (!dom.dmtlogdev.empty()) {
+        // like the platform: DMTLOGDEV names an existing transaction log
+        // device created with crdl, not a plain path
+        try {
+          (void)fux::tlog::log::open(dom.dmtlogdev);
+        } catch (const std::exception &) {
+          std::cerr << "dmloadcf: " << dom.dmtlogdev
+                    << " is not a transaction log device (create it with "
+                       "crdl first)"
+                    << std::endl;
+          return 1;
+        }
       }
     }
   } catch (const basic_parser_error &e) {

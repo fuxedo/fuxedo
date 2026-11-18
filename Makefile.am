@@ -9,7 +9,8 @@ AM_CXXFLAGS = -g -Wall -Wextra -Werror $(gcov_flags) \
               -I$(top_srcdir)/include \
               -isystem $(top_srcdir)/third_party/catch \
               -isystem $(top_srcdir)/third_party/clara \
-              -I$(top_srcdir)/tests
+              -I$(top_srcdir)/tests \
+              -I$(top_srcdir)/src -I$(top_builddir)/src
 
 AM_LDFLAGS = $(gcov_ldflags)
 
@@ -23,6 +24,8 @@ include_HEADERS = include/atmi.h include/xatmi.h \
                   include/tpadm.h
 
 lib_LTLIBRARIES = src/libfuxedo.la
+
+noinst_HEADERS = src/compat.h
 
 src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/fml32.cpp src/expr.cpp \

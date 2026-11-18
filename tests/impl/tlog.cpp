@@ -143,3 +143,31 @@ TEST_CASE("heuristic records are terminal outcomes") {
   CHECK(seen);
   (void)device("heuristic");
 }
+
+TEST_CASE("named logs share one device, DMTLOG style") {
+  // a crdl-created device can host one named log per access point; each
+  // named log lives in its own subfolder and appends independently
+  auto dir = device("named");
+  fux::tlog::log::create(dir, 0, 20);
+
+  auto one = fux::tlog::log::open_or_create(dir + "/DMTLOG_DOM1", 10);
+  auto two = fux::tlog::log::open_or_create(dir + "/DMTLOG_DOM2", 10);
+  // opening again finds the existing log, size preserved
+  auto again = fux::tlog::log::open_or_create(dir + "/DMTLOG_DOM1", 99);
+  CHECK(again.size() == 10);
+
+  auto x1 = mkxid("dom1-tx");
+  auto x2 = mkxid("dom2-tx");
+  one.append(fux::tlog::record_type::commit, &x1);
+  two.append(fux::tlog::record_type::rollback, &x2);
+
+  CHECK(one.outcome(&x1) == 1);
+  CHECK(one.outcome(&x2) == 0);
+  CHECK(two.outcome(&x2) == 2);
+  CHECK(two.outcome(&x1) == 0);
+
+  // the device meta stays the crdl-created one
+  auto dev = fux::tlog::log::open(dir);
+  CHECK(dev.size() == 20);
+  (void)device("named");
+}

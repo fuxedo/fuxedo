@@ -114,6 +114,15 @@ log log::open(const std::string &device) {
   return l;
 }
 
+log log::open_or_create(const std::string &device, uint64_t size) {
+  std::error_code ec;
+  if (fs::exists(meta_path(device), ec)) {
+    return open(device);
+  }
+  create(device, 0, size == 0 ? 100 : size);
+  return open(device);
+}
+
 std::string log::page_path(uint64_t page) const {
   char name[32];
   snprintf(name, sizeof name, "%08llu.page",

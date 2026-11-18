@@ -3,6 +3,7 @@
 
 #include <clara.hpp>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -12,6 +13,7 @@
 #include <unistd.h>
 #include <cstdlib>
 
+#include "compat.h"
 #include "mib.h"
 #include "misc.h"
 
@@ -40,7 +42,7 @@ static std::vector<std::string> split_clopt(const std::string &clopt) {
   return tokens;
 }
 
-static void start(server &srv, bool no, bool d1) {
+static void start(server &srv, bool no, bool d1, bool &failed) {
   std::vector<std::string> clopt = split_clopt(srv.clopt);
   std::vector<const char *> argv;
   argv.push_back(srv.servername);
@@ -105,8 +107,11 @@ static void start(server &srv, bool no, bool d1) {
       std::cout << "\tprocess id=" << srv.pid << " ... Started." << std::endl;
     } else {
       srv.pid = 0;
+      failed = true;
       std::cout << "\tFailed." << std::endl;
     }
+  } else {
+    failed = true;
   }
 }
 
@@ -157,6 +162,37 @@ int main(int argc, char *argv[]) {
 
     m.validate();
 
+    // The machine ENVFILE exports variables into booted servers (VAR=VALUE
+    // lines); TUXDIR/TUXCONFIG/APPDIR from the configuration always win.
+    // PATH and LD_LIBRARY_PATH found here replace the inherited values
+    // before the platform prefix below is applied.
+    if (m.mach().envfile[0] != '\0') {
+      std::ifstream env(m.mach().envfile);
+      if (!env) {
+        std::cerr << "tmboot: cannot open ENVFILE " << m.mach().envfile
+                  << std::endl;
+        return -1;
+      }
+      std::string line;
+      while (std::getline(env, line)) {
+        if (line.empty() || line[0] == '#') {
+          continue;
+        }
+        auto eq = line.find('=');
+        if (eq == std::string::npos) {
+          continue;
+        }
+        auto name = line.substr(0, eq);
+        auto value = line.substr(eq + 1);
+        if (name == "TUXDIR" || name == "TUXCONFIG" || name == "APPDIR") {
+          std::cerr << "tmboot: warning: ENVFILE cannot override " << name
+                    << std::endl;
+          continue;
+        }
+        setenv(name.c_str(), value.c_str(), 1);
+      }
+    }
+
     std::ostringstream path;
     path << m.mach().tuxdir << "/bin:";
     path << m.mach().appdir << ":";
@@ -173,6 +209,7 @@ int main(int argc, char *argv[]) {
         return -1;
       }
     }
+    bool any_failed = false;
     for (size_t i = 0; i < servers->len; i++) {
       auto &srv = servers[i];
       if (!srv.autostart) {
@@ -187,7 +224,12 @@ int main(int argc, char *argv[]) {
       if (!srvname.empty() && srvname != srv.servername) {
         continue;
       }
-      start(srv, no, d1);
+      start(srv, no, d1, any_failed);
+    }
+    // 22.x tmboot exits non-zero when any server initialization failed;
+    // 12.x exits 0 either way
+    if (fux::compat::is221 && any_failed) {
+      return 1;
     }
   } catch (const std::exception &e) {
     std::cerr << e.what() << std::endl;

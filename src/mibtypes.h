@@ -61,6 +61,7 @@ struct t_machine {
   char appdir[256];
   char ulogpfx[256];
   char tlogdevice[256];
+  char envfile[256];
   long blocktime;
 };
 

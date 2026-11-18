@@ -82,6 +82,7 @@ tables build(const ubbconfig &ubb) {
   t.mach.tuxdir = param(mach.second, "TUXDIR");
   t.mach.ulogpfx = param(mach.second, "ULOGPFX");
   t.mach.tlogdevice = param(mach.second, "TLOGDEVICE");
+  t.mach.envfile = param(mach.second, "ENVFILE");
 
   std::string blocktime = param(ubb.resources, "BLOCKTIME");
   if (blocktime.empty()) {
@@ -195,6 +196,9 @@ std::string emit(const tables &t) {
   }
   if (!t.mach.tlogdevice.empty()) {
     out += " TLOGDEVICE=\"" + t.mach.tlogdevice + "\"";
+  }
+  if (!t.mach.envfile.empty()) {
+    out += " ENVFILE=\"" + t.mach.envfile + "\"";
   }
   out += "\n";
 

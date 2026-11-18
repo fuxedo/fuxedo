@@ -13,6 +13,7 @@
 
 #include <fml32.h>
 #include "basic_parser.h"
+#include "compat.h"
 #include "misc.h"
 #include "view32.h"
 
@@ -84,6 +85,11 @@ class ast_tree {
     memmove(tree_ + where + len, tree_ + where, len_ - where);
     std::copy_n(data, len, tree_ + where);
     len_ += len;
+  }
+
+  void erase(uint32_t where, uint32_t len) {
+    memmove(tree_ + where, tree_ + where + len, len_ - where - len);
+    len_ -= len;
   }
 
   char peek(uint32_t where) { return tree_[where]; }
@@ -240,6 +246,15 @@ class expression_parser : public basic_parser {
 
     uint32_t e;
     if (unary(&tok)) {
+      if (fux::compat::is221) {
+        // 22.x rejects adjacent unary operators at compile time (FSYNTAX)
+        space();
+        if (strchr("+-!~", sym_) != nullptr) {
+          throw basic_parser_error("Adjacent unary operators", row_, col_,
+                                   "operator '" + tok + "' cannot be followed "
+                                   "by another unary operator");
+        }
+      }
       if (tok == "-") {
         e = tree_.append(unary_minus);
       } else if (tok == "!") {
@@ -250,7 +265,14 @@ class expression_parser : public basic_parser {
         // unary + is ignored
         e = tree_.len();
       }
-      parse_primary();
+      auto child = parse_primary();
+      if (fux::compat::is221 && tok == "~" &&
+          tree_.peek(child) == bitwise_negation) {
+        // 22.x evaluates a nested ~ only once: ~(~x) compiles to a single
+        // negation instead of an involution
+        tree_.erase(e, sizeof(char));
+        return e;
+      }
       return e;
     }
 
@@ -304,7 +326,16 @@ class expression_parser : public basic_parser {
     if (accept('\'')) {
       while (true) {
         if (accept('\\')) {
-          hex(s);
+          if (fux::compat::is221) {
+            // 22.x does not decode hex/octal escapes in string constants;
+            // the backslash quotes the next character literally
+            if (s != nullptr && !eof()) {
+              s->push_back(static_cast<char>(sym_));
+              next();
+            }
+          } else {
+            hex(s);
+          }
         } else if (!accept([](int c) { return c != '\''; }, s)) {
           break;
         }
@@ -416,6 +447,12 @@ class eval_value {
     return type_ == eval_type::is_string && is_const_;
   }
 
+  // true when the value stands for a field that is not present in the
+  // buffer; 22.x arithmetic on a missing field yields 0 for the whole
+  // expression instead of treating the field as 0
+  bool missing() const { return missing_; }
+  void set_missing() { missing_ = true; }
+
   double to_double() const {
     if (type_ == eval_type::is_long) {
       return l;
@@ -442,7 +479,7 @@ class eval_value {
       sprintf(buf, "%ld", l);
       return buf;
     } else if (type_ == eval_type::is_double) {
-      sprintf(buf, "%f", d);
+      sprintf(buf, fux::compat::is221 ? "%g" : "%f", d);
       return buf;
     }
     return s;
@@ -451,6 +488,7 @@ class eval_value {
  private:
   enum class eval_type { is_long, is_double, is_string } type_;
   bool is_const_;
+  bool missing_ = false;
 };
 
 template <template <class> class Op>
@@ -466,6 +504,8 @@ eval_value apply(char *tree, eval_value &lhs, eval_value &rhs) {
 
 static eval_value boolev_field(FBFR32 *fbfr, char *tree, FLDID32 fieldid,
                                FLDOCC32 oc) {
+  eval_value missing(tree, 0L);
+  missing.set_missing();
   switch (Fldtype32(fieldid)) {
     case FLD_SHORT:
     case FLD_LONG: {
@@ -474,7 +514,7 @@ static eval_value boolev_field(FBFR32 *fbfr, char *tree, FLDID32 fieldid,
       if (value != nullptr) {
         return eval_value(tree, *value);
       } else {
-        return eval_value(tree, 0);
+        return missing;
       }
     }
     case FLD_FLOAT:
@@ -484,7 +524,7 @@ static eval_value boolev_field(FBFR32 *fbfr, char *tree, FLDID32 fieldid,
       if (value != nullptr) {
         return eval_value(tree, *value);
       } else {
-        return eval_value(tree, 0.0);
+        return missing;
       }
     }
     case FLD_CHAR:
@@ -495,7 +535,7 @@ static eval_value boolev_field(FBFR32 *fbfr, char *tree, FLDID32 fieldid,
       if (value != nullptr) {
         return eval_value(tree, value);
       } else {
-        return eval_value(tree, "");
+        return missing;
       }
     }
     default:
@@ -588,7 +628,7 @@ static char *boolpr(field_source &src, char *tree, FILE *iop) {
     double value;
     std::copy_n(tree, sizeof(value), reinterpret_cast<char *>(&value));
     tree += sizeof(value);
-    fprintf(iop, "( %f ) ", value);
+    fprintf(iop, fux::compat::is221 ? "( %g ) " : "( %f ) ", value);
   } else if (op == const_string) {
     auto len = strlen(tree);
     fprintf(iop, "( '%s' ) ", tree);
@@ -730,6 +770,11 @@ eval_value boolev(field_source &src, char *tree) {
     auto rhs = boolev(src, tree);
     tree = rhs.tree;
 
+    if (fux::compat::is221 && (lhs.missing() || rhs.missing())) {
+      // 22.x: arithmetic on a missing field yields 0 for the expression
+      return eval_value(tree, 0L);
+    }
+
     if (op == multiplication) {
       return apply<std::multiplies>(tree, lhs, rhs);
     } else if (op == division) {
@@ -783,11 +828,16 @@ eval_value boolev(field_source &src, char *tree) {
 
 int Fboolev32(FBFR32 *fbfr, char *tree) {
   if (fbfr == nullptr) {
-    FERROR(FNOTFLD, "fbfr is NULL");
+    // 22.x does not set Ferror here; 12.x reports FNOTFLD
+    if (!fux::compat::is221) {
+      FERROR(FNOTFLD, "fbfr is NULL");
+    }
     return -1;
   }
   if (tree == nullptr) {
-    FERROR(FNOTFLD, "tree is NULL");
+    if (!fux::compat::is221) {
+      FERROR(FNOTFLD, "tree is NULL");
+    }
     return -1;
   }
   fml_source src(fbfr);
@@ -797,11 +847,15 @@ int Fboolev32(FBFR32 *fbfr, char *tree) {
 
 double Ffloatev32(FBFR32 *fbfr, char *tree) {
   if (fbfr == nullptr) {
-    FERROR(FNOTFLD, "fbfr is NULL");
+    if (!fux::compat::is221) {
+      FERROR(FNOTFLD, "fbfr is NULL");
+    }
     return -1;
   }
   if (tree == nullptr) {
-    FERROR(FNOTFLD, "tree is NULL");
+    if (!fux::compat::is221) {
+      FERROR(FNOTFLD, "tree is NULL");
+    }
     return -1;
   }
   fml_source src(fbfr);

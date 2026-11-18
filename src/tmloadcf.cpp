@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "cfg.h"
+#include "compat.h"
 #include "mib.h"
 #include "ubbreader.h"
 
@@ -76,6 +77,31 @@ int main(int argc, char *argv[]) {
     auto config = p.parse();
 
     auto tables = fux::cfg::build(config);
+
+    if (fux::compat::is221) {
+      // 22.x requires SECURITY in *RESOURCES and refuses to load on a
+      // non-master node; 12.x defaults SECURITY and loads anywhere
+      if (config.resources.count("SECURITY") == 0) {
+        std::cerr << "tmloadcf: SECURITY must be specified in the RESOURCES "
+                     "section"
+                  << std::endl;
+        return -1;
+      }
+      if (config.resources.at("SECURITY") == "NONE") {
+        std::cerr << "tmloadcf: warning: SECURITY NONE is an insecure option"
+                  << std::endl;
+      }
+      if (config.resources.count("MAXACCESSERS") == 0 ||
+          config.resources.count("MAXSERVERS") == 0) {
+        std::cerr << "tmloadcf: warning: MAXACCESSERS/MAXSERVERS not "
+                     "specified, defaults apply"
+                  << std::endl;
+      }
+      if (tables.dom.master != tables.mach.lmid) {
+        std::cerr << "tmloadcf: cannot run on a non-master node" << std::endl;
+        return -1;
+      }
+    }
 
     if (count) {
       fux::cfg::print_sizing(std::cout, tables);

@@ -1,5 +1,21 @@
-AC_INIT([Fuxedo], [0.0.1], [aivars.kalvans@gmail.com])
+AC_INIT([Fuxedo], [0.9.1], [aivars.kalvans@gmail.com])
 AC_CONFIG_MACRO_DIRS([m4])
+AC_CONFIG_HEADERS([src/config.h])
+
+# Oracle Tuxedo generation to emulate: 12.1 (default) or 22.1. Fixed per
+# build; see src/compat.h and private/notes/compat-mode.md.
+AC_ARG_WITH([tuxedo-compat],
+  AS_HELP_STRING([--with-tuxedo-compat=VER],
+    [Oracle Tuxedo behavior to emulate: 12.1 or 22.1 @<:@default=12.1@:>@]),
+  [tuxedo_compat="$withval"],
+  [tuxedo_compat=12.1])
+case "$tuxedo_compat" in
+  12.1) tuxedo_compat_num=121 ;;
+  22.1) tuxedo_compat_num=221 ;;
+  *) AC_MSG_ERROR([--with-tuxedo-compat must be 12.1 or 22.1]) ;;
+esac
+AC_DEFINE_UNQUOTED([FUXEDO_TUX_COMPAT], [$tuxedo_compat_num],
+  [Oracle Tuxedo generation emulated by this build: 121 or 221])
 
 AM_INIT_AUTOMAKE([-Wall subdir-objects foreign nostdinc])
 AM_SILENT_RULES([yes])

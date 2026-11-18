@@ -21,3 +21,49 @@ jobs:
       run: make check
     - name: make installcheck
       run: make install && make installcheck
+
+  oracle:
+    # Runs the C-API compatibility suites and the behavioral tests
+    # against real Oracle Tuxedo installations, from prebuilt trees
+    # hosted as PRIVATE release assets (the installer needs an Oracle
+    # account, so CI cannot fetch it; same arrangement as
+    # tuxedo-python). Requires the INSTALLERS_TOKEN secret.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "12.2.2"
+            asset: tuxedo-12.2.2-prebuilt.tar.gz
+            needs-nsl: ""
+          - name: "22.1"
+            asset: tuxedo-22.1-prebuilt.tar.gz
+            needs-nsl: "yes"
+    name: Oracle Tuxedo ${{ matrix.name }} compat
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install libnsl2 (22.1 runtime dependency)
+      if: matrix.needs-nsl != ''
+      run: sudo apt-get update && sudo apt-get install -y libnsl2
+
+    - name: Fetch the prebuilt Oracle Tuxedo tree
+      env:
+        GH_TOKEN: ${{ secrets.INSTALLERS_TOKEN }}
+      run: |
+        gh release download oracle-tuxedo \
+          --repo aivarsk/tuxedo-installers \
+          --pattern "${{ matrix.asset }}" --clobber --dir /tmp
+        mkdir -p "$HOME/oracle"
+        tar xzf "/tmp/${{ matrix.asset }}" -C "$HOME/oracle"
+
+    - name: Run the compatibility suites against Oracle Tuxedo
+      run: |
+        export TUXDIR=$(echo "$HOME"/oracle/tuxedo*)
+        export LD_LIBRARY_PATH="$TUXDIR/lib:${LD_LIBRARY_PATH:-}"
+        if [ -n "${{ matrix.needs-nsl }}" ]; then
+          make -C install-tests check-compat-221
+        else
+          make -C install-tests check-compat
+        fi
+      timeout-minutes: 15

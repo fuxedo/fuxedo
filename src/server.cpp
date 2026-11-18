@@ -25,6 +25,7 @@
 
 #include "fux.h"
 #include "svcrepo.h"
+#include "compat.h"
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
@@ -138,6 +139,25 @@ struct server_main {
     if (func == nullptr) {
       TPERROR(TPEINVAL, "invalid func");
       return -1;
+    }
+    if (fux::compat::is221) {
+      // 22.x restricts tpadvertise() to names declared with buildserver -s:
+      // an exact table match or an extension of a "."-admin entry. A binary
+      // with an empty dispatch table is a platform server and is
+      // unrestricted.
+      auto *rec = tmsvrargs->tmdsptchtbl;
+      bool allowed = rec->svcname == nullptr;
+      for (; !allowed && rec->svcname != nullptr; rec++) {
+        auto len = strlen(rec->svcname);
+        if (strcmp(rec->svcname, svcname) == 0 ||
+            (rec->svcname[0] == '.' && strncmp(rec->svcname, svcname, len) == 0)) {
+          allowed = true;
+        }
+      }
+      if (!allowed) {
+        TPERROR(TPEINVAL, "%s was not declared with buildserver -s", svcname);
+        return -1;
+      }
     }
     /*
        [TPEPROTO]
