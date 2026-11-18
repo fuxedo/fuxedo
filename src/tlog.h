@@ -17,6 +17,9 @@ enum class record_type : uint8_t {
   // being logged (completed externally while in doubt); recovery treats
   // it as terminal, like the platform's heuristic completions
   heuristic = 3,
+  // a subordinate branch voted prepared and no decision record follows
+  // yet; domain gateways use it to find in-doubt remote branches at boot
+  prepared = 4,
 };
 
 // A transaction log is a folder of fixed-size page files (like the /Q

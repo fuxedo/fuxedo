@@ -23,6 +23,30 @@ void tx_suspend();
 void tx_join(fux::gttid id);
 void tx_end(bool ok);
 
+namespace tx {
+extern uint16_t grpno;
+extern size_t grpidx;
+}  // namespace tx
+
+namespace tm {
+enum xa_func { prepare, commit, rollback };
+// Drive the two-phase dance for xid against every group that joined it
+// in the shared transaction table. Used by tx_commit/tx_rollback and by
+// the domain gateway acting as a transaction subordinate. Returns an
+// XA-style aggregate: XA_OK, XA_RDONLY when no branch needs a second
+// phase, or the first failing branch's result.
+int coordinate(const XID *xid, int op);
+}  // namespace tm
+
+// Adopt an externally-originated transaction (domain gateway receiving
+// a request inside a global transaction): find or create the shared
+// table entry for xid and make it current for this thread. The caller
+// owns no resource manager, so no xa_start runs. Pair with tx_detach().
+fux::gttid tx_adopt(const XID &xid);
+// Drop the transaction association from the current thread; the shared
+// table entry stays alive for the commit protocol.
+void tx_detach();
+
 inline std::string to_string(XID *xid) {
   char buf[32];
 
@@ -151,6 +175,27 @@ struct transaction_table {
     }
     if (len < size) {
       return init(len++, xid, group);
+    }
+    throw std::out_of_range("No free entries in transaction table");
+  }
+
+  // entry without joining a group: the domain gateway adopts incoming
+  // transactions on behalf of remote coordinators and owns no local
+  // branch itself; the branches join when local servers do the work
+  fux::gttid start(const XID &xid) {
+    for (size_t i = 0; i < len; i++) {
+      if ((*this)[i].xid.formatID == -1) {
+        memset(&(*this)[i], 0, entry_size);
+        (*this)[i].xid = xid;
+        (*this)[i].xid.formatID = xid.formatID;
+        return i;
+      }
+    }
+    if (len < size) {
+      auto i = len++;
+      memset(&(*this)[i], 0, entry_size);
+      (*this)[i].xid = xid;
+      return i;
     }
     throw std::out_of_range("No free entries in transaction table");
   }

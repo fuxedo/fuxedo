@@ -78,6 +78,10 @@ tuxconfig getconfig(fux::cfg::tables *tables, ubbconfig *ubb) {
 
   if (tables != nullptr || ubb != nullptr) {
     ubbconfig parsed;
+    // the text parse must not die with a raw iostream error when the
+    // file is short (e.g. read while another tmloadcf rewrites it);
+    // the parser handles EOF gracefully
+    fin.exceptions(std::ifstream::badbit);
     ubbreader p(fin);
     parsed = p.parse();
     if (tables != nullptr) {

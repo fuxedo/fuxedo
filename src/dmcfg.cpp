@@ -165,8 +165,12 @@ std::string dm_emit(const dmconfig &cfg) {
       out << "\"" << e.accesspoint << "\"\tGWGRP=\"" << e.gwgrp << "\"\n"
           << "\tACCESSPOINTID=\"" << e.accesspointid << "\"\n"
           << "\tTYPE=" << e.type << "\n"
-          << "\tBLOCKTIME=" << e.blocktime << "\n"
-          << "\tDMTLOGNAME=\"" << e.dmtlogname << "\"\n"
+          << "\tBLOCKTIME=" << e.blocktime << "\n";
+      if (!e.dmtlogdev.empty()) {
+        out << "\tDMTLOGDEV=\"" << e.dmtlogdev << "\"\n"
+            << "\tDMTLOGSIZE=" << e.dmtlogsize << "\n";
+      }
+      out << "\tDMTLOGNAME=\"" << e.dmtlogname << "\"\n"
           << "\tMAXTRAN=" << e.maxtran << "\n"
           << "\tCONNECTION_POLICY=" << e.connection_policy
           << emit_params(e.extra) << "\n\n";

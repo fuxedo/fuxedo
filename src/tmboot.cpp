@@ -124,6 +124,8 @@ int main(int argc, char *argv[]) {
   std::string srvname;
   std::string lmid;
   int srvid = -1;
+  bool admin_only = false;
+  bool tms_only = false;
 
   /*
   Usage: tmboot [-w(ait)] [-n(oexec)] [-q(uiet)] [-y] [-c(heck)] [-d1]
@@ -137,6 +139,9 @@ int main(int argc, char *argv[]) {
       clara::Opt(yes)["-y"]("answer Yes to all questions") |
       clara::Opt(no)["-n"](
           "the execution sequence is printed, but not performed") |
+      clara::Opt(admin_only)["-A"](
+          "boot only administrative servers (BBL, GWADM, DMADM)") |
+      clara::Opt(tms_only)["-S"]("boot only the TMS servers") |
       clara::Opt(dlevel, "debug level")["-d"](
           "causes command line options to be printed on the standard output") |
       clara::Opt(srvid, "srvid")["-i"]("server's SRVID in TUXCONFIG") |
@@ -213,6 +218,16 @@ int main(int argc, char *argv[]) {
     for (size_t i = 0; i < servers->len; i++) {
       auto &srv = servers[i];
       if (!srv.autostart) {
+        continue;
+      }
+      bool is_admin = strcmp(srv.servername, "BBL") == 0 ||
+                      strcmp(srv.servername, "GWADM") == 0 ||
+                      strcmp(srv.servername, "DMADM") == 0;
+      bool is_tms = strncmp(srv.servername, "TMS", 3) == 0;
+      if (admin_only && !is_admin) {
+        continue;
+      }
+      if (tms_only && !is_tms) {
         continue;
       }
       if (srvid != -1 && srv.srvid != srvid) {

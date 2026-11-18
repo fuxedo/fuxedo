@@ -57,6 +57,7 @@ enum frame_type : uint8_t {
   heartbeat = 5,
   bye = 6,
   login = 7,  // workstation client login; the ack reuses the type
+  txnctrl = 8,  // cross-domain 2PC: op + xid; acked with corrid + result
 };
 
 struct frame {

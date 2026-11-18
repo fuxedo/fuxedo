@@ -31,10 +31,15 @@ int main(int argc, char *argv[]) {
   std::string srvname;
   std::string lmid;
   std::string ksig;
+  bool admin_only = false;
+  bool tms_only = false;
 
   auto parser =
       clara::Help(show_help) |
       clara::Opt(yes)["-y"]("answer Yes to all questions") |
+      clara::Opt(admin_only)["-A"](
+          "shut down only administrative servers (BBL, GWADM, DMADM)") |
+      clara::Opt(tms_only)["-S"]("shut down only the TMS servers") |
       clara::Opt(srvid, "srvid")["-i"]("server's SRVID in TUXCONFIG") |
       clara::Opt(grpname, "grpname")["-g"]("server's SRVGRP in TUXCONFIG") |
       clara::Opt(srvname, "aout")["-s"]("shut down only servers named aout") |
@@ -77,6 +82,16 @@ int main(int argc, char *argv[]) {
 
     for (int i = servers->len - 1; i >= 0; i--) {
       auto &server = servers[i];
+      bool is_admin = strcmp(server.servername, "BBL") == 0 ||
+                      strcmp(server.servername, "GWADM") == 0 ||
+                      strcmp(server.servername, "DMADM") == 0;
+      bool is_tms = strncmp(server.servername, "TMS", 3) == 0;
+      if (admin_only && !is_admin) {
+        continue;
+      }
+      if (tms_only && !is_tms) {
+        continue;
+      }
       if (srvid != -1 && srvid != server.srvid) {
         continue;
       }

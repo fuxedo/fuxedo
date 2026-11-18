@@ -38,6 +38,7 @@ extern "C" {
 int _tmrunserver(int);
 int _tmbuilt_with_thread_option;
 int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs);
+extern struct xa_switch_t tmnull_switch;
 #if defined(__cplusplus)
 }
 #endif
@@ -393,7 +394,6 @@ static void dispatch() {
     TPSVCINFO tpsvcinfo;
     bool interrupted = false;
     {
-      userlog("Dispatch loop");
       fux::scoped_fuxlock lock(main_ptr->mutex);
       if (main_ptr->stop) {
         break;
@@ -593,7 +593,11 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   main_ptr->argc = argc;
   main_ptr->argv = argv;
   main_ptr->tmsvrargs = tmsvrargs;
-  fux::glob::xasw = tmsvrargs->xa_switch;
+  // a NULL switch means "no resource manager" (system servers ship NULL
+  // in their dispatch tables); alias it to the null switch so the
+  // transaction machinery sees a plain non-RM server
+  fux::glob::xasw = tmsvrargs->xa_switch != nullptr ? tmsvrargs->xa_switch
+                                                    : &tmnull_switch;
 
   if (int n = tmsvrargs->svrinit(argc, argv); n != 0) {
     userlog("tpsvrinit() = %d", n);

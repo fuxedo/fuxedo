@@ -36,6 +36,18 @@ def test_mkfldhdr32_missing_table_fails():
         run(["mkfldhdr32", "-d", dir, dir / "nope"], expect=-1)
 
 
+def test_mkfldhdr32_duplicate_field_ids_ok():
+    # Oracle 12.2.2 mkfldhdr32 accepts duplicate field numbers silently
+    # (verified live 2026-11-18); fuxedo matches the tolerance
+    with scratch("mkfldhdr32-dup") as dir:
+        table = dir / "dup"
+        table.write_text("*base 10000\nAAA 1 string\nBBB 1 long\n")
+        run(["mkfldhdr32", "-d", dir, table])
+        header = (dir / "dup.h").read_text()
+        assert "#define AAA" in header
+        assert "#define BBB" in header
+
+
 def test_ud32_help():
     proc = run(["ud32", "-h"], expect=None)
     assert "ud32" in proc.stdout + proc.stderr

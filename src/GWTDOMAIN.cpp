@@ -37,6 +37,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -98,6 +99,14 @@ uint32_t pending_corrid = 0;
 int pending_fd = -1;
 std::optional<fux::link::frame> pending_frame;
 
+// in-flight remote branches: transaction id string -> peer access point
+// id, so the group's ".TM" calls can be forwarded to the right link
+std::map<std::string, std::string> remote_branches;
+// boot-time recovery queries awaiting the peer's decision
+std::set<uint32_t> pending_queries;
+
+void sweep();
+
 std::vector<std::string> exported_services() {
   std::vector<std::string> out;
   for (auto &e : dm.exports) {
@@ -142,6 +151,48 @@ bool apid_in_flight(const std::string &apid) {
     }
   }
   return false;
+}
+
+std::string current_gtrid() {
+  if (!fux::tx::transactional()) {
+    return {};
+  }
+  auto xid = fux::tx::current_xid();
+  return fux::to_string(&xid);
+}
+
+// Enlist this gateway group in the caller's transaction and remember
+// which link carries the branch, so the ".TM" endpoint can reach it.
+void join_branch(const std::string &apid) {
+  auto xid = fux::tx::current_xid();
+  auto &tbl = getmib().transactions();
+  auto g = tbl.find(xid);
+  tbl.join(g, fux::tx::grpidx);
+  remote_branches[fux::to_string(&xid)] = apid;
+}
+
+// The machine TLOG holds this domain's own decisions; a peer asks about
+// them with a query when it reboots with an in-doubt branch. Answer with
+// the tx operation that resolves the branch, or 0 while unknown.
+uint32_t query_outcome(const XID &xid) {
+  auto *device = getmib().mach().tlogdevice;
+  if (device[0] == '\0') {
+    return 0;
+  }
+  try {
+    auto log = fux::tlog::log::open(device);
+    switch (log.outcome(&xid)) {
+      case 1:
+        return fux::tm::commit;
+      case 2:
+      case 3:
+        return fux::tm::rollback;
+      default:
+        return 0;
+    }
+  } catch (const std::exception &) {
+    return 0;
+  }
 }
 
 // Exports a typed buffer into wire bytes. The export always carries at
@@ -292,12 +343,16 @@ void handle_request(int fd, fux::link::frame &f) {
     eng.cut(fd);
     return;
   }
+  // transactional requests carry the caller's transaction id after the
+  // payload; absent on links that predate cross-domain transactions
+  std::string gtrid;
+  r.str(gtrid);
   links[fd].last_io = now;
-  if (flags & TPTRAN) {
-    // cross-domain two-phase commit is not implemented yet; the DMTLOG
-    // machinery underneath is ready for it
-    userlog("GWTDOMAIN: transactional request for %s refused (cross-domain "
-            "transactions are not supported yet)",
+  if ((flags & TPTRAN) && !dmtlog.has_value()) {
+    // without a DMTLOG this gateway group may not process requests in
+    // transaction mode
+    userlog("GWTDOMAIN: transactional request for %s refused (no DMTLOGDEV "
+            "for this access point)",
             name.c_str());
     queue_reply(fd, corrid, TPEABORT, 0, dummy_export());
     return;
@@ -318,8 +373,23 @@ void handle_request(int fd, fux::link::frame &f) {
   // tpimport reports the exported size; the XATMI calls take the
   // logical data length
   long ilen = olen - fux::mem::headersize();
+  bool intx = (flags & TPTRAN) != 0;
+  if (intx) {
+    try {
+      fux::tx_adopt(fux::to_xid(gtrid));
+    } catch (const std::exception &e) {
+      userlog("GWTDOMAIN: cannot adopt transaction for %s: %s", name.c_str(),
+              e.what());
+      tpfree(buf);
+      queue_reply(fd, corrid, TPEABORT, 0, dummy_export());
+      return;
+    }
+  }
   int rc = ::tpcall(const_cast<char *>(name.c_str()), buf, ilen, &buf, &olen,
-                    TPNOTRAN);
+                    intx ? 0 : TPNOTRAN);
+  if (intx) {
+    fux::tx_detach();
+  }
   long rval = TPMINVAL;
   long rcode = 0;
   std::vector<char> wire;
@@ -337,6 +407,176 @@ void handle_request(int fd, fux::link::frame &f) {
   }
   tpfree(buf);
   queue_reply(fd, corrid, rval, rcode, std::move(wire));
+}
+
+// Drive a 2PC control frame arriving on a link: prepare/commit/rollback
+// coordinate the local branch set, query answers from the machine TLOG.
+void handle_txnctrl(int fd, uint32_t corrid, uint16_t op,
+                    const std::string &xids) {
+  auto ack = [&](uint32_t result) {
+    fux::link::frame a{fux::link::txnctrl, {}};
+    fux::wire::writer w(a.payload);
+    w.u32(corrid);
+    w.u32(result);
+    w.str(xids);
+    eng.queue(fd, std::move(a));
+  };
+  XID xid;
+  try {
+    xid = fux::to_xid(xids);
+  } catch (const std::exception &) {
+    ack(XAER_INVAL);
+    return;
+  }
+  switch (op) {
+    case fux::tm::prepare: {
+      if (!dmtlog.has_value()) {
+        ack(XAER_RMERR);
+        return;
+      }
+      try {
+        fux::tx_adopt(xid);
+      } catch (const std::exception &) {
+        // already tracked; the context association below still applies
+      }
+      int rc = fux::tm::coordinate(&xid, fux::tm::prepare);
+      fux::tx_detach();
+      try {
+        // a read-only branch is decision-independent: record it
+        // terminal so recovery never re-drives it
+        dmtlog->append(rc == XA_RDONLY ? fux::tlog::record_type::heuristic
+                                       : fux::tlog::record_type::prepared,
+                       &xid);
+      } catch (const std::exception &e) {
+        userlog("GWTDOMAIN: DMTLOG append failed: %s", e.what());
+      }
+      ack(rc);
+      return;
+    }
+    case fux::tm::commit:
+    case fux::tm::rollback: {
+      if (!dmtlog.has_value()) {
+        ack(XAER_RMERR);
+        return;
+      }
+      fux::tm::coordinate(&xid, static_cast<int>(op));
+      try {
+        dmtlog->append(op == fux::tm::commit ? fux::tlog::record_type::commit
+                                             : fux::tlog::record_type::rollback,
+                       &xid);
+      } catch (const std::exception &e) {
+        userlog("GWTDOMAIN: DMTLOG append failed: %s", e.what());
+      }
+      try {
+        auto &tbl = getmib().transactions();
+        tbl.end(tbl.find(xid));
+      } catch (const std::exception &) {
+      }
+      ack(XA_OK);
+      return;
+    }
+    default:
+      ack(query_outcome(xid));
+      return;
+  }
+}
+
+// Apply a recovery decision answered by the peer for one of our
+// in-doubt branches.
+void apply_recovery(const std::string &xids, uint32_t op) {
+  try {
+    XID xid = fux::to_xid(xids);
+    if (op == fux::tm::commit || op == fux::tm::rollback) {
+      fux::tm::coordinate(&xid, static_cast<int>(op));
+      if (dmtlog.has_value()) {
+        dmtlog->append(op == fux::tm::commit ? fux::tlog::record_type::commit
+                                             : fux::tlog::record_type::rollback,
+                       &xid);
+      }
+      try {
+        auto &tbl = getmib().transactions();
+        tbl.end(tbl.find(xid));
+      } catch (const std::exception &) {
+      }
+    }
+  } catch (const std::exception &e) {
+    userlog("GWTDOMAIN: recovery apply failed: %s", e.what());
+  }
+}
+
+// Queue a 2PC control frame (correlator allocated here; boot-time
+// recovery queries remember it in pending_queries).
+uint32_t queue_txnctrl(int fd, uint16_t op, const std::string &xids,
+                       bool track) {
+  uint32_t corrid = next_corrid++;
+  if (corrid == 0) {
+    corrid = next_corrid++;
+  }
+  fux::link::frame f{fux::link::txnctrl, {}};
+  fux::wire::writer w(f.payload);
+  w.u32(corrid);
+  w.u16(op);
+  w.str(xids);
+  eng.queue(fd, std::move(f));
+  if (track) {
+    pending_queries.insert(corrid);
+  }
+  return corrid;
+}
+
+// The ".TM" endpoint of a gateway group: forwards the coordinator's
+// prepare/commit/rollback for a remote branch over the link and waits
+// for the peer's aggregate result.
+void gwtm_service(TPSVCINFO *svcinfo) {
+  fux::fml32buf rs;
+  int ret = XAER_RMERR;
+  try {
+    fux::fml32buf rq(svcinfo);
+    auto func = rq.get<long>(TA_XAFUNC, 0);
+    auto xids = rq.get<std::string>(TA_XID, 0);
+    auto it = remote_branches.find(xids);
+    if (it == remote_branches.end()) {
+      ret = XAER_NOTA;
+    } else {
+      int fd = fd_by_apid(it->second);
+      if (fd == -1) {
+        ret = XAER_RMFAIL;
+      } else {
+        uint32_t corrid = queue_txnctrl(fd, static_cast<uint16_t>(func), xids, false);
+        pending_corrid = corrid;
+        pending_fd = fd;
+        auto deadline = steady::now() + std::chrono::milliseconds(blocktime_ms);
+        while (!pending_frame.has_value()) {
+          now = steady::now();
+          if (now >= deadline) {
+            break;
+          }
+          sweep();
+          timeval slice{0, 20000};
+          eng.poll(&slice);
+        }
+        pending_corrid = 0;
+        pending_fd = -1;
+        if (!pending_frame.has_value()) {
+          ret = XAER_RMFAIL;
+        } else {
+          fux::link::frame reply = std::move(*pending_frame);
+          pending_frame.reset();
+          fux::wire::reader r(reply.payload);
+          uint32_t rcvd, result;
+          if (!r.u32(rcvd) || rcvd != corrid || !r.u32(result)) {
+            ret = XAER_RMERR;
+          } else {
+            ret = static_cast<int>(result);
+          }
+        }
+      }
+    }
+  } catch (const std::exception &) {
+    ret = XAER_RMERR;
+  }
+  rs.put(TA_XARET, 0, ret);
+  fux::tpreturn(TPSUCCESS, 0, rs);
 }
 
 void on_frame(int fd, fux::link::frame f) {
@@ -370,6 +610,52 @@ void on_frame(int fd, fux::link::frame f) {
         }
       }
       userlog("GWTDOMAIN: link up with %s on fd %d", apid.c_str(), fd);
+      // re-drive in-doubt subordinate branches: ask the peer what it
+      // decided for every prepared vote that has no terminal record
+      if (dmtlog.has_value()) {
+        try {
+          for (auto &rec : dmtlog->recent()) {
+            if (rec.second ==
+                static_cast<int>(fux::tlog::record_type::prepared)) {
+              queue_txnctrl(fd, 3, rec.first, true);
+            }
+          }
+        } catch (const std::exception &e) {
+          userlog("GWTDOMAIN: DMTLOG scan failed: %s", e.what());
+        }
+      }
+      break;
+    }
+    case fux::link::txnctrl: {
+      fux::wire::reader r(f.payload);
+      uint32_t corrid;
+      if (!r.u32(corrid)) {
+        break;
+      }
+      if (corrid != 0 && corrid == pending_corrid) {
+        pending_frame = std::move(f);
+        break;
+      }
+      auto q = pending_queries.find(corrid);
+      if (q != pending_queries.end()) {
+        pending_queries.erase(q);
+        uint32_t result;
+        std::string xids;
+        fux::wire::reader ar(f.payload);
+        ar.u32(corrid);
+        if (ar.u32(result) && ar.str(xids)) {
+          apply_recovery(xids, result);
+        }
+        break;
+      }
+      uint16_t op;
+      std::string xids;
+      if (!r.u16(op) || !r.str(xids)) {
+        userlog("GWTDOMAIN: malformed txnctrl frame, dropping link");
+        eng.cut(fd);
+        return;
+      }
+      handle_txnctrl(fd, corrid, op, xids);
       break;
     }
     case fux::link::services: {
@@ -502,15 +788,23 @@ void forward_service(TPSVCINFO *svcinfo) {
     ::tpreturn(TPFAIL, 0, svcinfo->data, 0, 0);
     return;
   }
+  std::string gtrid;
   if (svcinfo->flags & TPTRAN) {
-    // cross-domain two-phase commit is not implemented yet; fail the
-    // caller's branch instead of running the remote service without a
-    // transaction
-    userlog("GWTDOMAIN: transactional call to %s refused (cross-domain "
-            "transactions are not supported yet)",
-            svcinfo->name);
-    ::tpreturn(TPFAIL, 0, svcinfo->data, 0, 0);
-    return;
+    if (!dmtlog.has_value()) {
+      userlog("GWTDOMAIN: transactional call to %s refused (no DMTLOGDEV "
+              "for this access point)",
+              svcinfo->name);
+      ::tpreturn(TPFAIL, 0, svcinfo->data, 0, 0);
+      return;
+    }
+    try {
+      join_branch(rmt->apid);
+      gtrid = current_gtrid();
+    } catch (const std::exception &e) {
+      userlog("GWTDOMAIN: cannot enlist %s: %s", svcinfo->name, e.what());
+      ::tpreturn(TPFAIL, 0, svcinfo->data, 0, 0);
+      return;
+    }
   }
   now = steady::now();
   auto deadline = now + std::chrono::milliseconds(blocktime_ms);
@@ -552,8 +846,9 @@ void forward_service(TPSVCINFO *svcinfo) {
     std::string rname = imp->rname.empty() ? imp->servicename : imp->rname;
     w.str(rname);
     w.u32(corrid);
-    w.u32(0);
+    w.u32(gtrid.empty() ? 0 : TPTRAN);
     w.bytes(wire.data(), wire.size());
+    w.str(gtrid);
     if (!eng.queue(fd, std::move(f))) {
       ::tpreturn(TPFAIL, 0, svcinfo->data, 0, 0);
       return;
@@ -782,6 +1077,16 @@ int tpsvrinit(int argc, char *argv[]) {
     userlog("GWTDOMAIN: failed to advertise %s: %s", adm.c_str(),
             tpstrerror(tperrno));
     return -1;
+  }
+  // the transaction endpoint of a gateway group: the local transaction
+  // manager drives it like any group ".TM", the gateway forwards the
+  // branch operations to the peer domain
+  if (dmtlog.has_value()) {
+    if (tpadvertise(const_cast<char *>(".TM"), gwtm_service) == -1) {
+      userlog("GWTDOMAIN: failed to advertise .TM: %s",
+              tpstrerror(tperrno));
+      return -1;
+    }
   }
 
   // Idle socket sweeps: a periodic real-time timer interrupts the

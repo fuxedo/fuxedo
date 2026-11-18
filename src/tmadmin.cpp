@@ -31,10 +31,12 @@ namespace fs = std::experimental::filesystem;
 
 #include "mib.h"
 #include "tlog.h"
+#include "trx.h"
 
 static void do_help() {
   std::cout << "help (h) [{command | all}]" << std::endl;
   std::cout << "printservice (psc) [service]" << std::endl;
+  std::cout << "printtrans (pt)" << std::endl;
   std::cout << "printqueue (pq) [qaddress]" << std::endl;
   std::cout << "printserver (psr) [-m machine] [-g groupname [-R rmid]] [-i "
                "srvid] [-q qaddress]"
@@ -266,6 +268,7 @@ static void do_crlog(const std::string &args) {
 }
 
 static bool g_readonly = false;
+static bool g_config = false;
 
 static bool refuse_readonly(const char *cmd) {
   if (g_readonly) {
@@ -357,6 +360,91 @@ static void do_changetrace(const std::string &args) {
   }
 }
 
+// Offline transaction-log inspection: reads the device named by the
+// machine's TLOGDEVICE straight from TUXCONFIG, without attaching to a
+// bulletin board.
+static void do_dumptlog() {
+  fux::cfg::tables tables;
+  getconfig(&tables);
+  if (tables.mach.tlogdevice.empty()) {
+    std::cout << "no TLOGDEVICE configured for this machine" << std::endl;
+    return;
+  }
+  try {
+    auto log = fux::tlog::log::open(tables.mach.tlogdevice);
+    for (auto &rec : log.recent()) {
+      const char *outcome = "UNKNOWN";
+      switch (rec.second) {
+        case 1:
+          outcome = "COMMIT";
+          break;
+        case 2:
+          outcome = "ROLLBACK";
+          break;
+        case 3:
+          outcome = "HEURISTIC";
+          break;
+        case 4:
+          outcome = "PREPARED";
+          break;
+      }
+      std::cout << outcome << "\t" << rec.first << std::endl;
+    }
+  } catch (const std::exception &e) {
+    std::cerr << "dumptlog: " << e.what() << std::endl;
+  }
+}
+
+static void do_printtrans() {
+  mib &m = getmib();
+  auto &tbl = m.transactions();
+
+  std::cout << "Tran Index    State           Start Time            Groups"
+            << std::endl;
+  std::cout << "----------    ----------    -------------------    ------"
+            << std::endl;
+
+  for (size_t i = 0; i < tbl.len; i++) {
+    auto &t = tbl[i];
+    if (t.xid.formatID == -1) {
+      continue;
+    }
+    const char *state = "ACTIVE";
+    if (t.state == transaction::preparing) {
+      state = "PREPARING";
+    } else if (t.state == transaction::do_commit) {
+      state = "COMMITTING";
+    } else if (t.state == transaction::do_rollback) {
+      state = "ROLLING BACK";
+    } else if (t.state == transaction::finished) {
+      state = "FINISHED";
+    }
+    std::string groups;
+    for (size_t g = 0; g < tbl.max_groups; g++) {
+      if (t.groups[g] == 0) {
+        continue;
+      }
+      if (!groups.empty()) {
+        groups += ",";
+      }
+      try {
+        groups += m.groups().at(g).srvgrp;
+      } catch (const std::exception &) {
+        groups += std::to_string(g);
+      }
+    }
+    char started[32] = {};
+    ctime_r(&t.started, started);
+    if (started[0] != '\0') {
+      started[strlen(started) - 1] = '\0';
+    }
+    std::cout << std::left << std::setw(14) << i << std::left
+              << std::setw(12) << state << "    " << std::left
+              << std::setw(19) << started << "    " << groups << std::left
+              << "  " << fux::to_string(&t.xid) << std::endl;
+  }
+}
+
 static void do_printqueue() {
   fux::fml32buf in, out;
   in.put(TA_CLASS, 0, "T_QUEUE");
@@ -390,7 +478,10 @@ int main(int argc, char *argv[]) {
 
   auto parser =
       clara::Help(show_help) | clara::Opt(version)["-v"]("show version info") |
-      clara::Opt(g_readonly)["-r"]("attach in read-only mode");
+      clara::Opt(g_readonly)["-r"]("attach in read-only mode") |
+      clara::Opt(g_config)["-c"](
+          "offline utility mode (dumptlog, livtoc); no bulletin board "
+          "attach");
 
   auto result = parser.parse(clara::Args(argc, argv));
   if (!result) {
@@ -426,6 +517,20 @@ int main(int argc, char *argv[]) {
       try {
         if (line == "help" || line == "h") {
           do_help();
+        } else if (line == "dumptlog") {
+          do_dumptlog();
+        } else if (line == "livtoc") {
+          fux::cfg::tables tables;
+          getconfig(&tables);
+          try {
+            auto log = fux::tlog::log::open(tables.mach.tlogdevice);
+            std::cout << "device " << tables.mach.tlogdevice << " offset "
+                      << log.offset() << " size " << log.size() << std::endl;
+          } catch (const std::exception &e) {
+            std::cerr << "livtoc: " << e.what() << std::endl;
+          }
+        } else if (line == "printtrans" || line == "pt") {
+          do_printtrans();
         } else if (line == "printqueue" || line == "pq") {
           do_printqueue();
         } else if (line == "printserver" || line == "psr") {

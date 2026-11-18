@@ -24,10 +24,6 @@ extern "C" {
 extern struct xa_switch_t tmnull_switch;
 }
 
-namespace fux::tm {
-enum xa_func { prepare, commit, rollback };
-}
-
 namespace fux::tx {
 uint16_t grpno = 0;
 size_t grpidx = 0;
@@ -494,6 +490,28 @@ void tx_join(fux::gttid gttid) {
   info.xid = t.xid;
   _tx_start(&info, TMJOIN);
 }
+fux::gttid tx_adopt(const XID &xid) {
+  auto &tbl = getmib().transactions();
+  fux::gttid id;
+  XID copy = xid;
+  try {
+    id = tbl.find(copy);
+  } catch (const std::out_of_range &) {
+    id = tbl.start(xid);
+  }
+  getctxt().info.xid = xid;
+  getctxt().gttid = id;
+  if (getctxt().state == tx_state::s1 || getctxt().state == tx_state::s2) {
+    getctxt().state = tx_state::s3;
+  }
+  return id;
+}
+void tx_detach() {
+  getctxt().notrx();
+  if (getctxt().state == tx_state::s3 || getctxt().state == tx_state::s4) {
+    getctxt().state = tx_state::s1;
+  }
+}
 namespace tx {
 fux::gttid gttid() { return getctxt().gttid; }
 bool transactional() { return !(getctxt().info.xid.formatID == -1); }
@@ -506,6 +524,26 @@ bool tx_active() {
 }
 }  // namespace tx
 };  // namespace fux
+
+int fux::tm::coordinate(const XID *xid, int op) {
+  std::vector<branch> branches = collect(const_cast<XID *>(xid));
+  if (branches.empty()) {
+    return XA_RDONLY;
+  }
+  command(branches, const_cast<XID *>(xid), op);
+  if (op != fux::tm::prepare) {
+    return XA_OK;
+  }
+  bool any = false;
+  for (auto &p : branches) {
+    if (p.result == XA_OK) {
+      any = true;
+    } else if (p.result != XA_RDONLY) {
+      return p.result;
+    }
+  }
+  return any ? XA_OK : XA_RDONLY;
+}
 
 int tx_set_commit_return(COMMIT_RETURN when_return) {
   if (!(getctxt().state == tx_state::s1 || getctxt().state == tx_state::s2 ||
@@ -561,7 +599,6 @@ int tx_set_transaction_timeout(TRANSACTION_TIMEOUT timeout) {
 int tpacall_group(int grpno, char *svc, char *data, long len, long flags);
 void command(std::vector<branch> &branches, XID *xid, int command) {
   fux::fml32buf buf;
-  int pending = 0;
 
   for (auto &p : branches) {
     buf.put(TA_XAFUNC, 0, command);
@@ -577,22 +614,28 @@ void command(std::vector<branch> &branches, XID *xid, int command) {
       userlog("Failed to call TM in group %d (%s)", p.grpno,
               tpstrerror(tperrno));
       p.result = TMER_TMERR;
-      break;
+      return;
     }
-    pending++;
   }
 
-  while (pending > 0) {
-    int cd;
-    long len = 0;
-    tpgetrply(&cd, reinterpret_cast<char **>(buf.ptrptr()), &len, TPGETANY);
-
-    for (auto &p : branches) {
-      if (p.cd == cd) {
-        p.result = buf.get<long>(TA_XARET, 0);
-        pending--;
-      }
+  // Wait for each branch's own reply; TPGETANY is unsafe here because a
+  // server that pumps its socket engine while waiting (the domain
+  // gateway) can re-enter this function nested and would steal the
+  // outer call's reply from the shared queue.
+  for (auto &p : branches) {
+    if (p.cd == -1) {
+      continue;
     }
+    int cd = p.cd;
+    long len = 0;
+    if (tpgetrply(&cd, reinterpret_cast<char **>(buf.ptrptr()), &len, 0) ==
+        -1) {
+      userlog("TM reply from group %d failed (%s)", p.grpno,
+              tpstrerror(tperrno));
+      p.result = TMER_TMERR;
+      continue;
+    }
+    p.result = buf.get<long>(TA_XARET, 0);
   }
 }
 
