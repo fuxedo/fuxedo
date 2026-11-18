@@ -526,8 +526,8 @@ TEST_CASE_METHOD(FieldFixture, "Fchg32-Flen32-Ffind32", "[fml32]") {
   REQUIRE(Flen32(fbfr, fld_char, 0) == sizeof(char));
   REQUIRE(Flen32(fbfr, fld_float, 0) == sizeof(float));
   REQUIRE(Flen32(fbfr, fld_double, 0) == sizeof(double));
-  REQUIRE(Flen32(fbfr, fld_string, 0) == str.size() + 1);
-  REQUIRE(Flen32(fbfr, fld_carray, 0) == bytes.size());
+  REQUIRE(Flen32(fbfr, fld_string, 0) == static_cast<long>(str.size() + 1));
+  REQUIRE(Flen32(fbfr, fld_carray, 0) == static_cast<long>(bytes.size()));
 
   get_fields(fbfr);
 
@@ -723,7 +723,6 @@ TEST_CASE("Ffindlast32", "[fml32]") {
 
   REQUIRE(Foccur32(fbfr, fld_short) == 3);
 
-  short n;
   char *p = Ffindlast32(fbfr, fld_short, nullptr, nullptr);
   REQUIRE(p != nullptr);
   REQUIRE(reinterpret<short>(p) == 2);

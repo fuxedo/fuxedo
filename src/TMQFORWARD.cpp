@@ -45,7 +45,7 @@ static std::string error_queue() {
 static void forward_loop() {
   while (true) {
     TPQCTL ctl = {};
-    char *data = tpalloc("CARRAY", nullptr, 1024);
+    char *data = tpalloc(const_cast<char *>("CARRAY"), nullptr, 1024);
     long len = 0;
     int rc = fux::tmq::exec_dequeue(g_qspace.c_str(), g_queue.c_str(), &ctl,
                                     &data, &len, TPQWAIT);

@@ -209,7 +209,9 @@ void set_domain(fux::cfg::tables &t, bool exists, fml32buf &in, fml32buf &out) {
     t.mach.appdir = in.get(TA_APPDIR, 0, "");
     if (t.mach.appdir.empty()) {
       char cwd[PATH_MAX] = {0};
-      getcwd(cwd, sizeof(cwd) - 1);
+      if (getcwd(cwd, sizeof(cwd) - 1) == nullptr) {
+        cwd[0] = 0;
+      }
       t.mach.appdir = cwd;
     }
   } else if (is_new(in)) {
@@ -238,7 +240,7 @@ void set_domain(fux::cfg::tables &t, bool exists, fml32buf &in, fml32buf &out) {
   out.put(TA_STATE, 0, STATE_INA);
 }
 
-void set_group(fux::cfg::tables &t, fml32buf &in, fml32buf &out) {
+void set_group(fux::cfg::tables &t, fml32buf &in, fml32buf & /*out*/) {
   auto srvgrp = in.get(TA_SRVGRP, 0, "");
   if (srvgrp.empty()) {
     throw std::logic_error("TA_SRVGRP required");
@@ -282,7 +284,7 @@ void set_group(fux::cfg::tables &t, fml32buf &in, fml32buf &out) {
   }
 }
 
-void set_server(fux::cfg::tables &t, fml32buf &in, fml32buf &out) {
+void set_server(fux::cfg::tables &t, fml32buf &in, fml32buf & /*out*/) {
   auto srvgrp = in.get(TA_SRVGRP, 0, "");
   auto srvid = in.get<long>(TA_SRVID, 0, 0);
   if (srvgrp.empty() || srvid == 0) {
@@ -349,7 +351,7 @@ void set_server(fux::cfg::tables &t, fml32buf &in, fml32buf &out) {
       in.get<std::string>(TA_SECONDARYRQ, 0, it->secondaryrq ? "Y" : "N") == "Y";
 }
 
-static void t_service_get(fml32buf &in, fml32buf &out) {
+static void t_service_get(fml32buf & /*in*/, fml32buf &out) {
   auto &mibcon = getmib();
   auto services = mibcon.services();
   FLDOCC32 oc = 0;
@@ -381,11 +383,12 @@ static void t_service_get(fml32buf &in, fml32buf &out) {
   out.put(TA_OCCURS, 0, oc);
 }
 
-static void t_svcgrp_get(fml32buf &in, fml32buf &out) {
+static void t_svcgrp_get(fml32buf & /*in*/, fml32buf &out) {
   auto &m = getmib();
   auto svcgrp = m.advertisements();
   auto srv = m.servers();
   auto grp = m.groups();
+  (void)grp;
 
   FLDOCC32 oc = 0;
   for (size_t i = 0; i < svcgrp.length(); i++) {
@@ -456,7 +459,7 @@ static void t_server_get(fml32buf &in, fml32buf &out) {
   out.put(TA_OCCURS, 0, oc);
 }
 
-static void t_queue_get(fml32buf &in, fml32buf &out) {
+static void t_queue_get(fml32buf & /*in*/, fml32buf &out) {
   auto &m = getmib();
   auto queue = m.queues();
 
@@ -490,7 +493,7 @@ static void t_queue_get(fml32buf &in, fml32buf &out) {
 
 }  // namespace
 
-int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long flags) {
+int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long /*flags*/) {
   return fux::atmi::exception_boundary(
       [&] {
         // the platform requires a preallocated FML32 output buffer and

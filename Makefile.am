@@ -5,10 +5,10 @@ gcov_flags = -fprofile-arcs -ftest-coverage
 gcov_ldflags = -fprofile-arcs -ftest-coverage -lgcov
 endif
 
-AM_CXXFLAGS = -g -Wall -Wextra $(gcov_flags) \
+AM_CXXFLAGS = -g -Wall -Wextra -Werror $(gcov_flags) \
               -I$(top_srcdir)/include \
-              -I$(top_srcdir)/third_party/catch \
-              -I$(top_srcdir)/third_party/clara \
+              -isystem $(top_srcdir)/third_party/catch \
+              -isystem $(top_srcdir)/third_party/clara \
               -I$(top_srcdir)/tests
 
 AM_LDFLAGS = $(gcov_ldflags)

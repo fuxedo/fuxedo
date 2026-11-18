@@ -28,6 +28,7 @@
 
 <nav class="site-nav">
 <a href="/">Home</a>
+<a href="/what-is-tuxedo/">What is Tuxedo</a>
 <a href="/quickstart/">Quickstart</a>
 <a href="/migration/">Migration</a>
 <a href="/training/">Training</a>
@@ -83,10 +84,11 @@ REPLY</code></pre>
 <pre><code>mkdir -p /tmp/fuxdemo &amp;&amp; cd /tmp/fuxdemo</code></pre>
 
 <p><strong>4. The server</strong>, <code>reply.py</code> (executable,
-shebang required). Get the bindings first, from a tuxedo-python clone:
-<code>pip install pybind11 setuptools wheel</code>, then
-<code>TUXDIR="$HOME/fux" python3 -m pip install .</code> — or link the
-build directory onto <code>PYTHONPATH</code>:</p>
+shebang required). Install the bindings from PyPI (they build against
+whichever Tuxedo <code>TUXDIR</code> points at):</p>
+
+<pre><code>pip install pybind11 setuptools wheel
+TUXDIR="$HOME/fux" pip install --no-build-isolation tuxedo</code></pre>
 
 <pre><code>#!/usr/bin/env python3
 import sys

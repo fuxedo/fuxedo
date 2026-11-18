@@ -298,7 +298,6 @@ int tpdequeue(char *qspace, char *qname, TPQCTL *ctl, char **data, long *len,
   const bool via_server = routed(qspace, &svc);
   fux::trace::event("{ tpdequeue(\"%s\", \"%s\", 0x%lx)", qspace, qname,
                     flags);
-  int trace_rc = 0;
   long wait_ms = wait_deadline_ms(flags, ctl);
   long deadline =
       wait_ms > 0

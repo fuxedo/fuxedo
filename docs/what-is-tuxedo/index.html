@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is Oracle Tuxedo? History, what it does, and open source alternatives (formerly BEA Tuxedo)</title>
+<meta name="description" content="Oracle Tuxedo explained: the transaction processing middleware that started at AT&amp;T in 1983, spent the BEA Systems years as BEA Tuxedo, and now runs banks and card systems as Oracle Tuxedo. What it does, where you meet it, and the open source alternatives.">
+<meta name="keywords" content="what is Oracle Tuxedo, what is Tuxedo software, BEA Tuxedo, Tuxedo middleware, Tuxedo software, Tuxedo suite, Tuxedo technology, Tuxedo history, Tuxedo application server, Oracle Tuxedo alternatives, what is Tuxedo used for">
+<link rel="canonical" href="https://fuxedo.io/what-is-tuxedo/">
+<link rel="stylesheet" href="/styles.css">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fuxedo.io/what-is-tuxedo/">
+<meta property="og:title" content="What is Oracle Tuxedo? (formerly BEA Tuxedo)">
+<meta property="og:description" content="The transaction processing middleware from AT&amp;T, 1983, by way of BEA Systems to Oracle. What Tuxedo does, where it runs, and the open source alternatives.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="What is Oracle Tuxedo? (formerly BEA Tuxedo)">
+<meta name="twitter:description" content="The transaction processing middleware from AT&amp;T, 1983, by way of BEA Systems to Oracle. What it does and what replaces it.">
+<style>
+  .site-nav { text-align: center; margin: 1.2em 0 0; font-family: 'Courier New', monospace; font-size: 0.95em; }
+  .site-nav a { display: inline-block; margin: 0 0.5em; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">Fuxedo</h1>
+<p class="tagline">The middleware with four decades on the clock</p>
+
+<nav class="site-nav">
+<a href="/">Home</a>
+<a href="/what-is-tuxedo/">What is Tuxedo</a>
+<a href="/quickstart/">Quickstart</a>
+<a href="/migration/">Migration</a>
+<a href="/training/">Training</a>
+<a href="/status/">Status</a>
+<a href="/faq/">FAQ</a>
+<a href="https://github.com/fuxedo/fuxedo">GitHub</a>
+</nav>
+<h2>What is Oracle Tuxedo?</h2>
+
+<p>Oracle Tuxedo is middleware for building and running distributed,
+transactional business applications. A client calls a named
+<strong>service</strong> with a typed buffer; the system routes the
+request over an operating-system message queue to a server process that
+advertises that service; the server replies; and the whole exchange can
+run inside a distributed transaction that coordinates databases and
+queues together. Administrators boot the system from a text
+configuration (<code>UBBCONFIG</code>), monitor it through a bulletin
+board in shared memory, and manage queues, transactions, and services
+from command-line tools.</p>
+
+<p>It is old, and it is everywhere. If you have used a bank, paid by
+card, or topped up a phone in the last thirty years, the odds are good
+that a Tuxedo domain sat in the request path.</p>
+
+<h2>A short history, or: why people search for "BEA Tuxedo"</h2>
+
+<p>Tuxedo started in 1983 at AT&amp;T, growing out of the DUX (Database
+for Unix) and TUX (Transactions for Unix) projects; the name is a
+backronym for <em>Transactions for Unix, Extended for Distributed
+Operations</em>. It passed through Unix System Laboratories and Novell,
+became the foundation of BEA Systems through the 1990s and 2000s under
+the name <strong>BEA Tuxedo</strong>, and arrived at Oracle with the BEA
+acquisition in 2008, where it lives on as Oracle Tuxedo, current
+releases 12.2.2 and 22.1. If a job posting, a resume, or a support
+contract says BEA Tuxedo, it is the same product family; the
+administrator commands and the C API survived every owner. (The history
+above condenses chapter 1 of <a
+href="https://amzn.to/3ljktiH"><em>Modernizing Oracle Tuxedo
+Applications with Python</em></a>, Packt 2021.)</p>
+
+<h2>What Tuxedo actually does</h2>
+
+<p>Under the marketing word "middleware" sits a concrete mechanism,
+which is why Tuxedo systems age so well:</p>
+
+<ul>
+<li><strong>Service-oriented request routing.</strong> Servers advertise
+named services into a bulletin board; clients call by name; the platform
+load-balances and fails over. There is no hardcoded addressing in
+application code.</li>
+<li><strong>Typed buffers.</strong> FML32 (a self-describing binary
+format with field tables), STRING, CARRAY, and VIEW buffers move between
+processes; the field tables are the closest thing to a schema the
+ecosystem has.</li>
+<li><strong>Distributed transactions.</strong> The XA interface that
+databases still implement was standardized from Tuxedo engineering, and
+the XATMI standard describes the core Tuxedo API. A call tree across
+servers and databases can commit or roll back as one.</li>
+<li><strong>Persistent queues.</strong> The /Q component stores messages
+transactionally, so work survives restarts and can be dequeued later or
+forwarded to another service.</li>
+<li><strong>Domains.</strong> Tuxedo domains link separate
+installations over the network so a service in one data center is a
+plain tpcall away from another.</li>
+</ul>
+
+<p>Tuxedo did service orientation before the term existed, and
+transactional microservices before the word was coined; the vocabulary
+changed around it, the machinery did not.</p>
+
+<h2>Where you meet it</h2>
+
+<p>Banks, card processors, telecommunication providers, government
+systems, and the back office of enterprise software you already own:
+several Oracle applications ship Tuxedo under the hood. It is usually
+invisible until the day it becomes your problem: a license renewal, an
+audit, a retiree who was the last person to understand the domain.</p>
+
+<h2>Tuxedo and Fuxedo</h2>
+
+<p><a href="/">Fuxedo</a> is an open source implementation of the same
+API, the same administration commands, and the same System V IPC
+machics, verified against Oracle Tuxedo 12.2.2 and 22.1 in continuous
+integration. Applications recompile against it; administrators keep
+their runbooks. For the reasons teams migrate and how the move works,
+see the <a href="/migration/">migration page</a>; for a hands-on
+taste, the <a href="/quickstart/">quickstart</a> boots a domain in five
+minutes.</p>
+
+<h2>Frequently asked</h2>
+
+<p><strong>Is BEA Tuxedo the same as Oracle Tuxedo?</strong> Yes. BEA
+Systems owned and developed Tuxedo from the mid-1990s until Oracle
+acquired BEA in 2008; Oracle Tuxedo is the direct continuation, and
+modern releases still boot configurations written for the BEA-era
+releases.</p>
+
+<p><strong>What is Tuxedo used for?</strong> Transactional services in
+banks, card processing, and telecommunications: account balance lookups,
+payment authorization, rating and charging, and the integration glue
+between them, usually with decades of accumulated business logic that
+nobody dares rewrite.</p>
+
+<p><strong>Is Tuxedo still supported?</strong> Oracle sells support for
+12.2 and 22.1 releases. Unsupported or license-constrained installations
+are exactly where open source alternatives such as Fuxedo, or
+modernization through the <a
+href="https://aivarsk.com/tuxedo-python/">tuxedo-python</a> bindings,
+enter the picture.</p>
+
+<p><strong>What is a Tuxedo application?</strong> A set of servers
+grouped in a domain, each advertising services, plus clients that call
+them, plus the configuration (UBBCONFIG), the bulletin board, and the
+queues that tie it together.</p>
+
+<p><strong>What are the Oracle Tuxedo alternatives?</strong> Honest
+ones: rewrite onto a modern framework (a development project in
+disguise), move to a different XATMI-flavored platform (porting effort
+varies), or recompile against Fuxedo, which targets API-, command-, and
+IPC-level compatibility so the application and the operations habits
+carry over. The <a href="/migration/">migration page</a> compares the
+shapes.</p>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "Is BEA Tuxedo the same as Oracle Tuxedo?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Yes. BEA Systems owned and developed Tuxedo from the mid-1990s until Oracle acquired BEA in 2008; Oracle Tuxedo is the direct continuation, and modern releases still boot configurations written for the BEA-era releases."}},
+    {"@type": "Question", "name": "What is Oracle Tuxedo used for?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Transactional services in banks, card processing, and telecommunications: account lookups, payment authorization, rating and charging, and the integration between them."}},
+    {"@type": "Question", "name": "What is a Tuxedo application?",
+     "acceptedAnswer": {"@type": "Answer", "text": "A set of servers in a domain, each advertising named services, plus clients, a UBBCONFIG configuration, a bulletin board in shared memory, and the queues that connect them."}},
+    {"@type": "Question", "name": "What are the Oracle Tuxedo alternatives?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Rewriting onto a modern framework, moving to another XATMI-flavored platform, or recompiling against Fuxedo, an open source implementation compatible at API, command, and System V IPC level."}}
+  ]
+}
+</script>
+<footer>
+Fuxedo is released under the <a
+href="https://opensource.org/licenses/MIT">MIT license</a>. Oracle
+Tuxedo is a trademark of Oracle Corporation; Fuxedo is an independent
+implementation, not affiliated with or endorsed by Oracle. Questions:
+<a href="mailto:hello@fuxedo.io">hello@fuxedo.io</a>.
+</footer>
+
+</div>
+</body>
+</html>

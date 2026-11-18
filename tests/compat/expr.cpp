@@ -256,7 +256,6 @@ static std::string squashed(std::string s) {
 }
 
 static std::string compiled(const std::string &expr) {
-  auto fbfr = Falloc32(100, 100);
   char *tree;
 
   REQUIRE((tree = Fboolco32(DECONST(expr.c_str()))) != nullptr);

@@ -187,8 +187,8 @@ bool qsend(int msqid, msg &data, long timeout, enum flags flags) {
     char tmpname[] = "/tmp/TUXXXXXXX";
     int fd = mkstemp(tmpname);
     fail_if(fd == -1);
-    fail_if(write(fd, data.buf() + sizeof(msgbase),
-                  data.size() - sizeof(msgbase)) !=
+    fail_if(static_cast<size_t>(write(fd, data.buf() + sizeof(msgbase),
+                                      data.size() - sizeof(msgbase))) !=
             data.size() - sizeof(msgbase));
     fail_if(close(fd) == -1);
 

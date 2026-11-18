@@ -669,7 +669,9 @@ void engine::poll(struct timeval *timeout) {
   memcpy(wrout_, &wset, bytes);
   int done = 0;
   auto *rwords = reinterpret_cast<unsigned long *>(ready_);
-  for (unsigned i = 0; done < nready && i * kWordBits <= maxfd_; i++) {
+  for (unsigned i = 0;
+       done < nready && i * kWordBits <= static_cast<unsigned>(maxfd_);
+       i++) {
     unsigned long bits = rwords[i];
     if (bits == 0) continue;
     for (unsigned j = 0; done < nready && j < kWordBits; j++) {
@@ -709,7 +711,9 @@ void engine::poll(struct timeval *timeout) {
   }
   // fds writable but not readable never appear in the read walk
   auto *wwords = reinterpret_cast<unsigned long *>(wrout_);
-  for (unsigned i = 0; done < nready && i * kWordBits <= maxfd_; i++) {
+  for (unsigned i = 0;
+       done < nready && i * kWordBits <= static_cast<unsigned>(maxfd_);
+       i++) {
     unsigned long bits = wwords[i];
     if (bits == 0) continue;
     for (unsigned j = 0; done < nready && j < kWordBits; j++) {

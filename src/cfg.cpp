@@ -266,7 +266,6 @@ void print_sizing(std::ostream &out, const tables &t) {
   long semmsl = 1;   // one semaphore per array
   long semmni = 1;   // one array
   long msgmni = t.dom.maxqueues + t.dom.maxservers + t.dom.maxaccessers + 1;
-  long shmseg = 1;   // single bulletin board segment
 
   out << "Ipc sizing (minimum /T values only) ...\n\n";
   out << "\t\tFixed Minimums Per Node\n\n";

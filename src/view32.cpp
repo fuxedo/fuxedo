@@ -635,7 +635,7 @@ class registry {
   }
 
  private:
-  bool load(const std::string &wanted) {
+  bool load(const std::string & /*wanted*/) {
     file_found_ = false;
     auto files = fux::split(fux::util::getenv("VIEWFILES32", ""), ",");
     auto dirs = fux::split(fux::util::getenv("VIEWDIR32", ""), ":");
@@ -839,7 +839,7 @@ static char *to_field(const member &m, const char *el, FLDLEN32 *flen) {
   if (ftype == m.type) {
     if (m.type == FLD_STRING) {
       size_t n = strnlen(el, m.elsize);
-      if (n < m.elsize) {
+      if (n < static_cast<size_t>(m.elsize)) {
         n++;
       }
       buf.assign(el, n);

@@ -103,9 +103,9 @@ void ubb2mib(ubbconfig &u, mib &m) {
   for (auto &grpconf : u.groups) {
     auto grpno = checked_get(grpconf.second, "GRPNO", 1, 30000);
 
-    auto &group = groups.at(
-        m.make_group(grpno, grpconf.first, grpconf.second["OPENINFO"],
-                     grpconf.second["CLOSEINFO"], grpconf.second["TMSNAME"]));
+    groups.at(m.make_group(grpno, grpconf.first, grpconf.second["OPENINFO"],
+                           grpconf.second["CLOSEINFO"],
+                           grpconf.second["TMSNAME"]));
     group_ids[grpconf.first] = grpno;
     if (grpconf.second["TMSNAME"].empty()) {
       continue;

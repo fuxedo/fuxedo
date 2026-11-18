@@ -92,7 +92,7 @@ static tx_context &getctxt() {
 }
 
 int _tx_start(TXINFO *info);
-static int rm_err(int xarc, const char *func) {
+static int rm_err(int xarc, const char * /*func*/) {
   if (xarc == XAER_RMERR) {
     return TX_ERROR;
   } else if (xarc == XAER_INVAL) {
@@ -258,7 +258,7 @@ static void persist_tlog(XID *xid, std::vector<branch> branches) {
   }
 }
 
-static void clean_tlog(XID *xid) {
+static void clean_tlog(XID * /*xid*/) {
   // outcome records stay in the circular log for inspection (crlog)
 }
 
@@ -302,7 +302,7 @@ static std::vector<branch> collect(XID *xid) {
   auto &tx = getmib().transactions()[getmib().transactions().find(*xid)];
   for (size_t group = 0; group < max; group++) {
     if (tx.groups[group] > 0) {
-      branches.push_back({getmib().groups().at(group).grpno});
+      branches.push_back({getmib().groups().at(group).grpno, 0, 0});
     }
   }
   return branches;
@@ -585,8 +585,7 @@ void command(std::vector<branch> &branches, XID *xid, int command) {
   while (pending > 0) {
     int cd;
     long len = 0;
-    int rc =
-        tpgetrply(&cd, reinterpret_cast<char **>(buf.ptrptr()), &len, TPGETANY);
+    tpgetrply(&cd, reinterpret_cast<char **>(buf.ptrptr()), &len, TPGETANY);
 
     for (auto &p : branches) {
       if (p.cd == cd) {

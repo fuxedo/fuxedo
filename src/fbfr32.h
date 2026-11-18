@@ -701,7 +701,8 @@ struct Fbfr32 {
 
   uint32_t last_byte(int type) {
     int off = offset_for(type) + 1;
-    if (off == max_offset_) {
+    if (off >= max_offset_) {
+      // the last bucket (and the N class, which has no bucket) ends at len
       return len_;
     }
     return offsets_[off];

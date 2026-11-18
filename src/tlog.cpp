@@ -142,7 +142,7 @@ void log::write_next(uint64_t next) const {
 }
 
 void log::append(record_type type, const XID *xid) {
-  if (xid->gtrid_length > XID_MAX) {
+  if (xid->gtrid_length > static_cast<long>(XID_MAX)) {
     throw std::invalid_argument("gtrid too long for tlog record");
   }
   file_lock lock(device_);

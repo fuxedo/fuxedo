@@ -97,6 +97,9 @@ struct server_main {
   pid_t main_tid = 0;
   std::thread secondary_thread;
   std::atomic<bool> secondary_stop;
+  // dispatch threads increment this right before blocking on the queue;
+  // the server is only reported ACTIVE once all of them can receive
+  std::atomic<int> threads_ready{0};
 
   mib &m_;
   std::atomic<bool> stop;
@@ -376,9 +379,25 @@ static void dispatch() {
         break;
       }
 
-      if (!fux::ipc::qrecv_intr(main_ptr->request_queue, thread_ptr->req,
-                                main_ptr->mtype())) {
-        interrupted = true;
+      bool queue_gone = false;
+      try {
+        if (!fux::ipc::qrecv_intr(main_ptr->request_queue, thread_ptr->req,
+                                  main_ptr->mtype())) {
+          interrupted = true;
+        }
+      } catch (const std::system_error &e) {
+        if (e.code().value() != EIDRM) {
+          throw;
+        }
+        // the queue device was removed (shutdown or tmipcrm): leave
+        // quietly instead of taking the whole server down with
+        // std::terminate
+        queue_gone = true;
+      }
+      if (queue_gone) {
+        break;
+      }
+      if (interrupted) {
       } else {
         thread_ptr->prepare();
         thread_ptr->req.get_data(&thread_ptr->atmibuf);
@@ -441,8 +460,15 @@ static void secondary_listen() {
 
   while (!main_ptr->secondary_stop) {
     fux::ipc::msg req;
-    if (!fux::ipc::qrecv_intr(main_ptr->secondary_msqid, req, 0)) {
-      continue;
+    try {
+      if (!fux::ipc::qrecv_intr(main_ptr->secondary_msqid, req, 0)) {
+        continue;
+      }
+    } catch (const std::system_error &e) {
+      if (e.code().value() != EIDRM) {
+        throw;
+      }
+      return;  // secondary queue removed at shutdown
     }
     main_ptr->enqueue_pending(req);
     (void)syscall(SYS_tgkill, getpid(), main_ptr->main_tid, SIGALRM);
@@ -455,6 +481,7 @@ static void thread_dispatch(tmsvrargs_t *tmsvrargs, int argc, char *argv[]) {
     userlog("tpsvrthrinit() = %d", n);
     return;
   }
+  main_ptr->threads_ready++;
   dispatch();
   tmsvrargs->svrthrdone();
   thread_ptr.reset();
@@ -569,18 +596,25 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
     }
   }
 
-  main_ptr->active();
-
   if (_tmbuilt_with_thread_option && thread_count > 1) {
     std::vector<std::thread> threads;
     for (int i = 0; i < thread_count; i++) {
       threads.emplace_back(std::thread(thread_dispatch, tmsvrargs, argc, argv));
     }
+    // become visible as ACTIVE only once every dispatch thread is
+    // actually waiting on the request queue, so tmboot does not report
+    // a server that cannot serve yet
+    for (int i = 0; i < 30000 && main_ptr->threads_ready.load() < thread_count;
+         i++) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    main_ptr->active();
 
     for (auto &t : threads) {
       t.join();
     }
   } else {
+    main_ptr->active();
     dispatch();
   }
 

@@ -406,7 +406,7 @@ int tpterm() {
   return rc;
 }
 
-int tpappthrinit(TPINIT *tpinfo) {
+int tpappthrinit(TPINIT * /*tpinfo*/) {
   if (!fux::is_server()) {
     TPERROR(TPEPROTO, "%s called from client", __func__);
     return -1;
@@ -521,7 +521,7 @@ int tpgblktime(long flags) {
 
 queue_entry get_queue(const char *svc) { return getclient().get_queue(svc); }
 
-int tpgetctxt(TPCONTEXT_T *context, long flags) {
+int tpgetctxt(TPCONTEXT_T *context, long /*flags*/) {
   // Single-context implementation: a process always has the initial
   // context, like Oracle Tuxedo without TPMULTICONTEXTS.
   if (context != nullptr) {
@@ -531,7 +531,7 @@ int tpgetctxt(TPCONTEXT_T *context, long flags) {
   return 0;
 }
 
-int tpsetctxt(TPCONTEXT_T context, long flags) {
+int tpsetctxt(TPCONTEXT_T context, long /*flags*/) {
   if (context != 0) {
     TPERROR(TPEPROTO, "only the initial context is supported");
     return -1;
@@ -540,7 +540,7 @@ int tpsetctxt(TPCONTEXT_T context, long flags) {
   return 0;
 }
 
-int tppost(char *eventname, char *data, long len, long flags) {
+int tppost(char * /*eventname*/, char * /*data*/, long /*len*/, long /*flags*/) {
   TPERROR(TPESYSTEM, "EventBroker not available");
   return -1;
 }

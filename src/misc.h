@@ -112,7 +112,7 @@ void checked_copy(const char *src, char (&dst)[N]) {
 template <typename T>
 std::string join(const T &container, const std::string &sep) {
   std::string result;
-  for (const std::string &s : container) {
+  for (const auto &s : container) {
     if (!result.empty()) {
       result.append(sep);
     }

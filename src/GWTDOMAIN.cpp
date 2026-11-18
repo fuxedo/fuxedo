@@ -449,9 +449,15 @@ void dmadmin_service(TPSVCINFO *svcinfo) {
         dial(const_cast<remote_ap &>(*r));
       }
     } else {
-      int fd = fd_by_apid(r->apid);
-      if (fd != -1) {
-        eng.cut(fd);
+      // mutual dialing can leave more than one link to the same access
+      // point: drop them all
+      for (auto it = links.begin(); it != links.end();) {
+        if (it->second.apid == r->apid) {
+          eng.cut(it->first);
+          it = links.begin();
+        } else {
+          ++it;
+        }
       }
     }
   } else if (op != "GET") {
