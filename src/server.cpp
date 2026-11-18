@@ -28,6 +28,7 @@
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
+#include "trace.h"
 #include "trx.h"
 
 #if defined(__cplusplus)
@@ -166,7 +167,8 @@ struct server_main {
         }
         if ((flags & TPSINGLETON) != 0 &&
             m_.find_singleton(svcname, mib_queue, mib_server) != mib::badoff) {
-          TPERROR(TPEPROTO, "%s already advertised as singleton", svcname);
+          TPERROR(TPENOSINGLETON, "%s already advertised as singleton",
+                  svcname);
           return -1;
         }
         m_.advertise(svcname, queue, mib_server, secondary);
@@ -234,6 +236,7 @@ static std::unique_ptr<server_main> main_ptr;
 
 namespace fux {
 bool is_server() { return main_ptr.get() != nullptr; }
+void (*poll_hook)() = nullptr;
 }  // namespace fux
 
 int _tmrunserver(int) {
@@ -338,7 +341,9 @@ static void execute(server_thread *tp) {
   }
   tpsvcinfo.data = tp->atmibuf;
   tpsvcinfo.flags = tp->req->flags;
-  tpsvcinfo.len = tp->req.size_data();
+  // the logical length the caller sent, carried by the wire export
+  tpsvcinfo.len = static_cast<long>(tp->req.size_data()) -
+                  static_cast<long>(fux::mem::headersize());
   tpsvcinfo.cd = tp->req->cd;
 
   if (tp->req->flags & TPTRAN) {
@@ -346,9 +351,14 @@ static void execute(server_thread *tp) {
   }
 
   if (setjmp(tp->tpreturn_env) == 0) {
+    auto &tracerec = main_ptr->m_.servers().at(main_ptr->mib_server);
+    fux::trace::enable(tracerec.tracelvl[0] != '\0');
+    fux::trace::event("{ tpservice({\"%s\", %ld, %ld})", tpsvcinfo.name,
+                      tpsvcinfo.flags, tpsvcinfo.len);
     auto it = main_ptr->advertisements.find(tpsvcinfo.name);
     it->second(&tpsvcinfo);
   }
+  fux::trace::event("} tpservice");
 }
 
 static void dispatch() {
@@ -398,6 +408,11 @@ static void dispatch() {
     }  // lock
 
     if (interrupted) {
+      // a signal arrived while waiting for requests: give an installed
+      // hook (e.g. the domain gateway's socket engine) a chance to run
+      if (fux::poll_hook) {
+        fux::poll_hook();
+      }
       // woken by the secondary thread: execute what it handed over, then
       // resume receiving on the primary queue
       fux::ipc::msg handed;
@@ -457,12 +472,14 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   int grpno = -1;
   int srvid = -1;
   std::vector<std::string> services;
+  std::string nwaddr;
 
   auto parser =
       clara::Help(show_help) |
       clara::Opt(srvid, "SRVID")["-i"]("server's SRVID in TUXCONFIG") |
       clara::Opt(grpno, "GRPNO")["-g"]("server's GRPNO in TUXCONFIG") |
       clara::Opt(services, "SERVICES")["-s"]("services to advertise") |
+      clara::Opt(nwaddr, "NWADDR")["-n"]("network address (WSL listener)") |
       clara::Opt(all)["-A"]("advertise all services") |
       clara::Opt(verbose)["-v"]("display built-in services");
 
@@ -510,9 +527,7 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
 
   auto thread_count = m.servers().at(main_ptr->mib_server).mindispatchthreads;
   main_ptr->request_queue = m.make_service_rqaddr(main_ptr->mib_server);
-  if (m.servers().at(main_ptr->mib_server).replyq) {
-    m.servers().at(main_ptr->mib_server).reply_msqid = fux::ipc::qcreate();
-  }
+  // REPLYQ queues are created lazily on first use, like the platform
   main_ptr->main_tid = (pid_t)syscall(SYS_gettid);
   main_ptr->mib_queue = m.servers().at(main_ptr->mib_server).rqaddr;
   if (m.servers().at(main_ptr->mib_server).secondaryrq) {
@@ -605,6 +620,8 @@ void tpreturn(int rval, long rcode, char *data, long len, long flags) try {
     TPERROR(TPEPROTO, "%s can't be called from client", __func__);
     abort();
   }
+  // trace the service's raw values, before the wire remapping below
+  fux::trace::event("{ tpreturn(%d, %ld, %ld)", rval, rcode, len);
   if (rval == TPSUCCESS) {
     rval = TPMINVAL;
   } else if (rval == TPFAIL) {

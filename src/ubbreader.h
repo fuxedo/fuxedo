@@ -13,33 +13,38 @@ class ubbreader : public basic_parser {
   ubbconfig parse() {
     ubbconfig config;
 
-    std::string tmp, section;
+    std::string tmp, cursection;
     std::string object;
 
     while (true) {
-      ubb_line ubbline;
-
-      if (parse_till_eol()) {
-      } else if (parse_section(&tmp)) {
-        section = tmp;
+      if (skip_line()) {
+      } else if (section(&tmp)) {
+        cursection = tmp;
         tmp.clear();
-      } else if (parameter(&object)) {
-        whitespace();
+      } else if (token(&object, false)) {
+        blank();
         if (object == "DEFAULT:" || object == "DEFAULT") {
           // Default parameters for the entries of this section
           ubb_params defparams;
-          parse_params(&defparams);
-          auto &defs = defaults_[section];
+          kv_list(&defparams, false, true);
+          auto &defs = defaults_[cursection];
           for (auto &kv : defparams) {
             defs[kv.first] = kv.second;
           }
-        } else if (section == "RESOURCES") {
+        } else if (cursection == "RESOURCES") {
+          if (sym_ == '=') {
+            // Oracle grammar: RESOURCES is PARAM VALUE only, never
+            // PARAM=VALUE; accepting it would silently parse a bogus
+            // value starting with '='.
+            throw basic_parser_error(
+                "RESOURCES section must have PARAM VALUE", row_, "VALUE");
+          }
           std::string value;
-          if (!parameter(&value)) {
+          if (!token(&value)) {
             throw basic_parser_error("RESOURCES section must have PARAM VALUE",
                                      row_, "VALUE");
           }
-          whitespace();
+          blank();
           if (!accept('\n')) {
             throw basic_parser_error("RESOURCES section must have PARAM VALUE",
                                      row_, "");
@@ -47,19 +52,19 @@ class ubbreader : public basic_parser {
           config.resources[object] = value;
         } else {
           ubb_params ubbparams;
-          parse_params(&ubbparams);
+          kv_list(&ubbparams, false, true);
           // Section defaults apply unless the entry overrides them
-          ubb_params merged(defaults_[section]);
+          ubb_params merged(defaults_[cursection]);
           for (auto &kv : ubbparams) {
             merged[kv.first] = kv.second;
           }
-          if (section == "SERVERS") {
+          if (cursection == "SERVERS") {
             config.servers.push_back(std::make_pair(object, merged));
-          } else if (section == "GROUPS") {
+          } else if (cursection == "GROUPS") {
             config.groups.push_back(std::make_pair(object, merged));
-          } else if (section == "MACHINES") {
+          } else if (cursection == "MACHINES") {
             config.machines.push_back(std::make_pair(object, merged));
-          } else if (section == "SERVICES") {
+          } else if (cursection == "SERVICES") {
             config.services.push_back(std::make_pair(object, merged));
           }
         }
@@ -78,89 +83,4 @@ class ubbreader : public basic_parser {
 
  private:
   std::map<std::string, ubb_params> defaults_;
-
-  bool parse_till_eol() {
-    whitespace();
-    if (accept('#')) {
-      while (accept([](int c) { return c != '\n' && c != EOF; }))
-        ;
-    }
-    return accept('\n');
-  }
-
-  bool parse_section(std::string *section) {
-    if (accept('*')) {
-      if (!name(section)) {
-        throw basic_parser_error("section name expected", row_, "*SECTION");
-      }
-      if (!parse_till_eol()) {
-        throw basic_parser_error("newline expected", row_, "*SECTION");
-      }
-      return true;
-    }
-    return false;
-  }
-
-  bool parse_params(ubb_params *ubbparams) {
-    while (true) {
-      whitespace();
-      // Continued on next line, either by leading whitespace or by '\'
-      if (accept('\n')) {
-        if (!whitespace()) {
-          return true;
-        }
-      } else if (accept('\\')) {
-        if (!accept('\n')) {
-          throw basic_parser_error("newline expected after \\", row_, "");
-        }
-        whitespace();
-      }
-
-      std::string key, value;
-      if (!parameter(&key)) {
-        throw basic_parser_error("key=value expected", row_, "KEY");
-      }
-      whitespace();
-      if (!accept('=')) {
-        throw basic_parser_error("key=value expected", row_, "=");
-      }
-      whitespace();
-      if (!parameter(&value)) {
-        throw basic_parser_error("key=value expected", row_, "VALUE");
-      }
-      ubbparams->insert(std::make_pair(key, value));
-    }
-    return false;
-  }
-
-  bool whitespace() {
-    if (accept([](int c) { return ::isspace(c) && c != '\n'; })) {
-      while (accept([](int c) { return ::isspace(c) && c != '\n'; }))
-        ;
-      return true;
-    }
-    return false;
-  }
-
-  bool parameter(std::string *s = nullptr) {
-    if (accept('"')) {
-      while (accept([](int c) { return c != '"' && c != EOF; }, s))
-        ;
-      if (!accept('"')) {
-        throw basic_parser_error("closing quote expected", row_, "");
-      }
-      return true;
-    } else if (accept(
-                   [](int c) { return !::isspace(c) && c != '#' && c != EOF; },
-                   s)) {
-      while (accept(
-          [](int c) {
-            return !::isspace(c) && c != '#' && c != '=' && c != EOF;
-          },
-          s))
-        ;
-      return true;
-    }
-    return false;
-  }
 };

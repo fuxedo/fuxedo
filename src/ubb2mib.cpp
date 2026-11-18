@@ -8,6 +8,7 @@
 #include "fux.h"
 #include "mib.h"
 #include "misc.h"
+#include "ubb2mib.h"
 #include "ubbreader.h"
 
 template <typename T>
@@ -88,6 +89,7 @@ void ubb2mib(ubbconfig &u, mib &m) {
   std::map<std::string, uint16_t> group_ids;
   auto groups = m.groups();
   auto servers = m.servers();
+  auto services = m.services();
 
   fux::fml32buf in, out;
 
@@ -141,6 +143,22 @@ void ubb2mib(ubbconfig &u, mib &m) {
       server.maxdispatchthreads = maxthreads;
       server.replyq = srvconf.second["REPLYQ"] != "N";
       server.secondaryrq = srvconf.second["SECONDARYRQ"] == "Y";
+      server.grace = checked_get(srvconf.second, "GRACE", 0, 86400, 86400);
+      server.maxgen = checked_get(srvconf.second, "MAXGEN", 1, 1000, 1);
+      server.restart = srvconf.second["RESTART"] == "Y";
+    }
+  }
+
+  for (auto &svcconf : u.services) {
+    auto service = m.make_service(svcconf.first);
+    auto conv = svcconf.second.find("BUFTYPECONV");
+    if (conv != svcconf.second.end() && conv->second != "NOCONVERT") {
+      checked_copy(conv->second, services.at(service).buftypeconv);
+    }
+    auto autotran = svcconf.second.find("AUTOTRAN");
+    if (autotran != svcconf.second.end()) {
+      checked_copy(autotran->second == "Y" ? "Y" : "N",
+                   services.at(service).autotran);
     }
   }
 }

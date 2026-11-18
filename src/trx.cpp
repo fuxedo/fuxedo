@@ -8,6 +8,7 @@
 #include "ipc.h"
 #include "misc.h"
 #include "trx.h"
+#include "ws.h"
 
 // Maybe
 // TX_ERROR => TPERMERR
@@ -48,6 +49,11 @@ int tpclose() {
 }
 
 int tpbegin(unsigned long timeout, long flags) {
+  if (fux::ws::ws_naddr() != nullptr) {
+    TPERROR(TPEPROTO,
+            "transactions are not supported over workstation links");
+    return -1;
+  }
   if (flags != 0) {
     TPERROR(TPEINVAL, "flags!=0");
     return -1;
@@ -109,6 +115,11 @@ static int trx_err(int rc, const char *func) {
 }
 
 int tpabort(long flags) {
+  if (fux::ws::ws_naddr() != nullptr) {
+    TPERROR(TPEPROTO,
+            "transactions are not supported over workstation links");
+    return -1;
+  }
   if (flags != 0) {
     TPERROR(TPEINVAL, "flags!=0");
     return -1;
@@ -130,6 +141,11 @@ int tpabort(long flags) {
 }
 
 int tpcommit(long flags) {
+  if (fux::ws::ws_naddr() != nullptr) {
+    TPERROR(TPEPROTO,
+            "transactions are not supported over workstation links");
+    return -1;
+  }
   if (flags != 0) {
     TPERROR(TPEINVAL, "flags!=0");
     return -1;

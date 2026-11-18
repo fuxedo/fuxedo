@@ -16,6 +16,7 @@ namespace tx {
 fux::gttid gttid();
 bool transactional();
 bool tx_active();
+XID current_xid();
 }  // namespace tx
 void tx_resume();
 void tx_suspend();

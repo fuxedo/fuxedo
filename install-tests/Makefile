@@ -16,6 +16,9 @@ check:
 	make -C tpforward
 	make -C blocktime
 	make -C txnull
+	make -C qmtx
+	make -C restart
+	make -C qsample
 	make -C bbl
 
 clean:
@@ -30,7 +33,10 @@ clean:
 	make -C tpadvertise clean
 	make -C tpforward clean
 	make -C blocktime clean
-	make -C txnull clean
+	make -C txnull
+	make -C qmtx
+	make -C restart
+	make -C qsample clean
 	make -C bbl clean
 
 

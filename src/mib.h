@@ -63,8 +63,15 @@ class mibarrptr {
 };
 
 struct mibmem {
-  std::atomic<int> state;
+  // High 32 bits: initialization state (0 = fresh, 1 = in progress,
+  // 2 = ready). Low 32 bits: pid of the initializing process, so a waiter
+  // can detect a dead initializer and take over.
+  std::atomic<uint64_t> state_pid;
   int mainsem;
+
+  // Mix of ipckey and the sizing parameters; a mismatch means the segment
+  // belongs to a different configuration and is removed and rebuilt.
+  uint64_t fingerprint;
 
   uint32_t host;
   uint32_t counter __attribute__((aligned(64)));
@@ -82,6 +89,15 @@ struct mibmem {
 
   size_t transactions_off;
   char data[];
+
+  static constexpr uint64_t ready() { return uint64_t(2) << 32; }
+  static constexpr uint64_t in_progress(pid_t pid) {
+    return (uint64_t(1) << 32) | uint32_t(pid);
+  }
+  int state() const { return int(state_pid.load(std::memory_order_acquire) >> 32); }
+  pid_t init_pid() const {
+    return pid_t(uint32_t(state_pid.load(std::memory_order_acquire)));
+  }
 };
 
 namespace fux {
@@ -118,6 +134,8 @@ rhs) { return ptr_ != rhs.ptr_; } private: pointer ptr_;
         };
 */
 
+enum class node_state { not_running, running, stale_removed };
+
 class mib {
  public:
   mib(const fux::cfg::domain &domain);
@@ -152,6 +170,30 @@ class mib {
   void advertise(const std::string &servicename, size_t queue, size_t server,
                  bool secondary = false);
   void unadvertise(const std::string &servicename, size_t queue, size_t server);
+
+  // Drop every advertisement owned by a server entry (dead server cleanup
+  // before an auto-restart re-advertises).
+  void cleanup_server_advertisements(size_t server);
+
+  // Runtime service visibility (tmadmin adv/unadv/suspend/resume): flip
+  // advertisement state without dropping the record, so the change is
+  // reversible and clients see it via the service revision bump.
+  // Returns the number of advertisements flipped.
+  size_t set_service_advertised(const std::string &servicename,
+                                size_t server, bool active);
+  size_t set_server_advertisements_active(size_t server, bool active);
+
+  // True when at least one live advertisement points at the service;
+  // runtime service listings hide services with none (unadv/suspend).
+  bool has_active_advertisement(size_t service) {
+    for (size_t i = 0; i < advertisements()->len; i++) {
+      auto &a = advertisements().at(i);
+      if (a.service == service && a.state != state_t::INValid) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   size_t find_queue(const std::string &rqaddr);
   size_t make_queue(const std::string &rqaddr);
@@ -195,6 +237,12 @@ class mib {
 
   void collect(std::vector<int> &q, std::vector<int> &m, std::vector<int> &s);
   void remove(std::vector<int> &q, std::vector<int> &m, std::vector<int> &s);
+
+  // Checks whether an application is using the bulletin board for ipckey
+  // without initializing anything. A leftover segment from a dead
+  // application is removed (with a ULOG note) and reported as
+  // stale_removed.
+  static node_state check_node(uint32_t ipckey);
 
  private:
   size_t find_advertisement(size_t service, size_t queue, size_t server);

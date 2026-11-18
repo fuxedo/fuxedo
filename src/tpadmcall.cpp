@@ -350,11 +350,13 @@ void set_server(fux::cfg::tables &t, fml32buf &in, fml32buf &out) {
 }
 
 static void t_service_get(fml32buf &in, fml32buf &out) {
-  auto services = getmib().services();
+  auto &mibcon = getmib();
+  auto services = mibcon.services();
   FLDOCC32 oc = 0;
   for (size_t i = 0; i < services.length(); i++) {
     auto &service = services.at(i);
-    if (service.state == state_t::INValid) {
+    if (service.state == state_t::INValid ||
+        !mibcon.has_active_advertisement(i)) {
       continue;
     }
 
@@ -416,6 +418,44 @@ static void t_svcgrp_get(fml32buf &in, fml32buf &out) {
   out.put(TA_OCCURS, 0, oc);
 }
 
+static void t_server_get(fml32buf &in, fml32buf &out) {
+  auto &m = getmib();
+  auto servers = m.servers();
+  auto groups = m.groups();
+
+  auto grpfilter = in.get<std::string>(TA_SRVGRP, 0, "");
+  auto srvid = in.get<long>(TA_SRVID, 0, -1);
+
+  FLDOCC32 oc = 0;
+  for (size_t i = 0; i < servers.length(); i++) {
+    auto &s = servers.at(i);
+    auto g = m.find_group(s.grpno);
+    const char *grpname = g == mib::badoff ? "" : groups.at(g).srvgrp;
+    if (!grpfilter.empty() && grpfilter != grpname) {
+      continue;
+    }
+    if (srvid != -1 && srvid != s.srvid) {
+      continue;
+    }
+    out.put(TA_SRVGRP, oc, grpname);
+    out.put(TA_SRVID, oc, (long)s.srvid);
+    out.put(TA_SERVERNAME, oc, s.servername);
+    out.put(TA_STATE, oc,
+            s.state == state_t::ACTive ? "ACTIVE" : "INACTIVE");
+    out.put(TA_GENERATION, oc, (long)s.generation);
+    out.put(TA_MAXGEN, oc, (long)s.maxgen);
+    out.put(TA_RESTART, oc, s.restart ? "Y" : "N");
+    out.put(TA_GRACE, oc, s.grace);
+    out.put(TA_RQADDR, oc, m.queues().at(s.rqaddr).rqaddr);
+    out.put(TA_PID, oc, (long)s.pid);
+    out.put(TA_LMID, oc, m.mach().lmid);
+    oc++;
+  }
+
+  out.put(TA_ERROR, 0, TAOK);
+  out.put(TA_OCCURS, 0, oc);
+}
+
 static void t_queue_get(fml32buf &in, fml32buf &out) {
   auto &m = getmib();
   auto queue = m.queues();
@@ -453,11 +493,34 @@ static void t_queue_get(fml32buf &in, fml32buf &out) {
 int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long flags) {
   return fux::atmi::exception_boundary(
       [&] {
+        // the platform requires a preallocated FML32 output buffer and
+        // rejects a NULL one before any IPC happens
+        if (outbuf == nullptr || *outbuf == nullptr) {
+          TPERROR(TPEINVAL, "*outbuf must point to an allocated FML32 buffer");
+          return -1;
+        }
         fml32buf in(&inbuf);
         fml32buf out(outbuf);
 
         auto klass = in.get<std::string>(TA_CLASS, 0);
         auto operation = in.get<std::string>(TA_OPERATION, 0);
+
+        // Runtime T_SERVER view comes from the bulletin board when the
+        // application is running; otherwise fall through to the file view.
+        if (klass == "T_SERVER" && operation == "GET") {
+          try {
+            bool exists = false;
+            auto tables = load(&exists);
+            if (exists &&
+                mib::check_node(tables.dom.ipckey) == node_state::running) {
+              t_server_get(in, out);
+              return 0;
+            }
+          } catch (const std::exception &) {
+            // fall through to the file view
+          }
+        }
+
         if (klass == "T_QUEUE" || klass == "T_SVCGRP" || klass == "T_SERVICE") {
           if (operation == "GET") {
             if (klass == "T_QUEUE") {
@@ -519,6 +582,22 @@ int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long flags) {
         }
 
         if (operation == "SET") {
+          // Runtime configuration is changed through tmadmin, never
+          // through the MIB from a plain client: report TPEPROTO like
+          // the platform does. Offline (no bulletin board) SETs keep
+          // operating on the TUXCONFIG file.
+          try {
+            bool exists = false;
+            auto tables = load(&exists);
+            if (exists &&
+                mib::check_node(tables.dom.ipckey) == node_state::running) {
+              TPERROR(TPEPROTO, "SET not allowed while the application is running");
+              return -1;
+            }
+          } catch (const std::exception &) {
+            // no readable TUXCONFIG: fall through to the offline path,
+            // which reports the real problem
+          }
           if (klass == "T_DOMAIN") {
             set_domain(tables, exists, in, out);
           } else if (!exists) {

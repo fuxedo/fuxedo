@@ -17,6 +17,8 @@
 #include "fux.h"
 #include "mib.h"
 #include "trx.h"
+#include "qm.h"
+#include "tlog.h"
 
 extern "C" {
 extern struct xa_switch_t tmnull_switch;
@@ -37,6 +39,14 @@ xa_switch_t *xasw = &tmnull_switch;
 
 using fux::glob::xasw;
 
+// The null switch marks "no real RM". Clients own no resource manager:
+// they coordinate branches that live in other processes through the
+// groups' .TM services, the way the platform runs client-side
+// transactions.
+static bool local_rm() { return xasw != &tmnull_switch; }
+
+static void recover_tlog();
+
 enum class tx_state {
   s0 = 0,  // S0 No RMs have been opened or initialised. An application thread
            // of control cannot start a global transaction until it has
@@ -53,7 +63,9 @@ enum class tx_state {
 
 struct tx_context {
   tx_context(mib &mibcon) : mibcon_(mibcon) {
-    state = tx_state::s0;
+    // Clients own no RM and never call tx_open; their context starts
+    // opened, matching the platform's client-side transactions.
+    state = xasw == &tmnull_switch ? tx_state::s1 : tx_state::s0;
     if (fux::tx::grpno != 0) {
       grpcfg = &mibcon_.group_by_id(fux::tx::grpno);
       fux::tx::grpidx = mibcon_.find_group(fux::tx::grpno);
@@ -92,6 +104,10 @@ static int rm_err(int xarc, const char *func) {
 }
 
 int tx_open() {
+  if (!local_rm()) {
+    getctxt().state = tx_state::s1;
+    return TX_OK;
+  }
   char *info = getctxt().grpcfg->openinfo;
   auto len = strlen(xasw->name);
   if (strlen(getctxt().grpcfg->openinfo) > 0) {
@@ -107,6 +123,11 @@ int tx_open() {
     if (getctxt().state == tx_state::s0) {
       getctxt().notrx();
       getctxt().state = tx_state::s1;
+      try {
+        recover_tlog();
+      } catch (const std::exception &e) {
+        userlog("TLOG recovery failed: %s", e.what());
+      }
     }
     return TX_OK;
   }
@@ -115,6 +136,10 @@ int tx_open() {
 }
 
 int tx_close() {
+  if (!local_rm()) {
+    getctxt().state = tx_state::s0;
+    return TX_OK;
+  }
   if (!(getctxt().state == tx_state::s0 || getctxt().state == tx_state::s1 ||
         getctxt().state == tx_state::s2)) {
     return TX_PROTOCOL_ERROR;
@@ -205,11 +230,70 @@ struct branch {
 
 static void command(std::vector<branch> &branches, XID *xid, int command);
 
-static void persist_tlog(XID *xid, std::vector<branch> branches) {
-  // TODO
+static fux::tlog::log *tlog_for(const char *purpose) {
+  static std::string device = getmib().mach().tlogdevice;
+  if (device.empty()) {
+    return nullptr;
+  }
+  static fux::tlog::log log = [] {
+    try {
+      return fux::tlog::log::open(device);
+    } catch (const std::exception &e) {
+      userlog("TLOG %s unavailable, transaction outcomes are not logged: %s",
+              device.c_str(), e.what());
+      return fux::tlog::log{};
+    }
+  }();
+  (void)purpose;
+  static bool unusable = log.size() == 0;
+  return unusable ? nullptr : &log;
 }
+
+// The decision to commit is written to the TLOG before the second phase
+// runs, so a crash can be resolved during recovery (presumed abort).
+static void persist_tlog(XID *xid, std::vector<branch> branches) {
+  auto *log = tlog_for("commit");
+  if (log != nullptr && !branches.empty()) {
+    log->append(fux::tlog::record_type::commit, xid);
+  }
+}
+
 static void clean_tlog(XID *xid) {
-  // TODO
+  // outcome records stay in the circular log for inspection (crlog)
+}
+
+static void recover_tlog() {
+  auto *log = tlog_for("recovery");
+  if (log == nullptr) {
+    return;
+  }
+  XID xids[64];
+  int n = xasw->xa_recover_entry(xids, 64, 0, TMSTARTRSCAN);
+  for (int i = 0; i < n; i++) {
+    int outcome = log->outcome(&xids[i]);
+    if (outcome == 1) {
+      userlog("recovering in-doubt transaction %s with COMMIT",
+              fux::to_string(&xids[i]).c_str());
+      xasw->xa_commit_entry(&xids[i], 0, TMNOFLAGS);
+    } else if (outcome == 3) {
+      // resolved heuristically before this boot; nothing to redo
+      userlog("in-doubt transaction %s was completed heuristically",
+              fux::to_string(&xids[i]).c_str());
+      xasw->xa_forget_entry(&xids[i], 0, TMNOFLAGS);
+    } else {
+      if (fux::qm::qm_branch_staged_empty(&xids[i])) {
+        // prepared but the effects are already gone and no decision was
+        // ever logged: someone completed this branch outside the log
+        userlog("in-doubt transaction %s completed heuristically",
+                fux::to_string(&xids[i]).c_str());
+        log->append(fux::tlog::record_type::heuristic, &xids[i]);
+      } else {
+        userlog("recovering in-doubt transaction %s with ROLLBACK",
+                fux::to_string(&xids[i]).c_str());
+      }
+      xasw->xa_rollback_entry(&xids[i], 0, TMNOFLAGS);
+    }
+  }
 }
 
 static std::vector<branch> collect(XID *xid) {
@@ -273,6 +357,11 @@ int tx_rollback() {
 
   std::vector<branch> branches = collect(&info.xid);
 
+  auto *log = tlog_for("rollback");
+  if (log != nullptr && !branches.empty()) {
+    log->append(fux::tlog::record_type::rollback, &info.xid);
+  }
+
   command(branches, &info.xid, fux::tm::rollback);
 
   return change_state(TX_OK);
@@ -281,6 +370,14 @@ int tx_rollback() {
 static int _tx_end(TXINFO *info, long flags) {
   if (!(getctxt().state == tx_state::s3 || getctxt().state == tx_state::s4)) {
     return TX_PROTOCOL_ERROR;
+  }
+
+  if (!local_rm()) {
+    if (info != nullptr) {
+      *info = getctxt().info;
+      getctxt().notrx();
+    }
+    return TX_OK;
   }
 
   userlog("xa_end(%s, %d, 0x%0lx) ...",
@@ -345,6 +442,12 @@ static int _tx_start(TXINFO *info, long flags) {
     getctxt().info.xid = info->xid;
   }
 
+  if (!local_rm()) {
+    getctxt().state = getctxt().state == tx_state::s1 ? tx_state::s3
+                                                      : tx_state::s4;
+    return TX_OK;
+  }
+
   userlog("xa_start(%s, %d, 0x%08lx) ...",
           fux::to_string(&getctxt().info.xid).c_str(), fux::tx::grpno, flags);
   auto xarc = xasw->xa_start_entry(&getctxt().info.xid, fux::tx::grpno, flags);
@@ -396,6 +499,8 @@ fux::gttid gttid() { return getctxt().gttid; }
 bool transactional() { return !(getctxt().info.xid.formatID == -1); }
 // Lazy variant: does not create a transaction context (and does not require
 // an attached domain) when the thread has not touched transactions at all.
+XID current_xid() { return getctxt().info.xid; }
+
 bool tx_active() {
   return txctxt.get() != nullptr && txctxt->info.xid.formatID != -1;
 }

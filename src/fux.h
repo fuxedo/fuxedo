@@ -11,6 +11,13 @@
 
 namespace fux {
 
+// Optional server hook (defined in server.cpp): called on the dispatch
+// thread whenever its blocking queue receive is interrupted by a signal.
+// Servers that multiplex other event sources (GWTDOMAIN's socket engine)
+// install this together with a periodic timer to stay responsive while
+// idle in the receive.
+extern void (*poll_hook)();
+
 class fml32buf_error : public std::exception {
  public:
   fml32buf_error() : code_(Ferror32) {}
@@ -155,6 +162,16 @@ class fml32buf {
 
   FBFR32 *ptr() const { return buf_.ptr(); }
   FBFR32 **ptrptr() const { return buf_.ptrptr(); }
+
+  // Binary-safe CARRAY read; throws fml32buf_error when absent.
+  std::string getbytes(FLDID32 fieldid, FLDOCC32 oc) {
+    FLDLEN32 len;
+    char *ret;
+    if ((ret = CFfind32(ptr(), fieldid, oc, &len, FLD_CARRAY)) != nullptr) {
+      return std::string(ret, len);
+    }
+    throw fml32buf_error();
+  }
 
  private:
   fml32ptr buf_;

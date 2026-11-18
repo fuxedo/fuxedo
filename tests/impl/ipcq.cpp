@@ -6,7 +6,10 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <filesystem>
+
 #include "../../src/ipc.h"
+namespace fs = std::filesystem;
 
 struct queue_fixture {
   int msqid;
@@ -63,7 +66,31 @@ TEST_CASE_METHOD(queue_fixture, "send and receive file message", "[ipc]") {
   rq->flags = 1;
   rq->cd = 2;
 
+  auto snapshot = [] {
+    std::vector<std::string> out;
+    for (auto &p : fs::directory_iterator("/tmp")) {
+      if (p.path().filename().string().rfind("TUX", 0) == 0) {
+        out.push_back(p.path().string());
+      }
+    }
+    return out;
+  };
+  auto before = snapshot();
+
   fux::ipc::qsend(msqid, rq, 0, fux::ipc::flags::noflags);
+
+  // the queue carries only the file name; the payload waits in /tmp/TUX*
+  // like the platform's file transfer, and disappears once consumed
+  std::vector<std::string> created;
+  for (auto &p : fs::directory_iterator("/tmp")) {
+    auto path = p.path().string();
+    auto name = p.path().filename().string();
+    if (name.rfind("TUX", 0) == 0 &&
+        std::find(before.begin(), before.end(), path) == before.end()) {
+      created.push_back(path);
+    }
+  }
+  REQUIRE(!created.empty());
 
   fux::ipc::qrecv(msqid, rs, 0, 0);
 
@@ -72,4 +99,7 @@ TEST_CASE_METHOD(queue_fixture, "send and receive file message", "[ipc]") {
   REQUIRE(rs->ttype == fux::ipc::file);
   REQUIRE(rs->flags == 1);
   REQUIRE(rs->cd == 2);
+  for (auto &f : created) {
+    REQUIRE(!fs::exists(f));
+  }
 }

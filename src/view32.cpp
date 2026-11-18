@@ -287,6 +287,23 @@ static bool is_string_type(int type) {
   return type == FLD_STRING || type == FLD_CARRAY;
 }
 
+// NULL fill pattern: the null value padded to the member size; with the
+// P propagation the last byte runs through the rest of the buffer (the
+// string terminator survives).
+static std::vector<char> make_fill(const member &m, bool prop) {
+  std::vector<char> fill(m.elsize, 0);
+  auto n = std::min<int32_t>(m.nullval.size(), m.elsize);
+  std::copy_n(m.nullval.begin(), n, fill.begin());
+  if (prop && n > 0) {
+    if (m.type == FLD_STRING) {
+      std::fill(fill.begin() + n, fill.end() - 1, m.nullval.back());
+    } else {
+      std::fill(fill.begin() + n, fill.end(), m.nullval.back());
+    }
+  }
+  return fill;
+}
+
 bool resolve(std::vector<viewdef> &views, bool no_fml,
              std::vector<std::string> &errors,
              std::vector<std::string> &warnings) {
@@ -395,21 +412,8 @@ bool resolve(std::vector<viewdef> &views, bool no_fml,
 
     for (auto &m : v.members) {
       // NULL fill patterns mirror what sinit writes into the member
-      auto make_fill = [&](bool prop) {
-        std::vector<char> fill(m.elsize, 0);
-        auto n = std::min<int32_t>(m.nullval.size(), m.elsize);
-        std::copy_n(m.nullval.begin(), n, fill.begin());
-        if (prop && n > 0) {
-          if (m.type == FLD_STRING) {
-            std::fill(fill.begin() + n, fill.end() - 1, m.nullval.back());
-          } else {
-            std::fill(fill.begin() + n, fill.end(), m.nullval.back());
-          }
-        }
-        return fill;
-      };
-      m.fill = make_fill((m.flags & F_PROP) != 0);
-      m.fill_nop = make_fill(false);
+      m.fill = make_fill(m, (m.flags & F_PROP) != 0);
+      m.fill_nop = make_fill(m, false);
     }
 
     std::set<std::string> generated;
@@ -583,9 +587,8 @@ std::vector<viewdef> read_file(std::istream &in) {
       m.fill_nop = get_bytes(in);
       m.null_none = get<int32_t>(in) != 0;
       if (m.fill.empty()) {
-        m.fill.resize(m.elsize, 0);
-        auto n = std::min<int32_t>(m.nullval.size(), m.elsize);
-        std::copy_n(m.nullval.begin(), n, m.fill.begin());
+        // legacy viewfile without fill patterns
+        m.fill = make_fill(m, false);
         m.fill_nop = m.fill;
       }
       m.off = get<int32_t>(in);
@@ -634,8 +637,8 @@ class registry {
  private:
   bool load(const std::string &wanted) {
     file_found_ = false;
-    auto files = split(fux::util::getenv("VIEWFILES32", ""), ',');
-    auto dirs = split(fux::util::getenv("VIEWDIR32", ""), ':');
+    auto files = fux::split(fux::util::getenv("VIEWFILES32", ""), ",");
+    auto dirs = fux::split(fux::util::getenv("VIEWDIR32", ""), ":");
     if (dirs.empty()) {
       dirs.push_back(".");
     }
@@ -691,21 +694,6 @@ class registry {
       views_.erase(lru_.back());
       lru_.pop_back();
     }
-  }
-
-  static std::vector<std::string> split(const std::string &s, char delim) {
-    std::vector<std::string> out;
-    size_t start = 0;
-    while (start <= s.size()) {
-      auto pos = s.find(delim, start);
-      if (pos == std::string::npos) {
-        out.push_back(s.substr(start));
-        break;
-      }
-      out.push_back(s.substr(start, pos - start));
-      start = pos + 1;
-    }
-    return out;
   }
 
   std::mutex mutex_;
@@ -769,19 +757,15 @@ static bool stof_is_null(const member &m, const char *el) {
 
 void sinit(char *cstruct, viewdef &view) {
   for (auto &m : view.members) {
-    for (int32_t i = 0; i < m.count; i++) {
-      set_null_el(cstruct, m, i);
-    }
-    if (m.flags & F_COUNT) {
-      // Oracle clears only the low 16 bits of the count member
-      *reinterpret_cast<int16_t *>(cstruct + m.acm_off) = 0;
-    }
-    if (m.flags & F_LENGTH) {
-      auto *alm = reinterpret_cast<uint32_t *>(cstruct + m.alm_off);
-      for (int32_t i = 0; i < m.count; i++) {
-        alm[i] = null_len(m);
-      }
-    }
+    selinit(cstruct, m);
+  }
+}
+
+// NULLs the array-length members, like a fresh sinit
+static void alm_null_fill(char *cstruct, const member &m) {
+  auto *alm = reinterpret_cast<uint32_t *>(cstruct + m.alm_off);
+  for (int32_t i = 0; i < m.count; i++) {
+    alm[i] = null_len(m);
   }
 }
 
@@ -793,10 +777,7 @@ void selinit(char *cstruct, member &m) {
     *reinterpret_cast<int16_t *>(cstruct + m.acm_off) = 0;
   }
   if (m.flags & F_LENGTH) {
-    auto *alm = reinterpret_cast<uint32_t *>(cstruct + m.alm_off);
-    for (int32_t i = 0; i < m.count; i++) {
-      alm[i] = null_len(m);
-    }
+    alm_null_fill(cstruct, m);
   }
 }
 
@@ -836,9 +817,7 @@ int to_struct(Fbfr32 *fbfr, char *cstruct, viewdef &view) {
     }
     if (m.flags & F_LENGTH) {
       auto *alm = reinterpret_cast<uint32_t *>(cstruct + m.alm_off);
-      for (int32_t i = 0; i < m.count; i++) {
-        alm[i] = null_len(m);
-      }
+      alm_null_fill(cstruct, m);
       for (int32_t i = 0; i < take; i++) {
         FLDLEN32 flen = 0;
         char *val = fbfr->find(m.fldid, i, &flen);

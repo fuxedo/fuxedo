@@ -5,6 +5,9 @@
 #include <algorithm>
 
 #include "cfg.h"
+#include <ostream>
+
+#include "mib.h"
 #include "misc.h"
 
 namespace fux::cfg {
@@ -242,6 +245,42 @@ std::string emit(const tables &t) {
   }
 
   return out;
+}
+
+
+void print_sizing(std::ostream &out, const tables &t) {
+  auto nearest64 = [](size_t n) { return (n + 63) / 64 * 64; };
+
+  size_t shm = nearest64(sizeof(mibmem)) +
+               nearest64(t.dom.maxservers * sizeof(::server)) +
+               nearest64(t.dom.maxqueues * sizeof(::queue)) +
+               nearest64(t.dom.maxservices * sizeof(::service)) +
+               nearest64(size_t(t.dom.maxservers) * t.dom.maxservices *
+                         sizeof(::advertisement)) +
+               nearest64(t.dom.maxgroups * sizeof(::group)) +
+               nearest64(t.dom.maxaccessers * sizeof(accesser)) +
+               65536;  // transactions and future growth
+  auto kb = (shm + 1023) / 1024;
+
+  long semmns = 1;   // one main semaphore
+  long semmsl = 1;   // one semaphore per array
+  long semmni = 1;   // one array
+  long msgmni = t.dom.maxqueues + t.dom.maxservers + t.dom.maxaccessers + 1;
+  long shmseg = 1;   // single bulletin board segment
+
+  out << "Ipc sizing (minimum /T values only) ...\n\n";
+  out << "\t\tFixed Minimums Per Node\n\n";
+  out << "SHMMIN:\t1\n";
+  out << "SHMALL:\t1\n";
+  out << "SEMMAP:\tSEMMNI\n\n";
+  out << "\t\tVariable Minimums Per Node\n\n";
+  out << "Node\t\tSEMMNS\tSEMMSL\tSEMMSL\tSEMMNI\tMSGMNI\tMSGMAP\tSHMSEG\n";
+  out << "------\t\t------\t------\t------\t------\t------\t------\t------\n";
+  out << t.mach.pmid << '\t' << '\t' << semmns << '\t' << semmsl << '\t'
+      << semmsl << '\t' << semmni << '\t' << msgmni << '\t' << msgmni
+      << '\t' << kb << "K\n\n";
+  out << "The number of expected application clients per node should\n";
+  out << "be added to each MSGMNI value.\n";
 }
 
 }  // namespace fux::cfg

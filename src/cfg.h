@@ -99,4 +99,8 @@ tables build(const ubbconfig &ubb);
 // unknown parameters are dropped.
 std::string emit(const tables &t);
 
+// Prints the IPC sizing table for the configuration, in the shape of
+// "tmloadcf -c" output. Values are the minimums fuxedo itself needs.
+void print_sizing(std::ostream &out, const tables &t);
+
 }  // namespace fux::cfg

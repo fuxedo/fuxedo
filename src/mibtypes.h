@@ -119,6 +119,30 @@ struct server {
   long threadstacksize;
   bool conv;
 
+  // restart bookkeeping (MAXGEN/RESTART/GRACE); raw shm, zeroed at boot
+  uint16_t generation;           // 1 at boot, ++ on each auto-restart
+  time_t restart_window_start;   // start of the MAXGEN counting window
+  uint16_t restart_count;        // restarts since restart_window_start
+
+  // changetrace level ("" = off); dye label is the part after the last ':'
+  char tracelvl[64];
+
+  // MAXGEN restarts are allowed per sliding window of grace seconds.
+  // Advances the window and consumes one restart slot; false = budget
+  // exhausted, do not restart.
+  bool consume_restart_slot(time_t now) {
+    if (restart_window_start == 0 || now - restart_window_start > grace) {
+      restart_window_start = now;
+      restart_count = 0;
+    }
+    if (restart_count >= maxgen) {
+      return false;
+    }
+    restart_count++;
+    generation++;
+    return true;
+  }
+
   void suspend() { state = state_t::SUSpended; }
 
   bool is_inactive() const { return state == state_t::INActive; }
@@ -161,4 +185,7 @@ struct advertisement {
   size_t server;
   state_t state;
   bool secondary = false;  // advertised on the set's secondary queue
+  // set by tmadmin suspend so resume restores exactly what suspend hid;
+  // an unadvertised service (tmadmin unadv) stays down through suspend
+  bool suspended = false;  // raw shm memory is zeroed, no NSDMI here
 };

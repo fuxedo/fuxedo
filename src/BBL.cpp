@@ -3,6 +3,10 @@
 
 #include <xa.h>
 #include <algorithm>
+#include <fcntl.h>
+#include <spawn.h>
+#include <sstream>
+#include <sys/wait.h>
 
 #include "fux.h"
 #include "mib.h"
@@ -12,6 +16,8 @@
 #include <tpadm.h>
 #include <userlog.h>
 #include <xa.h>
+
+extern char **environ;
 
 #if defined(__cplusplus)
 extern "C" {
@@ -60,6 +66,70 @@ static void handle_blocktime() {
   }
 }
 
+static void monitor_servers();
+
+// MAXGEN/RESTART: fork+exec a fresh instance of a dead server from the
+// watchdog, the way tmboot starts it (server re-registers itself and
+// flips its entry ACTive during init).
+static void respawn(server &srv, const std::string &path) {
+  std::string grpno = std::to_string(srv.grpno);
+  std::string srvid = std::to_string(srv.srvid);
+  std::vector<const char *> argv = {srv.servername, "-g", grpno.c_str(),
+                                    "-i", srvid.c_str(), "-A", nullptr};
+
+  posix_spawn_file_actions_t fa;
+  posix_spawn_file_actions_init(&fa);
+  posix_spawn_file_actions_addopen(&fa, STDIN_FILENO, "/dev/null", O_RDONLY,
+                                   0);
+  posix_spawn_file_actions_addopen(&fa, STDOUT_FILENO, "stdout",
+                                   O_WRONLY | O_CREAT | O_APPEND, 0666);
+  posix_spawn_file_actions_addopen(&fa, STDERR_FILENO, "stderr",
+                                   O_WRONLY | O_CREAT | O_APPEND, 0666);
+
+  std::vector<std::string> env;
+  for (char **e = environ; *e != nullptr; e++) {
+    env.emplace_back(*e);
+  }
+  env.push_back("PATH=" + path);
+  std::vector<char *> envp_v;
+  for (auto &e : env) {
+    envp_v.push_back(const_cast<char *>(e.c_str()));
+  }
+  envp_v.push_back(nullptr);
+
+  pid_t pid = 0;
+  int rc = posix_spawnp(&pid, srv.servername, &fa, nullptr,
+                        const_cast<char *const *>(&argv[0]), envp_v.data());
+  posix_spawn_file_actions_destroy(&fa);
+  if (rc != 0) {
+    userlog("Unable to restart %s -g %s -i %s: %s", srv.servername,
+            grpno.c_str(), srvid.c_str(), strerror(rc));
+    return;
+  }
+  srv.pid = pid;
+}
+
+static void maybe_restart(mib &m, server &srv) {
+  if (!srv.restart) {
+    return;
+  }
+
+  time_t now = time(nullptr);
+  if (!srv.consume_restart_slot(now)) {
+    userlog("Not restarting %s -g %d -i %d: MAXGEN=%d reached within GRACE=%ld",
+            srv.servername, srv.grpno, srv.srvid, srv.maxgen, srv.grace);
+    return;
+  }
+
+  std::ostringstream path;
+  path << m.mach().tuxdir << "/bin:" << m.mach().appdir << ":"
+       << fux::util::getenv("PATH", "");
+
+  userlog("Restarting %s -g %d -i %d, generation %d", srv.servername,
+          srv.grpno, srv.srvid, srv.generation);
+  respawn(srv, path.str());
+}
+
 static void monitor_servers() {
   mib &m = getmib();
   auto servers = m.servers();
@@ -70,7 +140,14 @@ static void monitor_servers() {
       continue;
     }
     if (!alive(server.pid)) {
+      // Only an ACTive server is restarted: tmshutdown marks its targets
+      // SUSpended and a clean exit leaves INActive, so neither is revived.
+      bool was_active = server.state == state_t::ACTive;
       server.pid = 0;
+      m.cleanup_server_advertisements(i);
+      if (was_active) {
+        maybe_restart(m, server);
+      }
     }
   }
 }
@@ -94,10 +171,22 @@ static void monitor_clients() {
   }
 }
 
+// Reap respawned server children; without this they stay zombies and
+// kill(pid, 0) keeps reporting them as alive, blocking any restart.
+static void reap_children() {
+  int status = 0;
+  while (waitpid(-1, &status, WNOHANG) > 0) {
+    if (WIFSIGNALED(status)) {
+      userlog("Server child killed by signal %d", WTERMSIG(status));
+    }
+  }
+}
+
 static void run_watchdog() {
   while (true) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
+    reap_children();
     handle_blocktime();
     monitor_servers();
     monitor_clients();

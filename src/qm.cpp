@@ -1,3 +1,4 @@
+#include <userlog.h>
 // This file is part of Fuxedo
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
@@ -475,6 +476,73 @@ std::string enqueue(const std::string &qspace, const std::string &qname,
   return m.id;
 }
 
+
+fs::path tx_dir(const std::string &qspace, const std::string &gtrid) {
+  return qspace_dir(qspace) / ".tx" / gtrid;
+}
+
+std::string stage_enqueue(const std::string &qspace, const std::string &qname,
+                          const TPQCTL *ctl, const std::string &payload,
+                          const std::string &gtrid) {
+  ensure_queue(qspace, qname);
+  auto dir = tx_dir(qspace, gtrid);
+  fs::create_directories(dir);
+
+  msg m;
+  m.enqtime = now();
+  long priority = 50;
+  if (ctl != nullptr) {
+    if ((ctl->flags & TPQPRIORITY) != 0) {
+      priority = ctl->priority;
+    }
+    if ((ctl->flags & TPQTOP) != 0) {
+      priority = 1;
+    }
+    if ((ctl->flags & TPQCORRID) != 0) {
+      m.corrid.assign(ctl->corrid, strnlen(ctl->corrid, TMCORRIDLEN));
+    }
+    if ((ctl->flags & TPQREPLYQ) != 0) {
+      m.replyq = ctl->replyqueue;
+    }
+    if ((ctl->flags & TPQFAILUREQ) != 0) {
+      m.failureq = ctl->failurequeue;
+    }
+    if ((ctl->flags & TPQTIME_ABS) != 0) {
+      m.deqtime = ctl->deq_time;
+    } else if ((ctl->flags & TPQTIME_REL) != 0) {
+      m.deqtime = now() + ctl->deq_time;
+    }
+    if ((ctl->flags & TPQEXPTIME_ABS) != 0) {
+      m.exptime = ctl->exp_time;
+    } else if ((ctl->flags & TPQEXPTIME_REL) != 0) {
+      m.exptime = now() + ctl->exp_time;
+    }
+  }
+  m.priority = priority;
+
+  auto ids = scan_msg_ids(queue_dir(qspace, qname));
+  char idbuf[64];
+  snprintf(idbuf, sizeof(idbuf), "%03ld.%016ld", priority, next_seq(ids));
+  m.id = idbuf;
+
+  m.payload = payload;
+  auto target = dir / ("enq_" + qname + "_" + m.id);
+  write_msg(target, m);
+  fsync_dir(dir);
+  return m.id;
+}
+
+void stage_dequeue(const std::string &qspace, const std::string &qname,
+                   const std::string &msgid, const std::string &gtrid) {
+  auto dir = tx_dir(qspace, gtrid);
+  fs::create_directories(dir);
+  auto from = queue_dir(qspace, qname) / msgid;
+  auto to = dir / ("deq_" + qname + "_" + msgid);
+  fs::rename(from, to);
+  fsync_dir(dir);
+  fsync_dir(queue_dir(qspace, qname));
+}
+
 dequeue_result dequeue(const std::string &qspace, const std::string &qname,
                        const TPQCTL *ctl, bool peek, long wait_ms) {
   auto qdir = queue_dir(qspace, qname);
@@ -506,7 +574,8 @@ dequeue_result dequeue(const std::string &qspace, const std::string &qname,
     if (wait_ms <= 0 || std::chrono::steady_clock::now() >= deadline) {
       return {};
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    // one-second quantum, like the platform's queue servers
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 }
 

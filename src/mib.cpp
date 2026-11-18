@@ -1,6 +1,8 @@
 // This file is part of Fuxedo
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
+#include <userlog.h>
+
 #include <clara.hpp>
 #include <cstddef>
 #include <cstdlib>
@@ -40,7 +42,9 @@ void mib::validate() {
   }
 }
 
-tuxconfig getconfig(fux::cfg::tables *tables, ubbconfig *ubb) {
+// Opens the TUXCONFIG named by the environment, reads and verifies the
+// fixed header, and leaves the stream at the embedded ubb text.
+static std::ifstream open_tuxconfig(tuxconfig *tuxcfg) {
   auto outfile = fux::util::getenv("TUXCONFIG", "");
   if (outfile.empty()) {
     throw std::runtime_error("TUXCONFIG environment variable required");
@@ -48,19 +52,29 @@ tuxconfig getconfig(fux::cfg::tables *tables, ubbconfig *ubb) {
 
   std::ifstream fin;
   fin.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-  fin.open(outfile);
+  try {
+    fin.open(outfile);
+  } catch (const std::ios_base::failure &) {
+    throw std::runtime_error("cannot open TUXCONFIG file " + outfile);
+  }
 
+  try {
+    fin.read(reinterpret_cast<char *>(tuxcfg), sizeof(*tuxcfg));
+  } catch (const std::ios_base::failure &) {
+    throw std::runtime_error("cannot read TUXCONFIG file " + outfile);
+  }
+  if (memcmp(tuxcfg->magic, TUXCONFIG_MAGIC, sizeof(tuxcfg->magic)) != 0 ||
+      tuxcfg->version != TUXCONFIG_VERSION ||
+      tuxcfg->text_off != sizeof(*tuxcfg) ||
+      fs::file_size(outfile) != sizeof(*tuxcfg) + tuxcfg->text_size) {
+    throw std::runtime_error("Not a fuxedo TUXCONFIG file");
+  }
+  return fin;
+}
+
+tuxconfig getconfig(fux::cfg::tables *tables, ubbconfig *ubb) {
   tuxconfig tuxcfg = {};
-  fin.read(reinterpret_cast<char *>(&tuxcfg), sizeof(tuxcfg));
-
-  if (memcmp(tuxcfg.magic, TUXCONFIG_MAGIC, sizeof(tuxcfg.magic)) != 0 ||
-      tuxcfg.version != TUXCONFIG_VERSION) {
-    throw std::runtime_error("Not a fuxedo TUXCONFIG file (bad magic)");
-  }
-  if (tuxcfg.text_off != sizeof(tuxcfg) ||
-      fs::file_size(outfile) != sizeof(tuxcfg) + tuxcfg.text_size) {
-    throw std::runtime_error("Corrupt TUXCONFIG file");
-  }
+  auto fin = open_tuxconfig(&tuxcfg);
 
   if (tables != nullptr || ubb != nullptr) {
     ubbconfig parsed;
@@ -78,22 +92,8 @@ tuxconfig getconfig(fux::cfg::tables *tables, ubbconfig *ubb) {
 }
 
 std::string getubb() {
-  auto outfile = fux::util::getenv("TUXCONFIG", "");
-  if (outfile.empty()) {
-    throw std::runtime_error("TUXCONFIG environment variable required");
-  }
-
-  std::ifstream fin;
-  fin.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-  fin.open(outfile);
-
   tuxconfig tuxcfg = {};
-  fin.read(reinterpret_cast<char *>(&tuxcfg), sizeof(tuxcfg));
-  if (memcmp(tuxcfg.magic, TUXCONFIG_MAGIC, sizeof(tuxcfg.magic)) != 0 ||
-      tuxcfg.version != TUXCONFIG_VERSION ||
-      fs::file_size(outfile) != sizeof(tuxcfg) + tuxcfg.text_size) {
-    throw std::runtime_error("Not a fuxedo TUXCONFIG file");
-  }
+  auto fin = open_tuxconfig(&tuxcfg);
 
   std::ostringstream sout;
   std::copy(std::istreambuf_iterator<char>(fin),
@@ -200,6 +200,59 @@ void mib::unadvertise(const std::string &servicename, size_t queue,
   services().at(service).modified();
 }
 
+void mib::cleanup_server_advertisements(size_t server) {
+  for (size_t i = 0; i < advertisements()->len; i++) {
+    auto &advertisement = advertisements().at(i);
+    if (advertisement.server == server &&
+        advertisement.state != state_t::INValid) {
+      services().at(advertisement.service).modified();
+      advertisement.state = state_t::INValid;
+      advertisement.service = advertisement.queue = advertisement.server =
+          badoff;
+    }
+  }
+}
+
+size_t mib::set_service_advertised(const std::string &servicename,
+                                   size_t server, bool active) {
+  auto service = find_service(servicename);
+  if (service == badoff) {
+    return 0;
+  }
+  for (size_t i = 0; i < advertisements()->len; i++) {
+    auto &a = advertisements().at(i);
+    if (a.service == service && a.server == server) {
+      a.state = active ? state_t::ACTive : state_t::INValid;
+      a.suspended = false;
+      services().at(service).modified();
+      return 1;
+    }
+  }
+  return 0;
+}
+
+size_t mib::set_server_advertisements_active(size_t server, bool active) {
+  size_t flipped = 0;
+  for (size_t i = 0; i < advertisements()->len; i++) {
+    auto &a = advertisements().at(i);
+    if (a.server != server) {
+      continue;
+    }
+    if (!active && a.state == state_t::ACTive) {
+      a.state = state_t::INValid;
+      a.suspended = true;
+      services().at(a.service).modified();
+      flipped++;
+    } else if (active && a.suspended) {
+      a.state = state_t::ACTive;
+      a.suspended = false;
+      services().at(a.service).modified();
+      flipped++;
+    }
+  }
+  return flipped;
+}
+
 size_t mib::find_queue(const std::string &rqaddr) {
   for (size_t i = 0; i < queues()->len; i++) {
     if (rqaddr == queues().at(i).rqaddr) {
@@ -295,6 +348,9 @@ size_t mib::make_server(uint16_t srvid, uint16_t grpno,
   checked_copy(clopt, server.clopt);
 
   server.reply_msqid = -1;  // raw shm memory is zeroed, no NSDMI here
+  server.generation = 1;
+  server.restart_window_start = 0;
+  server.restart_count = 0;
   server.rqaddr = find_queue(rqaddr);
   if (server.rqaddr == badoff) {
     server.rqaddr = make_queue(rqaddr);
@@ -483,6 +539,44 @@ void mib::remove(std::vector<int> &q, std::vector<int> &m,
 
 void ubb2mib(ubbconfig &u, mib &m);
 
+
+node_state mib::check_node(uint32_t ipckey) {
+  auto shmid = shmget(ipckey, 0, 000);
+  if (shmid == -1) {
+    return node_state::not_running;
+  }
+  auto mem = reinterpret_cast<mibmem *>(shmat(shmid, nullptr, 0));
+  if (mem == reinterpret_cast<void *>(-1)) {
+    return node_state::not_running;
+  }
+
+  node_state result = node_state::not_running;
+  if (mem->state() == 2) {
+    for (size_t i = 0; i < mem->servers.len; i++) {
+      auto pid = reinterpret_cast<server *>(
+                     reinterpret_cast<char *>(&mem->servers) +
+                     mem->servers.off)[i]
+                     .pid;
+      if (pid > 0 && kill(pid, 0) == 0) {
+        result = node_state::running;
+        break;
+      }
+    }
+  } else {
+    // mid-initialization; treat as busy
+    result = node_state::running;
+  }
+
+  if (result == node_state::not_running) {
+    userlog("Removing stale bulletin board, no active processes");
+    shmdt(mem);
+    shmctl(shmid, IPC_RMID, nullptr);
+    return node_state::stale_removed;
+  }
+  shmdt(mem);
+  return result;
+}
+
 mib &getmib() {
   static std::unique_ptr<mib> mibcon;
 
@@ -500,7 +594,23 @@ mib &getmib() {
   return *mibcon.get();
 }
 
+static uint64_t fingerprint_of(const fux::cfg::domain &cfg) {
+  uint64_t fp = 1469598103934665603ULL;
+  auto mix = [&fp](uint64_t v) {
+    fp ^= v;
+    fp *= 1099511628211ULL;
+  };
+  mix(cfg.ipckey);
+  mix(cfg.maxservers);
+  mix(cfg.maxservices);
+  mix(cfg.maxqueues);
+  mix(cfg.maxgroups);
+  mix(cfg.maxaccessers);
+  return fp;
+}
+
 mib::mib(const fux::cfg::domain &domain) : cfg_(domain) {
+  auto fp = fingerprint_of(cfg_);
   shmid_ = shmget(cfg_.ipckey, needed(cfg_), 0600 | IPC_CREAT);
   if (shmid_ == -1) {
     throw std::system_error(errno, std::system_category(), "shmget failed");
@@ -511,23 +621,80 @@ mib::mib(const fux::cfg::domain &domain) : cfg_(domain) {
     throw std::system_error(errno, std::system_category(), "shmat failed");
   }
 
-  int z = 0;
-  if (mem_->state.compare_exchange_strong(z, 1)) {
-    mem_->mainsem = fux::ipc::seminit(IPC_PRIVATE, 1);
-    memcpy(mem_->conf.magic, TUXCONFIG_MAGIC, sizeof(mem_->conf.magic));
-    mem_->conf.hdr_size = sizeof(mem_->conf);
-    mem_->conf.version = TUXCONFIG_VERSION;
-    mem_->conf.text_off = sizeof(mem_->conf);
-    mem_->conf.text_size = 0;
-    mem_->conf.ipckey = cfg_.ipckey;
-    mem_->conf.flags = 0;
-    mem_->conf.revision = 0;
-    init_memory();
-    mem_->state = 2;
+  if (mem_->state() == 2 && mem_->fingerprint != fp) {
+    // Leftover segment from a different configuration, remove and rebuild
+    userlog("Removing stale bulletin board, configuration has changed");
+    shmdt(mem_);
+    if (shmctl(shmid_, IPC_RMID, nullptr) == -1) {
+      throw std::system_error(errno, std::system_category(),
+                              "shmctl(IPC_RMID) failed");
+    }
+    shmid_ = shmget(cfg_.ipckey, needed(cfg_), 0600 | IPC_CREAT);
+    if (shmid_ == -1) {
+      throw std::system_error(errno, std::system_category(), "shmget failed");
+    }
+    mem_ = reinterpret_cast<mibmem *>(shmat(shmid_, nullptr, 0));
+    if (mem_ == reinterpret_cast<void *>(-1)) {
+      throw std::system_error(errno, std::system_category(), "shmat failed");
+    }
   }
 
-  while (mem_->state != 2) {
-    std::this_thread::yield();
+  for (;;) {
+    auto snap = mem_->state_pid.load(std::memory_order_acquire);
+    auto state = int(snap >> 32);
+    if (state == 2) {
+      break;
+    }
+    if (state == 0) {
+      // Try to become the initializer; the pid travels in the same word so
+      // only one process can win for a given snapshot
+      if (mem_->state_pid.compare_exchange_strong(
+              snap, mibmem::in_progress(getpid()),
+              std::memory_order_acq_rel)) {
+        mem_->mainsem = fux::ipc::seminit(IPC_PRIVATE, 1);
+        memcpy(mem_->conf.magic, TUXCONFIG_MAGIC, sizeof(mem_->conf.magic));
+        mem_->conf.hdr_size = sizeof(mem_->conf);
+        mem_->conf.version = TUXCONFIG_VERSION;
+        mem_->conf.text_off = sizeof(mem_->conf);
+        mem_->conf.text_size = 0;
+        mem_->conf.ipckey = cfg_.ipckey;
+        mem_->conf.flags = 0;
+        mem_->conf.revision = 0;
+        mem_->fingerprint = fp;
+        init_memory();
+        mem_->state_pid.store(mibmem::ready() | uint32_t(getpid()),
+                              std::memory_order_release);
+        break;
+      }
+      continue;
+    }
+    // state == 1: someone is initializing
+    auto pid = pid_t(uint32_t(snap));
+    if (pid > 0 && pid != getpid() && kill(pid, 0) == -1 && errno == ESRCH) {
+      // The initializer died without finishing; take over
+      if (mem_->state_pid.compare_exchange_strong(
+              snap, mibmem::in_progress(getpid()),
+              std::memory_order_acq_rel)) {
+        userlog("Previous bulletin board initializer died, taking over pid=%d",
+                getpid());
+        mem_->mainsem = fux::ipc::seminit(IPC_PRIVATE, 1);
+        memcpy(mem_->conf.magic, TUXCONFIG_MAGIC, sizeof(mem_->conf.magic));
+        mem_->conf.hdr_size = sizeof(mem_->conf);
+        mem_->conf.version = TUXCONFIG_VERSION;
+        mem_->conf.text_off = sizeof(mem_->conf);
+        mem_->conf.text_size = 0;
+        mem_->conf.ipckey = cfg_.ipckey;
+        mem_->conf.flags = 0;
+        mem_->conf.revision = 0;
+        mem_->fingerprint = fp;
+        init_memory();
+        mem_->state_pid.store(mibmem::ready() | uint32_t(getpid()),
+                              std::memory_order_release);
+        break;
+      }
+      continue;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 }
 

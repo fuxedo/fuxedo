@@ -68,6 +68,21 @@ void fsync_dir(const fs::path &dir);
 std::string enqueue(const std::string &qspace, const std::string &qname,
                     const TPQCTL *ctl, const std::string &payload);
 
+// Transactional staging: effects land in <qspace>/.tx/<gtrid>/ and are
+// applied or undone by the XA switch (qmxa) at transaction outcome.
+fs::path tx_dir(const std::string &qspace, const std::string &gtrid);
+
+// True when the branch has a staging directory with nothing left in it:
+// prepared, then completed outside the transaction log (a heuristic
+// completion). Recovery uses this to leave a heuristic record instead of
+// silently rolling back nothing.
+bool qm_branch_staged_empty(const XID *xid);
+std::string stage_enqueue(const std::string &qspace, const std::string &qname,
+                          const TPQCTL *ctl, const std::string &payload,
+                          const std::string &gtrid);
+void stage_dequeue(const std::string &qspace, const std::string &qname,
+                   const std::string &msgid, const std::string &gtrid);
+
 struct dequeue_result {
   bool found = false;
   msg m;

@@ -6,7 +6,9 @@
 #include <cstring>
 #include <functional>
 #include <istream>
+#include <map>
 #include <stdexcept>
+#include <string>
 
 class basic_parser_error : public std::runtime_error {
  public:
@@ -104,6 +106,122 @@ class basic_parser {
       return true;
     }
     return false;
+  }
+
+  // Higher-level combinators shared by the config-file grammars.
+
+  // run of whitespace excluding the newline
+  bool blank() {
+    if (accept([](int c) { return ::isspace(c) && c != '\n'; })) {
+      while (accept([](int c) { return ::isspace(c) && c != '\n'; }))
+        ;
+      return true;
+    }
+    return false;
+  }
+
+  // spaces and tabs only; some grammars treat '\r' as content
+  bool delim() {
+    if (accept([](int c) { return c == ' ' || c == '\t'; })) {
+      while (accept([](int c) { return c == ' ' || c == '\t'; }))
+        ;
+      return true;
+    }
+    return false;
+  }
+
+  // a quoted ("...") or bare token; bare tokens stop at whitespace and
+  // '#' and, unless allow_eq, at '='
+  bool token(std::string *s = nullptr, bool allow_eq = true) {
+    if (accept('"')) {
+      while (accept([](int c) { return c != '"' && c != EOF; }, s))
+        ;
+      if (!accept('"')) {
+        throw basic_parser_error("closing quote expected", row_, "");
+      }
+      return true;
+    }
+    if (accept([](int c) { return !::isspace(c) && c != '#' && c != EOF; },
+               s)) {
+      while (accept([=](int c) {
+               return !::isspace(c) && c != '#' && c != EOF &&
+                      (allow_eq || c != '=');
+             }, s))
+        ;
+      return true;
+    }
+    return false;
+  }
+
+  // blank line or a #-comment line
+  bool skip_line() {
+    blank();
+    if (accept('#')) {
+      while (accept([](int c) { return c != '\n' && c != EOF; }))
+        ;
+    }
+    return accept('\n');
+  }
+
+  // *SECTION header line
+  bool section(std::string *name) {
+    if (!accept('*')) {
+      return false;
+    }
+    if (!this->name(name)) {
+      throw basic_parser_error("section name expected", row_, "*SECTION");
+    }
+    if (!skip_line()) {
+      throw basic_parser_error("newline expected", row_, "*SECTION");
+    }
+    return true;
+  }
+
+  // KEY=VALUE parameters until the entry ends; entries continue on the
+  // next line when it is indented or the current one ends in '\'. With
+  // bare_flags a parameter without '=' takes the next token as its
+  // value; with first_wins a repeated key keeps its first value.
+  bool kv_list(std::map<std::string, std::string> *out, bool bare_flags,
+               bool first_wins = false) {
+    while (true) {
+      blank();
+      if (accept('\n')) {
+        if (!blank()) {
+          return true;
+        }
+      } else if (accept('\\')) {
+        if (!accept('\n')) {
+          throw basic_parser_error("newline expected after \\", row_, "");
+        }
+        blank();
+      }
+      std::string key;
+      if (!token(&key, false)) {
+        if (bare_flags) {
+          return true;
+        }
+        throw basic_parser_error("key=value expected", row_, "KEY");
+      }
+      blank();
+      std::string value;
+      if (accept('=')) {
+        blank();
+        if (!token(&value)) {
+          throw basic_parser_error("value expected", row_, "VALUE");
+        }
+      } else if (bare_flags) {
+        if (!token(&value)) {
+          throw basic_parser_error("value expected", row_, "VALUE");
+        }
+      } else {
+        throw basic_parser_error("key=value expected", row_, "=");
+      }
+      if (first_wins) {
+        out->insert(std::make_pair(key, value));
+      } else {
+        (*out)[key] = value;
+      }
+    }
   }
 
   void next() {

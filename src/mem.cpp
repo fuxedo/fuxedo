@@ -27,7 +27,8 @@ static tptype _tptypes[] = {
     tptype{"TPINIT", "*", TPINITNEED(0), nullptr, nullptr, nullptr, nullptr},
     tptype{"CARRAY", "*", 0, nullptr, nullptr, nullptr, nullptr},
     tptype{"STRING", "*", 512, nullptr, nullptr, nullptr, strused},
-    tptype{"FML32", "*", 512, fml32init, fml32reinit, fml32finit, fml32used}};
+    tptype{"FML32", "*", 512, fml32init, fml32reinit, fml32finit, fml32used},
+    tptype{"XML", "*", 512, nullptr, nullptr, nullptr, strused}};
 
 struct tpmem {
   long size;
@@ -257,6 +258,13 @@ int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags) {
 }
 
 void setowner(char *ptr, char **owner) { memptr(ptr)->owner = owner; }
+
+long headersize() { return sizeof(tpmem) - offsetof(tpmem, type); }
+
+long allocsize(char *ptr) {
+  auto mem = memptr(ptr);
+  return mem->size - offsetof(tpmem, type);
+}
 
 long bufsize(char *ptr, long used) {
   auto mem = memptr(ptr);

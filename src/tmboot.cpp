@@ -16,7 +16,32 @@
 #include "misc.h"
 
 
+static std::vector<std::string> split_clopt(const std::string &clopt) {
+  std::vector<std::string> tokens;
+  std::string cur;
+  bool inq = false;
+  for (char c : clopt) {
+    if (c == '"') {
+      inq = !inq;
+      continue;
+    }
+    if (::isspace(c) && !inq) {
+      if (!cur.empty()) {
+        tokens.push_back(cur);
+        cur.clear();
+      }
+    } else {
+      cur += c;
+    }
+  }
+  if (!cur.empty()) {
+    tokens.push_back(cur);
+  }
+  return tokens;
+}
+
 static void start(server &srv, bool no, bool d1) {
+  std::vector<std::string> clopt = split_clopt(srv.clopt);
   std::vector<const char *> argv;
   argv.push_back(srv.servername);
   argv.push_back("-g");
@@ -25,7 +50,13 @@ static void start(server &srv, bool no, bool d1) {
   argv.push_back("-i");
   auto srvid = std::to_string(srv.srvid);
   argv.push_back(srvid.c_str());
-  argv.push_back("-A");
+  std::vector<std::string> quoted;
+  for (auto &tok : clopt) {
+    quoted.push_back(tok);
+  }
+  for (auto &tok : quoted) {
+    argv.push_back(tok.c_str());
+  }
 
   if (d1) {
     std::cout << "exec " << join(argv, " ") << " :" << std::endl;

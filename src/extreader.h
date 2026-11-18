@@ -110,9 +110,4 @@ class extreader : public basic_parser {
     return true;
   }
 
-  bool comment(std::string *s = nullptr) {
-    while (accept([](int c) { return c != '\n'; }, s))
-      ;
-    return true;
-  }
 };

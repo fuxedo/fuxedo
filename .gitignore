@@ -38,6 +38,16 @@ tmp/
 /src/TMS
 /src/buildclient
 /src/buildserver
+/src/crdl
+/src/crlog
+/src/dmadmin
+/src/dmloadcf
+/src/dmunloadcf
+/src/GWADM
+/src/GWTDOMAIN
+/src/WSL
+/src/TMQUEUE
+/src/TMQFORWARD
 /src/buildtms
 /src/fux
 /src/mkfldhdr32
@@ -74,8 +84,11 @@ tmp/
 /tests/compat/expr
 /tests/compat/base64
 /tests/compat/view32
+/tests/compat/xmlfml
 /tests/impl/mib
 /tests/impl/ipcq
+/tests/impl/tlog
+/tests/impl/qmtx
 /tests/impl/userlog
 /tests/impl/trx
 /tests/impl/qm
@@ -109,6 +122,15 @@ AGENTS.md
 /install-tests/*/defserver
 /install-tests/*/defmtserver
 /install-tests/*/failserver
+/install-tests/*/restartme
+/install-tests/*/pump
+/install-tests/*/TMSQM
+/install-tests/*/queues/
+/install-tests/*/tlog/
+/install-tests/*/QUE/
+/install-tests/*/qsvc
+/qmtx-recover-tlog-*/
+/tlog-*
 /install-tests/*/tpforward_client
 /install-tests/*/tpreturn_client
 

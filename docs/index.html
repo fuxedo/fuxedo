@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fuxedo - Open Source Oracle Tuxedo Alternative (XATMI, FML32, /Q)</title>
-<meta name="description" content="Fuxedo is an open source alternative to Oracle Tuxedo: API-level, command-level, and System V IPC-level compatibility. X/Open XATMI, FML32 typed buffers, tmloadcf, tmboot, MSSQ, and /Q queues. Migration is a recompile away.">
-<meta name="keywords" content="Oracle Tuxedo alternative, open source Tuxedo, Tuxedo replacement, XATMI, ATMI, FML32, FML, tmboot, tmloadcf, tmadmin, qmadmin, MSSQ, message queue, transaction processing middleware, application server C C++">
+<meta name="description" content="Fuxedo is an open source alternative to Oracle Tuxedo: API-level, command-level, and System V IPC-level compatibility. X/Open XATMI, FML32 typed buffers, tmloadcf, tmboot, MSSQ, and /Q queues. Script clients and servers in Python with the tuxedo-python bindings. Migration is a recompile away.">
+<meta name="keywords" content="Oracle Tuxedo alternative, open source Tuxedo, Tuxedo replacement, XATMI, ATMI, FML32, FML, tmboot, tmloadcf, tmadmin, qmadmin, MSSQ, message queue, transaction processing middleware, application server C C++, Tuxedo Python bindings, tuxedo-python, tpcall python, tpacall python, FML32 python, Oracle Tuxedo training, Tuxedo course, Tuxedo monitoring, eBPF Tuxedo">
 <link rel="canonical" href="https://fuxedo.io/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://fuxedo.io/">
@@ -148,10 +148,39 @@ suite runs unmodified against both Fuxedo and Oracle Tuxedo, so behavior
 matches the documentation on either side, and stays matched as the project
 grows.</p>
 
-<p><strong>Scriptable from Python.</strong> The tuxedo-python bindings run
-unchanged on top: servers, clients, the MIB administration calls, and the
-demo applications from the book
-<em>Modernizing Oracle Tuxedo Applications with Python</em>.</p>
+<p><strong>Scriptable from Python.</strong> The
+<a href="https://aivarsk.com/tuxedo-python/">tuxedo-python</a> bindings
+run unchanged on top: servers, clients, the MIB administration calls, and
+the demo applications from the book
+<em>Modernizing Oracle Tuxedo Applications with Python</em>. Write a
+Tuxedo server as a Python class, advertise it with tpadvertise, boot it
+with tmboot.</p>
+
+<h2>Python, training, monitoring</h2>
+
+<p><strong>Python bindings.</strong>
+<a href="https://aivarsk.com/tuxedo-python/">tuxedo-python</a> wraps the
+whole XATMI API for Python 3: tpcall, tpacall, tpgetrply, tpbegin,
+tpenqueue, tpdequeue, tpadvertise, tpadmcall, FML32 buffers as dicts, /Q
+queues, and multithreaded servers. The same module runs against Oracle
+Tuxedo 12.x and 22.1, so code written on it is portable across both.
+It is the basis of the book
+<em>Modernizing Oracle Tuxedo Applications with Python</em> and its
+demonstration applications.</p>
+
+<p><strong>Training.</strong> The author of the bindings and the book
+runs <a href="https://aivarsk.com/tuxedo-training/">hands-on Oracle
+Tuxedo training</a> for developers and administrators: two or three
+days, from building and operating a domain to C++ internals and
+debugging, taught from system-call level mechanics rather than manual
+recitals. Day three can be tailored to your own systems, Fuxedo
+migration questions included.</p>
+
+<p><strong>Monitoring.</strong> Because the queues are System V, the
+kernel can be asked what /proc and ipcs will not tell:
+<a href="https://aivarsk.com/2024/05/01/monitoring-tuxedo-with-ebpf/">eBPF
+and /proc based queue monitoring</a>, including the caller to callee
+wait view and ipcqmon, works against both Fuxedo and Oracle Tuxedo.</p>
 
 <h2>More</h2>
 

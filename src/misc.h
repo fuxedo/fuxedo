@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <mutex>
 #include <stdexcept>
 #include <string>
@@ -142,6 +143,13 @@ namespace fux {
 namespace mem {
 void setowner(char *ptr, char **owner);
 long bufsize(char *ptr, long used = -1);
+
+// Size of the typed-buffer bookkeeping prefix that bufsize() includes;
+// data-only length is bufsize(ptr, -1) - headersize().
+long headersize();
+
+// Size of the allocated data area, regardless of content.
+long allocsize(char *ptr);
 }  // namespace mem
 }  // namespace fux
 
@@ -194,4 +202,22 @@ static constexpr size_t nearest(size_t n, size_t what, size_t mult = 1) {
 
 static constexpr size_t nearest64(size_t n) { return nearest(n, 64); }
 
-inline bool alive(pid_t pid) { return kill(pid, 0) == 0; }
+// kill(pid, 0) succeeds for zombies, which are as good as dead here: a
+// dead child not yet reaped would otherwise look alive forever.
+inline bool alive(pid_t pid) {
+  if (kill(pid, 0) == -1) {
+    return false;
+  }
+  std::string stat = "/proc/" + std::to_string(pid) + "/stat";
+  std::ifstream in(stat);
+  if (!in) {
+    return true;  // not Linux or gone mid-check; trust kill(2)
+  }
+  std::string line;
+  std::getline(in, line);
+  auto close_paren = line.rfind(')');
+  if (close_paren == std::string::npos) {
+    return true;
+  }
+  return close_paren + 2 >= line.size() || line[close_paren + 2] != 'Z';
+}

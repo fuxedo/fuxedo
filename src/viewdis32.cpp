@@ -1,6 +1,7 @@
 // This file is part of Fuxedo
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
+#include <clara.hpp>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -147,14 +148,19 @@ static int disassemble(const std::string &file) {
 }
 
 int main(int argc, char *argv[]) {
-  if (argc < 2) {
-    std::cerr << "usage: viewdis32 viewobjfile [viewobjfile ...]"
-              << std::endl;
-    return -1;
+  bool show_help = false;
+  std::vector<std::string> files;
+
+  auto parser = clara::Help(show_help) |
+                clara::Arg(files, "viewobjfile")("compiled view files");
+  auto result = parser.parse(clara::Args(argc, argv));
+  if (!result || show_help || files.empty()) {
+    std::cerr << parser;
+    return !result ? -1 : 1;
   }
   int rc = 0;
-  for (int i = 1; i < argc; i++) {
-    rc |= disassemble(argv[i]);
+  for (auto &f : files) {
+    rc |= disassemble(f.c_str());
   }
   return rc;
 }

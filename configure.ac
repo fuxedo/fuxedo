@@ -19,6 +19,17 @@ AC_PROG_LN_S
 AX_CXX_COMPILE_STDCXX_17(ext, mandatory)
 AX_CXX_HAVE_FILESYSTEM
 
+# TLS for domain/workstation links
+PKG_CHECK_MODULES([OPENSSL], [libssl libcrypto], [
+  LIBS="$OPENSSL_LIBS $LIBS"
+  AM_CXXFLAGS="$AM_CXXFLAGS $OPENSSL_CFLAGS"
+], [
+  AC_CHECK_LIB([ssl], [SSL_new], [],
+    [AC_MSG_ERROR([OpenSSL not found; install the OpenSSL development package])])
+  AC_CHECK_LIB([crypto], [EVP_PKEY_keygen_init], [],
+    [AC_MSG_ERROR([libcrypto not found; install the OpenSSL development package])])
+])
+
 # g++-8.3 compiles the code but core dumps at runtime unless linked with -lstdc++fs
 AC_CACHE_CHECK(
   [if -lstdc++fs is needed for filesystem],

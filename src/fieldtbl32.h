@@ -101,15 +101,6 @@ class field_table_parser : public basic_parser {
     return accept('\n');
   }
 
-  bool delim() {
-    if (accept([](int c) { return c == ' ' || c == '\t'; })) {
-      while (accept([](int c) { return c == ' ' || c == '\t'; }))
-        ;
-      return true;
-    }
-    return false;
-  }
-
   long base_;
   std::vector<field> fields_;
   std::vector<entry> entries_;

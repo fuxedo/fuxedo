@@ -182,7 +182,9 @@ static bool msgsnd_timed(int msqid, void *ptr, size_t len, enum flags flag,
 
 bool qsend(int msqid, msg &data, long timeout, enum flags flags) {
   if (data.size() > MAX_QUEUE_MSG_SIZE) {
-    char tmpname[] = "/tmp/msgbase-XXXXXX";
+    // like the platform: large messages spill into /tmp/TUX* files and
+    // only the filename travels the queue
+    char tmpname[] = "/tmp/TUXXXXXXX";
     int fd = mkstemp(tmpname);
     fail_if(fd == -1);
     fail_if(write(fd, data.buf() + sizeof(msgbase),
@@ -229,8 +231,13 @@ void load_from_file(fux::ipc::msg &data, size_t nbytes) {
 void qrecv(int msqid, msg &data, long msgtype, int flags) {
   data.resize(MAX_QUEUE_MSG_SIZE);
 
-  // MSGMAX
-  ssize_t n = msgrcv(msqid, data.buf(), MAX_QUEUE_MSG_SIZE, msgtype, flags);
+  // MSGMAX; a handled signal must not surface as an error on this
+  // blocking path - server idle timers and secondary-queue wakeups rely
+  // on that
+  ssize_t n;
+  do {
+    n = msgrcv(msqid, data.buf(), MAX_QUEUE_MSG_SIZE, msgtype, flags);
+  } while (n == -1 && errno == EINTR);
   if (n == -1) {
     throw std::system_error(errno, std::system_category());
   }

@@ -9,6 +9,7 @@
 #include <iostream>
 #include <string>
 #include <system_error>
+#include <unistd.h>
 
 #include "cfg.h"
 #include "mib.h"
@@ -63,17 +64,12 @@ int main(int argc, char *argv[]) {
   }
 
   try {
-    std::string text;
-    if (file == "-") {
-      // rewritten to /dev/stdin above
-    }
-    // a lone "-" is rewritten to /dev/stdin before parsing
     std::ifstream fin;
     fin.exceptions(std::ifstream::failbit | std::ifstream::badbit);
     fin.open(file);
     std::ostringstream src;
     src << fin.rdbuf();
-    text = src.str();
+    std::string text = src.str();
 
     std::istringstream in(text);
     ubbreader p(in);
@@ -81,22 +77,59 @@ int main(int argc, char *argv[]) {
 
     auto tables = fux::cfg::build(config);
 
-    mib m(tables.dom, fux::mib::in_heap());
-    ubb2mib(config, m);
+    if (count) {
+      fux::cfg::print_sizing(std::cout, tables);
+      return 0;
+    }
 
-    tuxconfig hdr = {};
-    memcpy(hdr.magic, TUXCONFIG_MAGIC, sizeof(hdr.magic));
-    hdr.hdr_size = sizeof(hdr);
-    hdr.version = TUXCONFIG_VERSION;
-    hdr.text_off = sizeof(hdr);
-    hdr.text_size = text.size();
-    hdr.ipckey = tables.dom.ipckey;
-    hdr.flags = TUXCONFIG_FLAG_LOADED;
-    hdr.revision = 1;
+    if (!noop) {
+      // An application booted from this configuration keeps its bulletin
+      // board in shared memory; refuse to overwrite while it is alive and
+      // clean up a leftover board from a dead one.
+      switch (mib::check_node(tables.dom.ipckey)) {
+        case node_state::running:
+          std::cerr << "tmloadcf: an application is already running with "
+                       "this TUXCONFIG"
+                    << std::endl;
+          return -1;
+        case node_state::not_running:
+        case node_state::stale_removed:
+          break;
+      }
 
-    std::ofstream fout(outfile, std::ios::binary);
-    fout.write(reinterpret_cast<char *>(&hdr), sizeof(hdr));
-    fout.write(text.data(), text.size());
+      if (!yes && fs::exists(outfile) && isatty(STDIN_FILENO)) {
+        std::cout << "Overwrite TUXCONFIG file " << outfile << " [y, q]? ";
+        std::cout.flush();
+        std::string answer;
+        std::getline(std::cin, answer);
+        if (answer.empty() || answer[0] != 'y') {
+          std::cerr << "tmloadcf: TUXCONFIG file not updated" << std::endl;
+          return 0;
+        }
+      }
+
+      tuxconfig hdr = {};
+      memcpy(hdr.magic, TUXCONFIG_MAGIC, sizeof(hdr.magic));
+      hdr.hdr_size = sizeof(hdr);
+      hdr.version = TUXCONFIG_VERSION;
+      hdr.text_off = sizeof(hdr);
+      hdr.text_size = text.size();
+      hdr.ipckey = tables.dom.ipckey;
+      hdr.flags = TUXCONFIG_FLAG_LOADED;
+      hdr.revision = 1;
+
+      std::ofstream fout(outfile, std::ios::binary);
+      fout.write(reinterpret_cast<char *>(&hdr), sizeof(hdr));
+      fout.write(text.data(), text.size());
+      // mode 0600, like the platform tools
+      fs::permissions(outfile,
+                      fs::perms::owner_read | fs::perms::owner_write);
+    }
+
+    if (noop) {
+      mib m(tables.dom, fux::mib::in_heap());
+      ubb2mib(config, m);
+    }
   } catch (const std::system_error &e) {
     std::cerr << e.code().message() << std::endl;
     return -1;

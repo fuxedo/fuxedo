@@ -47,11 +47,7 @@ def test_syntax_check():
         ubb = write_ubb(dir)
         tuxconfig = dir / "tuxconfig"
         run(["tmloadcf", "-n", ubb], env={"TUXCONFIG": tuxconfig})
-        if is_fuxedo():
-            # gap: -n still writes the file (tasks.md P0.3)
-            assert tuxconfig.exists()
-        else:
-            assert not tuxconfig.exists()
+        assert not tuxconfig.exists()
 
 
 def test_load_and_unload():
@@ -72,13 +68,9 @@ def test_ipc_resources_flag():
         ubb = write_ubb(dir)
         tuxconfig = dir / "tuxconfig"
         proc = run(["tmloadcf", "-c", ubb], env={"TUXCONFIG": tuxconfig})
-        if not is_fuxedo():
-            out = proc.stdout.lower()
-            assert "ipc" in out or "resources" in out
-            assert not tuxconfig.exists()
-        else:
-            # gap: -c is accepted but the load still happens (tasks.md P0.3)
-            assert tuxconfig.exists()
+        out = proc.stdout.lower()
+        assert "ipc" in out or "resources" in out
+        assert not tuxconfig.exists()
 
 
 def test_load_from_stdin():

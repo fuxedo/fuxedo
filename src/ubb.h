@@ -27,7 +27,7 @@ struct ubbconfig {
 };
 
 // "Binary" version of ubbconfig: fixed header followed by the text
-// version. See private/notes/shm-redesign.md for the pinned format.
+// version.
 struct tuxconfig {
   char magic[8];  // "FUXCFG01"
   uint32_t hdr_size;

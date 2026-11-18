@@ -14,6 +14,7 @@ struct queue_entry {
 
 struct service_entry {
   std::vector<queue_entry> queues;
+  std::string buftypeconv;
   size_t current_queue;
   uint64_t cached_revision;
   uint64_t *mib_revision;
@@ -29,6 +30,12 @@ class service_repository {
     auto &entry = get_entry(svc);
     refresh(entry);
     return load_balance(entry, grpno);
+  }
+
+  std::string buftypeconv(const char *svc) {
+    auto &entry = get_entry(svc);
+    refresh(entry);
+    return entry.buftypeconv;
   }
 
  private:
@@ -52,10 +59,12 @@ class service_repository {
     if (entry.cached_revision != *(entry.mib_revision)) {
       entry.queues.clear();
       auto lock = m_.data_lock();
+      entry.buftypeconv = m_.services().at(entry.mib_service).buftypeconv;
       auto adv = m_.advertisements();
       for (size_t i = 0; i < adv->len; i++) {
         auto &a = adv.at(i);
-        if (a.service == entry.mib_service) {
+        if (a.service == entry.mib_service &&
+            a.state != state_t::INValid) {
           auto &queue = m_.queues().at(a.queue);
           auto msqid = a.secondary ? queue.secondary_msqid : queue.msqid;
           if (msqid == -1) {

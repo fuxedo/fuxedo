@@ -13,16 +13,26 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 #include "misc.h"
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "trx.h"
 
-// int ax_reg(int, XID *, long) { return TMER_TMERR; }
-// int ax_unreg(int, long) { return TMER_TMERR; }
+// XA resource manager for the file-based /Q device. Operations performed
+// under a global transaction are staged in
+//   <device>/<qspace>/.tx/<gtrid>/
+// as enq_<queue>_<msgid> / deq_<queue>_<msgid> files. prepare fsyncs the
+// staging area; commit applies the staged effects; rollback undoes them.
+// After a crash, staged directories left behind are in-doubt branches and
+// are resolved by the recovery scan against the TLOG.
 
-struct qspace {
-  fs::path base;
-};
+static fs::path g_base;
 
-static thread_local qspace qs;
+static fs::path txdir(const XID *xid) {
+  XID gtrid = *xid;
+  gtrid.bqual_length = 0;
+  return g_base / ".tx" / fux::to_string(&gtrid);
+}
 
 static int xa_open(char *xa_info, int, long) {
   if (xa_info == nullptr) {
@@ -31,82 +41,124 @@ static int xa_open(char *xa_info, int, long) {
   auto parts = fux::split(xa_info, ":");
   if (parts.size() != 2) {
     userlog("Require DEVICE:QSPACE in OPENINFO");
-    return TMER_INVAL;
+    return XAER_INVAL;
   }
-
-  std::string device = parts[0];
-  std::string qspace = parts[1];
-
-  if (!fs::is_directory(device)) {
-    userlog("DEVICE must be a directory");
-    return TMER_INVAL;
+  if (!fs::is_directory(parts[0])) {
+    userlog("DEVICE %s must be a directory", parts[0].c_str());
+    return XAER_INVAL;
   }
-  if (!fs::is_directory(fs::path(device) / qspace)) {
-    userlog("QSPACE must be a directory under DEVICE");
-    return TMER_INVAL;
+  g_base = fs::path(parts[0]) / parts[1];
+  if (!fs::is_directory(g_base)) {
+    userlog("QSPACE %s must exist under %s", parts[1].c_str(),
+            parts[0].c_str());
+    return XAER_INVAL;
   }
-
-  qs.base = fs::path(device) / qspace;
   return XA_OK;
-}
-
-static std::string path(XID *xid) {
-  XID gtrid = *xid;
-  gtrid.bqual_length = 0;
-  return fux::to_string(&gtrid);
 }
 
 static int xa_close(char *, int, long) { return XA_OK; }
-static int xa_start(XID *xid, int, long) {
-  auto dir = path(xid);
+static int xa_start(XID *, int, long) { return XA_OK; }
+static int xa_end(XID *, int, long) { return XA_OK; }
 
+static int xa_prepare(XID *xid, int, long) {
+  auto dir = txdir(xid);
   if (!fs::is_directory(dir)) {
-    fs::create_directory(dir);
+    return XA_RDONLY;
   }
-
+  if (fs::is_empty(dir)) {
+    return XA_RDONLY;
+  }
+  // fsync staged files so a commit decision can be replayed after a crash
+  for (auto &p : fs::directory_iterator(dir)) {
+    int fd = ::open(p.path().c_str(), O_RDONLY);
+    if (fd != -1) {
+      fsync(fd);
+      close(fd);
+    }
+  }
   return XA_OK;
 }
 
-static void publish(XID *xid, bool commit) {
-  auto dir = path(xid);
+// Applies or undoes the staged effects. Returns false when the staging
+// directory is missing (nothing to do).
+static bool apply(XID *xid, bool commit) {
+  auto dir = txdir(xid);
   if (!fs::is_directory(dir)) {
-    dir += ".prepared";
+    return false;
   }
-
   for (auto &p : fs::directory_iterator(dir)) {
-    auto filename = p.path().filename().string();
-    if (filename[0] == '-') {
-    } else if (filename[0] == '+') {
+    try {
+      auto name = p.path().filename().string();
+      if (name.rfind("enq_", 0) == 0) {
+        auto rest = name.substr(4);
+        auto sep = rest.find('_');
+        auto target = g_base / rest.substr(0, sep) / rest.substr(sep + 1);
+        if (commit) {
+          fs::rename(p.path(), target);
+        } else {
+          fs::remove(p.path());
+        }
+      } else if (name.rfind("deq_", 0) == 0) {
+        auto rest = name.substr(4);
+        auto sep = rest.find('_');
+        auto home = g_base / rest.substr(0, sep) / rest.substr(sep + 1);
+        if (commit) {
+          fs::remove(p.path());
+        } else {
+          fs::rename(p.path(), home);
+        }
+      }
+    } catch (const fs::filesystem_error &) {
+      // a concurrent recovery may have applied the same effect; both
+      // commit and rollback are idempotent here
     }
   }
-
   fs::remove_all(dir);
+  return true;
+}
+
+namespace fux::qm {
+bool qm_branch_staged_empty(const XID *xid) {
+  auto dir = txdir(xid);
+  std::error_code ec;
+  return fs::is_directory(dir, ec) && fs::is_empty(dir, ec);
+}
+}  // namespace fux::qm
+
+static int xa_commit(XID *xid, int, long) {
+  apply(xid, true);
+  return XA_OK;
 }
 
 static int xa_rollback(XID *xid, int, long) {
-  publish(xid, false);
-  return XA_OK;
-}
-
-static int xa_commit(XID *xid, int, long) {
-  publish(xid, true);
+  apply(xid, false);
   return XA_OK;
 }
 
 static int xa_complete(int *, int *, int, long) { return XA_OK; }
-static int xa_end(XID *, int, long) { return XA_OK; }
 static int xa_forget(XID *, int, long) { return XA_OK; }
 
-static int xa_prepare(XID *xid, int, long) {
-  auto dir = path(xid);
-  if (fs::is_empty(dir)) {
-    return XA_RDONLY;
+static int xa_recover(XID *xids, long count, int, long) {
+  // staged directories are the in-doubt branches of this resource
+  auto txroot = g_base / ".tx";
+  if (!fs::is_directory(txroot)) {
+    return 0;
   }
-  fs::rename(dir, dir + ".prepared");
-  return XA_OK;
+  int n = 0;
+  for (auto &p : fs::directory_iterator(txroot)) {
+    if (!fs::is_directory(p.path()) || n >= count) {
+      continue;
+    }
+    try {
+      xids[n++] = fux::to_xid(p.path().filename().string());
+    } catch (const std::exception &) {
+      userlog("skipping unparseable tlog staging dir %s",
+              p.path().filename().string().c_str());
+    }
+  }
+  return n;
 }
 
-static int xa_recover(XID *, long, int, long) { return XA_OK; }
 extern "C" {
 struct xa_switch_t tuxq_switch {
   "TUXEDO/QM", TMNOFLAGS, 0, xa_open, xa_close, xa_start, xa_end, xa_rollback,

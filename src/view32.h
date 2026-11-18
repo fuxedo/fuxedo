@@ -59,14 +59,6 @@ class viewfile_parser : public basic_parser {
   bool opt_flags(std::string *s = nullptr) {
     return accept('-') || flag_list(s);
   }
-  bool delim() {
-    if (accept([](int c) { return c == ' ' || c == '\t'; })) {
-      while (accept([](int c) { return c == ' ' || c == '\t'; }))
-        ;
-      return true;
-    }
-    return false;
-  }
   // comma-separated flag list: C, F, L, N, P, S
   bool flag_list(std::string *s) {
     if (accept([](int c) { return ::isalpha(c); }, s)) {

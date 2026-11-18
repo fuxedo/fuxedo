@@ -14,9 +14,11 @@
 namespace fs = std::filesystem;
 
 TEST_CASE("openinfo", "[qm]") {
-  REQUIRE(tuxq_switch.xa_open_entry("", 1, 0) == TMER_INVAL);
-  REQUIRE(tuxq_switch.xa_open_entry("/tmp", 1, 0) == TMER_INVAL);
-  REQUIRE(tuxq_switch.xa_open_entry("/tmp:q", 1, 0) == TMER_INVAL);
+  REQUIRE(tuxq_switch.xa_open_entry((char *)"", 1, 0) == XAER_INVAL);
+  REQUIRE(tuxq_switch.xa_open_entry((char *)"/tmp", 1, 0) ==
+            XAER_INVAL);
+  REQUIRE(tuxq_switch.xa_open_entry((char *)"/tmp:q", 1, 0) ==
+            XAER_INVAL);
   REQUIRE(tuxq_switch.xa_close_entry(nullptr, 1, 0) == XA_OK);
 }
 

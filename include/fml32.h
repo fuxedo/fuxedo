@@ -140,6 +140,12 @@ int Fextread32(FBFR32 *fbfr, FILE *iop);
 int Fwrite32(FBFR32 *fbfr, FILE *iop);
 int Fread32(FBFR32 *fbfr, FILE *iop);
 
+/* XML boundary conversion */
+int tpxmltofml32(char *xmlbuf, char *fmlbuf, FBFR32 **fml32buf,
+                 char **extrerr, long flags);
+int tpfml32toxml(FBFR32 *fml32buf, char *xmlbuf, char *xmlflds,
+                 char **extrerr, long flags);
+
 #define BLOCKBUFSIZE 4096
 #define BUFSIZE 512
 #define C_BOOL 14

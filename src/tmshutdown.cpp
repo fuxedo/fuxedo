@@ -30,6 +30,7 @@ int main(int argc, char *argv[]) {
   std::string grpname;
   std::string srvname;
   std::string lmid;
+  std::string ksig;
 
   auto parser =
       clara::Help(show_help) |
@@ -37,7 +38,9 @@ int main(int argc, char *argv[]) {
       clara::Opt(srvid, "srvid")["-i"]("server's SRVID in TUXCONFIG") |
       clara::Opt(grpname, "grpname")["-g"]("server's SRVGRP in TUXCONFIG") |
       clara::Opt(srvname, "aout")["-s"]("shut down only servers named aout") |
-      clara::Opt(lmid, "lmid")["-l"]("shut down only on the named LMID");
+      clara::Opt(lmid, "lmid")["-l"]("shut down only on the named LMID") |
+      clara::Opt(ksig, "signal")["-k"](
+          "send signal (e.g. TERM, KILL) to server processes");
 
   auto result = parser.parse(clara::Args(argc, argv));
   if (!result) {
@@ -86,10 +89,45 @@ int main(int argc, char *argv[]) {
       if (server.pid == 0) {
         continue;
       }
+      if (!alive(server.pid)) {
+        // stale entry from a crashed domain: no one would answer .stop
+        server.pid = 0;
+        continue;
+      }
       if (server.is_inactive()) {
         continue;
       }
       server.suspend();
+
+      std::cout << "\tServer Id = " << server.srvid
+                << " Group Id = " << server.grpno;
+
+      if (!ksig.empty()) {
+        int signo = ksig == "KILL" ? SIGKILL
+                    : ksig == "TERM" ? SIGTERM
+                                     : 0;
+        if (signo == 0) {
+          std::cerr << ":  unknown signal " << ksig << std::endl;
+          continue;
+        }
+        if (kill(server.pid, signo) == -1) {
+          std::cout << ":  shutdown failed (" << tpstrerror(tperrno) << ")"
+                    << std::endl;
+          continue;
+        }
+        for (int i = 0; i < 50 && alive(server.pid); i++) {
+          struct timespec req = {0, 100000000};
+          nanosleep(&req, nullptr);
+        }
+        if (alive(server.pid)) {
+          std::cout << ":  shutdown failed (?)" << std::endl;
+        } else {
+          server.pid = 0;
+          std::cout << ":  " << ksig << std::endl;
+        }
+        continue;
+      }
+
       auto &queue = queues.at(server.rqaddr);
 
       buf.put(TA_SRVID, 0, server.srvid);
@@ -97,9 +135,6 @@ int main(int argc, char *argv[]) {
 
       userlog("Requesting %s -g %d -i %d to shutdown", server.servername,
               server.grpno, server.srvid);
-
-      std::cout << "\tServer Id = " << server.srvid
-                << " Group Id = " << server.grpno;
 
       int cd =
           tpacall_queue(queue.msqid, ".stop",
