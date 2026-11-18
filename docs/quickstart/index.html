@@ -44,7 +44,8 @@ no license key.</p>
 
 <p><strong>1. Build and install.</strong></p>
 
-<pre><code>sudo apt-get install -y build-essential autoconf automake libtool pkg-config libssl-dev   # or your distro's equivalents
+<pre><code>sudo apt-get install -y build-essential autoconf automake \
+                         libtool pkg-config libssl-dev  # Debian/Ubuntu names
 git clone https://github.com/fuxedo/fuxedo.git
 cd fuxedo
 ./autogen.sh
@@ -67,7 +68,8 @@ MASTER fuxapp
 MODEL SHM
 
 *MACHINES
-"myhost" LMID=fuxapp APPDIR="/tmp/fuxdemo" TUXCONFIG="/tmp/fuxdemo/tuxconfig" TUXDIR="$HOME/fux"
+"myhost" LMID=fuxapp APPDIR="/tmp/fuxdemo" \
+        TUXCONFIG="/tmp/fuxdemo/tuxconfig" TUXDIR="$HOME/fux"
 
 *GROUPS
 G1 LMID=fuxapp GRPNO=1
@@ -81,10 +83,10 @@ REPLY</code></pre>
 <pre><code>mkdir -p /tmp/fuxdemo &amp;&amp; cd /tmp/fuxdemo</code></pre>
 
 <p><strong>4. The server</strong>, <code>reply.py</code> (executable,
-shebang required; get the bindings with
-<code>pip install pybind11 &amp;&amp; TUXDIR="$HOME/fux" python3 -m pip install .</code>
-from the tuxedo-python clone, or link the build directory onto
-<code>PYTHONPATH</code>):</p>
+shebang required). Get the bindings first, from a tuxedo-python clone:
+<code>pip install pybind11 setuptools wheel</code>, then
+<code>TUXDIR="$HOME/fux" python3 -m pip install .</code> — or link the
+build directory onto <code>PYTHONPATH</code>:</p>
 
 <pre><code>#!/usr/bin/env python3
 import sys
