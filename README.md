@@ -11,7 +11,7 @@ Making the world a better place through minimal message-oriented transport layer
 
 _"[Fuxedo is a one-piece tuxedo that combines the elegance of a tuxedo and the convenience of a jumpsuit.](https://www.youtube.com/watch?v=7seCxf8E1Ic)"_
 
-Fuxedo is a toy project I started in late 2011 to play with C++11 and Boost libaries by building emulation of some Oracle Tuxedo APIs. Name of the project was just a word play about [Tuxedo](http://www.oracle.com/technetwork/middleware/tuxedo/overview/index.html), [BlackTie](http://narayana.jboss.org/subprojects/BlackTie) and "free"/"fun". Years later I have gained more experience and different bits and pieces about FML32, parsers, configuration files, shared memory, messages queues laying in my projects folder. I think it's time to put it all together.
+Fuxedo started in late 2011 as a toy project: an excuse to play with C++11 and the Boost libraries by building an emulation of some Oracle Tuxedo APIs. The name is a word play on [Tuxedo](http://www.oracle.com/technetwork/middleware/tuxedo/overview/index.html) and "free"/"fun". Years later, with more experience and bits and pieces about FML32, parsers, configuration files, shared memory and message queues gathered along the way, what started as a toy is now being made solid: an MIT-licensed implementation built to run real Tuxedo applications.
 
 [It is also free to use, modify and distribute for commercial and non-commercial purposes.](https://en.wikipedia.org/wiki/MIT_License)
 

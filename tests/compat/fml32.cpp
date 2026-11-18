@@ -806,6 +806,40 @@ TEST_CASE("Fdelall32", "[fml32]") {
   Ffree32(fbfr);
 }
 
+TEST_CASE("Fnext32 iteration state is per buffer", "[fml32]") {
+  // Oracle keeps the Fnext32 iteration state in each buffer, so
+  // interleaving walks over two buffers must not corrupt either. An
+  // implementation keeping the state per thread fails this; pinned so
+  // fuxedo never regresses.
+  auto a = Falloc32(100, 100);
+  auto b = Falloc32(100, 100);
+  REQUIRE(a != nullptr);
+  REQUIRE(b != nullptr);
+  auto fa = Fmkfldid32(FLD_LONG, 10);
+  auto fb = Fmkfldid32(FLD_STRING, 20);
+  for (long i = 0; i < 3; i++) {
+    REQUIRE(Fchg32(a, fa, static_cast<FLDOCC32>(i),
+                   reinterpret_cast<char *>(&i), 0) != -1);
+    std::string s = std::to_string(i);
+    REQUIRE(Fchg32(b, fb, static_cast<FLDOCC32>(i), DECONST(s.c_str()),
+                   0) != -1);
+  }
+
+  FLDID32 ida = BADFLDID, idb = BADFLDID;
+  FLDOCC32 oca = 0, ocb = 0;
+  for (FLDOCC32 step = 0; step < 3; step++) {
+    REQUIRE(Fnext32(a, &ida, &oca, nullptr, nullptr) == 1);
+    REQUIRE(ida == fa);
+    REQUIRE(oca == step);
+    REQUIRE(Fnext32(b, &idb, &ocb, nullptr, nullptr) == 1);
+    REQUIRE(idb == fb);
+    REQUIRE(ocb == step);
+  }
+
+  Ffree32(a);
+  Ffree32(b);
+}
+
 TEST_CASE("Fnext32-with-value", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   REQUIRE(fbfr != nullptr);
