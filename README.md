@@ -28,17 +28,42 @@ Currently implemented:
 - Typed buffers API
   - STRING - C-style null-terminated strings.
   - CARRAY - binary blobs.
-  - FML32 - self-describing fielded buffer like binary XML or JSON. Supports multiple levels of nested FML32 buffers.
-- Boolean expressions of FML32 fielded buffers
-- Tuxedo-specific APIs
+  - FML32 - self-describing fielded buffer like binary XML or JSON.
+    Supports multiple levels of nested FML32 buffers, and the boolean
+    expression compiler (Fboolco32 trees evaluate on both sides of a
+    wire).
+  - VIEW32 - C structure views compiled by viewc32 from view files.
+  - XML - the tpxmltofml32/tpfml32toxml conversions and the XML typed
+    buffer, so XML-based services from the Tuxedo samples work.
+- Request/response with MSSQ server sets, including secondary queues and
+  multithreaded dispatch.
+- Distributed transactions: tpbegin/tpcommit/tpabort with two-phase
+  commit, a folder-based transaction log (crdl/crlog), recovery after a
+  crash, and transactional /Q.
+- /Q queues: tpenqueue/tpdequeue, TMQUEUE and TMQFORWARD servers, a
+  qmadmin that speaks the same command language, queue spaces stored as
+  directories and messages as files.
+- EventBroker: tpsubscribe/tpunsubscribe/tppost/tpnotify/tpsetunsol/
+  tpchkunsol, with the TMUSREVT/TMSYSEVT servers and the same on-disk
+  subscription database format.
+- Domains and workstations: dmloadcf/dmunloadcf, GWTDOMAIN gateways with
+  encrypted links, dmadmin, the WSL listener, and libwsc-style WSNADDR
+  clients, including transactions over the workstation link.
+- Administration: tpadmcall against the configuration and the bulletin
+  board, tmadmin with the runtime service controls, per-command audit
+  lines, and offline utilities.
+- Tracing built in: USDT probes (provider "fuxedo") when built with
+  systemtap-sdt-dev, uprobe-friendly binaries otherwise, plus the
+  changetrace-style ULOG dye trail.
 - Programs
   - mkfldhdr32
-  - ud32
-  - tmloadcf/tmunloadcf
-  - tmipcrm
-  - buildserver
-  - buildclient
-  - buildtms
+  - viewc32, viewdis32, ud32
+  - tmloadcf/tmunloadcf, tmipcrm
+  - tmboot/tmshutdown, tmadmin
+  - qmadmin, crdl, crlog
+  - dmloadcf/dmunloadcf, dmadmin
+  - buildserver, buildclient, buildtms
+  - BBL, TMS, TMQUEUE, TMQFORWARD, TMUSREVT, TMSYSEVT, WSL, GWTDOMAIN
 - ...more to come
 
 ## Supported API function list
@@ -48,32 +73,51 @@ Currently implemented:
   - tprealloc
   - tpfree
   - tptypes
+  - tpimport/tpexport
 - Service routine functions
   - tpservice
   - tpreturn
+  - tpforward
 - Advertising functions
   - tpadvertise
+  - tpadvertisex
   - tpunadvertise
 - Request/response service functions
   - tpcall
   - tpacall
   - tpcancel
   - tpgetrply
-- Oracle Tuxedo XATMI extensions
-  - tpimport/tpexport
+  - tpsblktime/tpgblktime
+- Client functions
   - tpinit/tpterm
+  - tpappthrinit/tpappthrterm
 - Oracle Tuxedo XATMI transaction interface
   - tpopen/tpclose
   - tpbegin/tpabort/tpcommit
   - tpgetlev
   - tpsuspend/tpresume
+- EventBroker functions
+  - tpsubscribe/tpunsubscribe
+  - tppost
+  - tpnotify
+  - tpsetunsol/tpchkunsol
+- /Q functions
+  - tpenqueue/tpdequeue
+- Administration
+  - tpadmcall
+- Buffer conversion
+  - tpxmltofml32/tpfml32toxml
+- Context functions
+  - tpgetctxt/tpsetctxt (single context, like Tuxedo without TPMULTICONTEXTS)
 - X/Open TX interface
   - tx\_open/tx\_close
   - tx\_begin/tx\_rollback/tx\_commit
   - tx\_info
-  - tx\_set\_commit\_return/tx\_set\_transaction\_control/tx\_set\_transaction\_timeout
+  - tx\_set\_commit\_return/tx\_set\_transaction_control/tx\_set\_transaction_timeout
 - FML32
   - a lot
+- VIEW32
+  - viewc32-compiled accessors, Fv*32 calls, FML32/VIEW32 interop
 - Boolean expressions
   - Fboolco32
   - Fboolpr32
@@ -83,16 +127,18 @@ Currently implemented:
 ## Testing layout
 
 - `tests/compat/` - C-API compatibility suite (FML32, expressions, XATMI
-  buffers, base64). Vendor neutral: also compiled and run against Oracle
-  Tuxedo via `install-tests/unit` with `TUXDIR` pointing at either
-  implementation.
+  buffers, base64, invalid-argument hardening). Vendor neutral: also
+  compiled and run against Oracle Tuxedo via `install-tests/unit` with
+  `TUXDIR` pointing at either implementation.
 - `tests/impl/` - fuxedo implementation tests (MIB, IPC, /Q, transactions,
   config). fuxedo only.
 - `install-tests/` - CLI and end-to-end compatibility: buildclient,
-  buildserver, tmboot/tmshutdown, tpcall family; run against whichever
-  `TUXDIR` points to.
+  buildserver, tmboot/tmshutdown, tpcall family, tpforward, EventBroker,
+  /Q, restarts. Run against whichever `TUXDIR` points to; Oracle Tuxedo
+  12.2.2 runs in continuous integration.
 - `pytests/` - Python-driven CLI compatibility tests via tuxedo-python,
-  including the book's `tpadmcall` flow.
+  including the book's `tpadmcall` flow, online updates, domains,
+  workstation clients, and crash recovery.
 
 ## Compatibility with Oracle Tuxedo
 

@@ -75,17 +75,18 @@ GitHub</a></p>
 
 <h2>Compatibility</h2>
 
-<p><strong>API level.</strong> tpinit, tpcall, tpacall, tpbegin, FML32 and
-its boolean expressions, tpadvertise, tpenqueue: the same functions with
-the same semantics, so application source compiles and behaves the same.
-Internal details that programs cannot observe, such as buffer indexes, are
-free to differ.</p>
+<p><strong>API level.</strong> tpinit, tpcall, tpacall, tpbegin,
+tpcommit, tpforward, tpadvertise, tpenqueue, tpsubscribe, tppost:
+the same functions with the same semantics, so application source
+compiles and behaves the same. Internal details that programs cannot
+observe, such as buffer indexes, are free to differ.</p>
 
-<p><strong>Command level.</strong> The administrator&rsquo;s toolbox keeps
-its manuals: tmloadcf loads the configuration, tmboot boots it,
-tmshutdown stops it, tmadmin inspects the bulletin board, qmadmin runs the
-queues, and tmunloadcf prints the configuration back. Scripts written for
-Tuxedo keep working.</p>
+<p><strong>Command level.</strong> The administrator&rsquo;s toolbox
+keeps its manuals: tmloadcf loads the configuration, tmboot boots it,
+tmshutdown stops it, tmadmin inspects the bulletin board and flips
+services at runtime, qmadmin runs the queues, crdl and crlog manage the
+transaction log, dmadmin runs the gateways, and tmunloadcf prints the
+configuration back. Scripts written for Tuxedo keep working.</p>
 
 <p><strong>System V IPC level.</strong> Servers serve from blocking
 msgrcv() on System V queues, MSSQ sets share one queue among several
@@ -134,6 +135,14 @@ the demo applications from the book
 <em>Modernizing Oracle Tuxedo Applications with Python</em>. Write a
 Tuxedo server as a Python class, advertise it with tpadvertise, boot it
 with tmboot.</p>
+
+<p><strong>Observable by design.</strong> The EventBroker keeps its
+live subscription table in the bulletin board, so an event goes
+straight from the poster to the subscriber&rsquo;s queue instead of
+hopping through a broker process. The binaries carry USDT probes
+(provider &ldquo;fuxedo&rdquo;) and stay uprobe-friendly, so bpftrace
+and eBPF tooling attach to the ATMI boundary without any fuxedo-side
+configuration.</p>
 
 <h2>Python, training, monitoring</h2>
 

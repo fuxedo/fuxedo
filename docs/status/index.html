@@ -47,38 +47,46 @@ definition of "matches".</p>
 <h2>Done and verified</h2>
 
 <p>The ATMI client and server API (tpinit, tpcall, tpacall, tpgetrply,
-tpforward, tpreturn, tpadvertise/x with TPSINGLETON and TPSECONDARYRQ),
-FML32 with Oracle-compatible field ids and boolean expressions, VIEW32,
+tpforward with flag and transaction semantics, tpreturn,
+tpadvertise/x with TPSINGLETON and TPSECONDARYRQ), FML32 with
+Oracle-compatible field ids and boolean expressions, VIEW32,
 XML buffers with tpxmltofml32 and BUFTYPECONV, STRING and CARRAY,
 tpimport/tpexport. Administration: tmloadcf, tmunloadcf, tmboot,
 tmshutdown, tmadmin, qmadmin, ud32, tmipcrm, crdl/crlog, the MIB
-classes, and runtime updates (adv, unadv, suspend, resume,
-changetrace). Operations: MSSQ sets with secondary queues, REPLYQ,
-automatic restart with MAXGEN/RESTART/GRACE. Transactions: multi-group
-2PC with per-group TMS servers, a folder-based TLOG, and heuristic
-detection. /Q queues as folders and files with TMQUEUE and TMQFORWARD.
-Networking: GWTDOMAIN gateways with dmadmin, TLS links with
-trust-on-first-use pins, and workstation clients via WSL and WSNADDR.
-Python throughout via <a
+classes, runtime updates (adv, unadv, suspend, resume, chgserver,
+changetrace), and printtrans with the offline log utilities. Operations:
+MSSQ sets with secondary queues, REPLYQ, automatic restart with
+MAXGEN/RESTART/GRACE. Transactions: multi-group two-phase commit with
+per-group TMS servers, a folder-based TLOG with heuristic detection,
+transactions across domain gateways and over workstation links.
+EventBroker: tpsubscribe, tppost, tpnotify, unsolicited messages with
+tpsetunsol/tpchkunsol, the TMUSREVT/TMSYSEVT servers, and the same
+on-disk subscription database format. /Q queues as folders and files
+with TMQUEUE and TMQFORWARD. Networking: GWTDOMAIN gateways with
+dmadmin, encrypted links with trust-on-first-use pins, and workstation
+clients via WSL and WSNADDR. Tracing: USDT probes (provider "fuxedo")
+plus uprobe-friendly builds, so bpftrace attaches without any fuxedo
+configuration. An invalid-argument hardening suite guards the API
+surface on both implementations. Python throughout via <a
 href="https://aivarsk.com/tuxedo-python/">tuxedo-python</a>, whose demo
 runs against all three homes.</p>
 
 <h2>Known gaps</h2>
 
 <p>Honest list, no asterisks: data-dependent routing (*ROUTING section)
-is parsed but not enforced; EventBroker (tppost/tpsubscribe) is a stub;
-conversational tpconnect/tpsend/tprecv is untested end to end;
-cross-domain transactions (DMTLOG) are designed but not implemented;
+is parsed but not enforced; tpbroadcast is the one EventBroker call
+still missing; conversational tpconnect/tpsend/tprecv is untested end
+to end; event delivery to workstation clients is not routed yet;
 tmadmin's diagnostic surface (bbparms, dump, shmstats) is thin; FML32
 indexes are not stored (a flat layout by design, at a small lookup
 cost). Multi-machine MP clustering is deliberately out of scope.</p>
 
 <h2>Roadmap</h2>
 
-<p>In rough order: cross-domain transactions with the DMTLOG device,
-data-dependent routing, EventBroker, and a compile-time compatibility
-switch for the 12.1/22.1 behavior divergences. The gap list and the API coverage matrix live in the
-repository, updated as items land.</p>
+<p>In rough order: domain-level /Q (enqueue into a queue space served
+by a remote domain), the remaining tmadmin surface, tpbroadcast, and
+deeper workstation coverage. The gap list and the API coverage matrix
+live in the repository, updated as items land.</p>
 
 <h2>Follow the project</h2>
 
@@ -88,9 +96,9 @@ activity"), subscribe to the <a
 href="https://github.com/fuxedo/fuxedo/releases.atom">releases RSS
 feed</a>, read the commit stream, or write to <a
 href="mailto:hello@fuxedo.io">hello@fuxedo.io</a> for the occasional
-project letter. Versioned releases and their notes will live on the
+project letter. Releases and their notes live on the
 <a href="https://github.com/fuxedo/fuxedo/releases">GitHub releases
-page</a>; the first tag is planned once the DMTLOG work lands.</p>
+page</a>; 0.9.x is tagged and current.</p>
 
 <footer>
 Fuxedo is released under the <a
