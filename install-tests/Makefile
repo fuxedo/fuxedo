@@ -15,6 +15,7 @@ check:
 	make -C tpadvertise
 	make -C tpforward
 	make -C blocktime
+	make -C eventbr
 	make -C txnull
 	make -C qmtx
 	make -C restart
@@ -28,7 +29,7 @@ check:
 # restart and qsample exercise fuxedo-specific pieces (/Q layout,
 # restart bookkeeping). Verified against Oracle 12.2.2.
 ORACLE_DIRS = unit view server tmshutdown tpinit tpcall tpacall \
-              tpadvertise tpforward blocktime bbl
+              tpadvertise tpforward blocktime bbl eventbr
 
 # 22.1 narrows to the compile-and-API suites: its tmipcrm refuses to
 # run without an attached bulletin board, which wedges the boot-oriented

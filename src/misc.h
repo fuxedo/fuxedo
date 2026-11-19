@@ -71,7 +71,10 @@ void reset_tperrno();
 template <typename F>
 void exception_boundary(F &&f) noexcept {
   try {
-    reset_tperrno();
+    // no tperrno reset at entry: the platform leaves tperrno stale on
+    // most calls (probed: tpalloc, tpstrerror, the whole FML32 family)
+    // and only the buffer-management family resets it - those set it
+    // explicitly on their success paths
     f();
   } catch (const std::exception &e) {
     TPERROR(-1, "Unhandled exception [%s]", e.what());
@@ -81,7 +84,6 @@ void exception_boundary(F &&f) noexcept {
 template <typename F, typename R>
 auto exception_boundary(F &&f, R &&r) noexcept -> decltype(f()) {
   try {
-    reset_tperrno();
     return f();
   } catch (const std::exception &e) {
     TPERROR(-1, "Unhandled exception [%s]", e.what());

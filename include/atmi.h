@@ -22,6 +22,15 @@ int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags);
 int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags);
 
 int tppost(char *eventname, char *data, long len, long flags);
+
+long tpsubscribe(char *eventexpr, char *filter, TPEVCTL *ctl, long flags);
+int tpunsubscribe(long subscription, long flags);
+int tpnotify(CLIENTID *cltid, char *data, long len, long flags);
+void (*tpsetunsol(void (*func)(char *data, long len, long flags)))(char *,
+                                                                    long,
+                                                                    long);
+int tpchkunsol(void);
+
 int tpgetctxt(TPCONTEXT_T *context, long flags);
 int tpsetctxt(TPCONTEXT_T context, long flags);
 

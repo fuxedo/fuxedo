@@ -790,6 +790,7 @@ TA_EVENT_UNIQUE                     6976       short      -
 TA_QCTL_USERTAG                     6977       long       -
 TA_EVENT_GWEVT                      6978       short      -
 TA_SUBSCRIPTION_HANDLE              7007       long       -
+TA_EB_DB_SEQNO                      7016       long       -
 TA_PROGMODELS                       30001002   string     -
 TA_SRVTYPE                          30001003   string     -
 TA_JAVAHEAPSIZE                     30001004   long       -

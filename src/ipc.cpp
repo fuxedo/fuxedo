@@ -10,6 +10,7 @@
 
 #include "ipc.h"
 #include "misc.h"
+#include "probes.h"
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -181,6 +182,7 @@ static bool msgsnd_timed(int msqid, void *ptr, size_t len, enum flags flag,
 }
 
 bool qsend(int msqid, msg &data, long timeout, enum flags flags) {
+  FUX_PROBE2(qsend, msqid, static_cast<long>(data.size()));
   if (data.size() > MAX_QUEUE_MSG_SIZE) {
     // like the platform: large messages spill into /tmp/TUX* files and
     // only the filename travels the queue
@@ -242,6 +244,7 @@ void qrecv(int msqid, msg &data, long msgtype, int flags) {
     throw std::system_error(errno, std::system_category());
   }
   data.resize(n + sizeof(long));
+  FUX_PROBE2(qrecv, msqid, static_cast<long>(data.size()));
   load_from_file(data, n);
 }
 
@@ -255,6 +258,7 @@ bool qrecv_intr(int msqid, msg &data, long msgtype) {
     throw std::system_error(errno, std::system_category());
   }
   data.resize(n + sizeof(long));
+  FUX_PROBE2(qrecv, msqid, static_cast<long>(data.size()));
   load_from_file(data, n);
   return true;
 }

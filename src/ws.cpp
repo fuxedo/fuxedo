@@ -395,11 +395,19 @@ int wsconn::tx_rpc(uint16_t op, const std::string &xid, unsigned long timeout,
       return static_cast<int>(rval);
     }
     if (type == fux::link::reply) {
-      // a late service reply: keep it for tpgetrply
+      // a late service reply: keep it for tpgetrply unless the call was
+      // abandoned, in which case drop it with the same warning the
+      // native path logs
       fux::wire::reader r(reply);
       uint32_t rcvd = 0;
       if (r.u32(rcvd)) {
-        buffered_[rcvd] = std::move(reply);
+        if (stale_.count(rcvd) != 0) {
+          userlog("discarding late reply for call descriptor %d",
+                  static_cast<int>(rcvd));
+          stale_.erase(rcvd);
+        } else {
+          buffered_[rcvd] = std::move(reply);
+        }
       }
       continue;
     }
@@ -421,9 +429,10 @@ int wsconn::tpbegin(unsigned long timeout, long flags) {
   std::string xid;
   int rval = tx_rpc(kTxBegin, "", timeout, &xid);
   if (rval != 0) {
-    if (tperrno == 0 || tperrno == TPMINVAL) {
-      TPERROR(rval, "tpbegin refused by WSL");
-    }
+    // stale tperrno cannot mean "no error" anymore: the
+    // platform keeps it untouched on most calls, so map the
+    // wire rval unconditionally
+    TPERROR(rval, "tpbegin refused by WSL");
     return -1;
   }
   tx_ = std::move(xid);
@@ -444,9 +453,10 @@ int wsconn::tpcommit(long flags) {
   int rval = tx_rpc(kTxCommit, xid, 0, nullptr);
   tx_.clear();
   if (rval != 0) {
-    if (tperrno == 0 || tperrno == TPMINVAL) {
-      TPERROR(rval, "transaction was rolled back");
-    }
+    // stale tperrno cannot mean "no error" anymore: the
+    // platform keeps it untouched on most calls, so map the
+    // wire rval unconditionally
+    TPERROR(rval, "transaction was rolled back");
     return -1;
   }
   fux::atmi::reset_tperrno();
@@ -466,9 +476,10 @@ int wsconn::tpabort(long flags) {
   int rval = tx_rpc(kTxAbort, xid, 0, nullptr);
   tx_.clear();
   if (rval != 0) {
-    if (tperrno == 0 || tperrno == TPMINVAL) {
-      TPERROR(rval, "tpabort failed");
-    }
+    // stale tperrno cannot mean "no error" anymore: the
+    // platform keeps it untouched on most calls, so map the
+    // wire rval unconditionally
+    TPERROR(rval, "tpabort failed");
     return -1;
   }
   fux::atmi::reset_tperrno();
@@ -492,6 +503,15 @@ int wsconn::tpgetrply(int *cd, char **data, long *len, long flags) {
     }
     auto it = buffered_.find(want);
     if (it != buffered_.end()) {
+      if (stale_.count(it->first) != 0) {
+        // a buffered late reply for an abandoned call: discard it and
+        // look for a live one
+        userlog("discarding late reply for call descriptor %d",
+                static_cast<int>(it->first));
+        stale_.erase(it->first);
+        buffered_.erase(it);
+        continue;
+      }
       std::vector<char> reply = std::move(it->second);
       buffered_.erase(it);
       fux::wire::reader r(reply);
@@ -534,6 +554,12 @@ int wsconn::tpgetrply(int *cd, char **data, long *len, long flags) {
     fux::link::frame_type type;
     std::vector<char> reply;
     if (!recv_frame(&type, &reply, timeout) || type != fux::link::reply) {
+      if (!(flags & TPGETANY)) {
+        // the wait timed out: the call stays outstanding on the WSL,
+        // but this caller abandoned it - protect the descriptor so a
+        // late reply can never satisfy a different call
+        stale_.insert(static_cast<uint32_t>(*cd));
+      }
       return -1;
     }
     fux::wire::reader r(reply);
@@ -548,6 +574,7 @@ int wsconn::tpgetrply(int *cd, char **data, long *len, long flags) {
 
 int wsconn::tpcancel(int cd) {
   buffered_.erase(static_cast<uint32_t>(cd));
+  stale_.insert(static_cast<uint32_t>(cd));
   fux::atmi::reset_tperrno();
   return 0;
 }

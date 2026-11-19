@@ -163,10 +163,16 @@ struct Fbfr32 {
       return del(fieldid, oc);
     }
 
-    // oc=-1 -> Fadd32
+    // oc=-1 appends, matching the platform's Fadd-like semantics for a
+    // negative occurrence (pinned against Oracle 12.2 with loaded
+    // field tables)
     FLDID32 count = occur(fieldid);
     if (oc == -1) {
       oc = count;
+    }
+    if (oc < 0) {
+      FERROR(FEINVAL, "negative occurrence");
+      return -1;
     }
 
     // Fill missing occurances with default values
@@ -471,7 +477,7 @@ struct Fbfr32 {
 
     auto next = next_(field);
     erase(field, next);
-    return 0;
+    return 1;  // the platform pins 1 for a successful delete
   }
 
   int delall(FLDID32 fieldid) {
@@ -515,7 +521,7 @@ struct Fbfr32 {
                     loc + offsetof(Fbfr32, len_));
       }
     }
-    return 0;
+    return 1;  // the platform pins 1 for a successful get
   }
 
   int xdelete(FLDID32 *fieldid) {

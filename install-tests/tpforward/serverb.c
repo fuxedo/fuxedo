@@ -5,3 +5,10 @@ void SERVICEB(TPSVCINFO *svcinfo) {
   userlog(":TEST: %s called", __func__);
   tpreturn(TPSUCCESS, 0, svcinfo->data, 0, 0);
 }
+
+// reports whether it runs inside a transaction; the forward fixture
+// asserts the propagation semantics off this line
+void TXSVC(TPSVCINFO *svcinfo) {
+  userlog(":TEST: %s called lev=%d", __func__, tpgetlev());
+  tpreturn(TPSUCCESS, 0, svcinfo->data, 0, 0);
+}

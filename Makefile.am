@@ -38,7 +38,7 @@ src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/trace.cpp src/dmcfg.cpp src/dmlink.cpp \
                            src/misc.cpp src/base64.cpp \
                            src/tpadmcall.cpp src/tmq.cpp src/qm.cpp \
-                           src/tlog.cpp
+                           src/tlog.cpp src/events.cpp src/evsrv.cpp
 
 src_libfuxedo_la_LDFLAGS = -lpthread
 
@@ -52,7 +52,7 @@ bin_PROGRAMS = src/mkfldhdr32 src/viewc32 src/viewdis32 src/ud32 \
                src/buildserver src/buildclient src/buildtms \
                src/tmboot src/tmshutdown \
                src/BBL src/TMS src/TMQUEUE src/TMQFORWARD src/GWADM \
-               src/GWTDOMAIN src/WSL
+               src/GWTDOMAIN src/WSL src/TMUSREVT src/TMSYSEVT
 
 src_qmadmin_SOURCES = src/qmadmin.cpp
 src_qmadmin_LDADD = src/libfuxedo.la
@@ -81,6 +81,12 @@ src_dmadmin_LDADD = src/libfuxedo.la
 
 src_TMQUEUE_SOURCES = src/TMQUEUE.cpp
 src_TMQUEUE_LDADD = src/libfuxedo.la
+
+src_TMUSREVT_SOURCES = src/TMUSREVT.cpp
+src_TMUSREVT_LDADD = src/libfuxedo.la
+
+src_TMSYSEVT_SOURCES = src/TMSYSEVT.cpp
+src_TMSYSEVT_LDADD = src/libfuxedo.la
 
 src_TMQFORWARD_SOURCES = src/TMQFORWARD.cpp
 src_TMQFORWARD_LDADD = src/libfuxedo.la -lpthread
@@ -133,7 +139,7 @@ src_tmipcrm_LDADD = src/libfuxedo.la
 udataobjdir = @prefix@/udataobj
 udataobj_DATA = RM include/tpadm
 
-TESTS = tests/compat/xatmi tests/compat/fml32 tests/compat/expr tests/compat/view32 tests/compat/xmlfml tests/impl/mib tests/impl/dmlink tests/impl/ipcq tests/compat/base64 tests/impl/userlog tests/impl/trx tests/impl/qm tests/impl/cfg tests/impl/tlog tests/impl/qmtx
+TESTS = tests/compat/xatmi tests/compat/fml32 tests/compat/expr tests/compat/view32 tests/compat/hardening tests/compat/xmlfml tests/impl/mib tests/impl/dmlink tests/impl/ipcq tests/compat/base64 tests/impl/userlog tests/impl/trx tests/impl/qm tests/impl/cfg tests/impl/tlog tests/impl/qmtx
 check_PROGRAMS = $(TESTS)
 
 AM_TESTS_ENVIRONMENT = FLDTBLDIR32=.:src:tests FIELDTBLS32=dummy,fields \
@@ -162,6 +168,9 @@ tests_compat_fml32_LDADD = src/libfuxedo.la
 
 tests_compat_expr_SOURCES = tests/compat/expr.cpp tests/tests-main.cpp
 tests_compat_expr_LDADD = src/libfuxedo.la
+
+tests_compat_hardening_SOURCES = tests/compat/hardening.cpp tests/tests-main.cpp
+tests_compat_hardening_LDADD = src/libfuxedo.la
 
 tests_compat_view32_SOURCES = tests/compat/view32.cpp tests/tests-main.cpp
 

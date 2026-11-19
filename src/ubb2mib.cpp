@@ -71,9 +71,11 @@ void ubb2mib(ubbconfig &u, mib &m) {
   // scanunit to milliseconds
   std::transform(scanunit.begin(), scanunit.end(), scanunit.begin(),
                  [](unsigned char c) { return std::tolower(c); });
-  if (scanunit.compare(scanunit.size() - 2, 2, "ms")) {
+  if (scanunit.size() > 2 &&
+      scanunit.compare(scanunit.size() - 2, 2, "ms") == 0) {
     scanunit = scanunit.substr(0, scanunit.size() - 2);
   } else {
+    // plain value is seconds
     scanunit += "000";
   }
 

@@ -28,6 +28,7 @@
 #include <thread>
 
 #include "client.h"
+#include "probes.h"
 #include "ws.h"
 #include "xml.h"
 
@@ -106,6 +107,13 @@ int client::tpacall_group(int grpno, const char *svc, char *data, long len,
 
 int client::tpacall_queue(queue_entry target, const char *svc, char *data,
                           long len, long flags) {
+  // the platform sweeps the reply queue for late replies and timeout
+  // markers every few calls; do the same so stragglers do not pile up
+  if (--sweep_ <= 0) {
+    sweep_ = 5;
+    drain_late_replies();
+  }
+
   if (data != nullptr) {
     if (tptypes(data, nullptr, nullptr) == -1) {
       return -1;
@@ -114,6 +122,7 @@ int client::tpacall_queue(queue_entry target, const char *svc, char *data,
 
   rq.set_data(data, len);
   rq->mtype = target.mtype;
+  rq->caller = getpid();
   checked_copy(svc, rq->servicename);
   if (flags & TPNOREPLY) {
     rq->replyq = -1;
@@ -198,14 +207,35 @@ int client::tpgetrply(int *cd, char **data, long *len, long flags) {
       userlog("%s received on %0x", __func__, rpid);
     }
 
+    if (res->cat == fux::ipc::unsol) {
+      // an event or notification arrived while waiting for a reply;
+      // deliver it and keep waiting
+      dispatch_unsol(res);
+      continue;
+    }
+
     if (res->cat == fux::ipc::unblock) {
+      // the marker is client-scoped (the BBL does not know the call).
+      // A timed-out call stays outstanding: it can be waited again and
+      // its late reply is still deliverable to that wait (pinned by
+      // install-tests/blocktime). Abandonment is tpcancel's job - that
+      // is what protects the descriptor from reuse and makes the late
+      // reply discardable.
       if (flags & TPGETANY) {
         *cd = 0;
       } else {
-        userlog("Received time-out for cd=%d", res->cd);
+        userlog("Received time-out for cd=%d", *cd);
       }
       TPERROR(TPETIME, "Timeout message received");
       return -1;
+    }
+
+    // a late reply for a call the caller already abandoned: discard it,
+    // free the descriptor, and keep waiting
+    if (cds.is_stale(res->cd)) {
+      userlog("discarding late reply for call descriptor %d", res->cd);
+      cds.discard_late(res->cd);
+      continue;
     }
 
     // Did not receive the correct response, try again
@@ -257,12 +287,92 @@ int client::tpgetrply(int *cd, char **data, long *len, long flags) {
 
 int client::tpcancel(int cd) {
   xml_converted.erase(cd);
-  if (cds.release(cd) == -1) {
+  if (cds.is_stale(cd)) {
+    // already abandoned; cancelling again is a harmless no-op
+    fux::atmi::reset_tperrno();
+    return 0;
+  }
+  if (cds.check(cd) == -1) {
     return -1;
   }
-  // TPETRAN
+  // the service may still reply: protect the descriptor until the
+  // late reply is discarded
+  cds.mark_stale(cd);
   fux::atmi::reset_tperrno();
   return 0;
+}
+
+size_t client::dispatch_unsol(fux::ipc::msg &res) {
+  if (unsol_handler_ == nullptr) {
+    return 0;
+  }
+  auto *buf = tpalloc(const_cast<char *>("CARRAY"), nullptr,
+                      static_cast<long>(res.size_data()) + 64);
+  if (buf == nullptr) {
+    return 0;
+  }
+  long olen = 0;
+  if (tpimport(res->data, res.size_data(), &buf, &olen, 0) == -1) {
+    userlog("tpchkunsol: cannot import unsolicited message: %s",
+            tpstrerror(tperrno));
+    tpfree(buf);
+    return 0;
+  }
+  unsol_handler_(buf, olen, 0);
+  tpfree(buf);
+  return 1;
+}
+
+int client::chkunsol() {
+  int delivered = 0;
+  while (true) {
+    fux::ipc::msg res;
+    try {
+      fux::ipc::qrecv(rpid, res, 0, IPC_NOWAIT);
+    } catch (const std::system_error &) {
+      break;  // nothing queued right now
+    }
+    if (res->cat == fux::ipc::unsol) {
+      delivered += static_cast<int>(dispatch_unsol(res));
+    } else if (res->cat == fux::ipc::unblock) {
+      // a raced time-out marker for a wait that already abandoned its
+      // descriptor; drop it like drain_late_replies does
+    } else if (cds.is_stale(res->cd)) {
+      userlog("discarding late reply for call descriptor %d", res->cd);
+      cds.discard_late(res->cd);
+    } else {
+      cds.buffer(std::move(res));
+    }
+  }
+  fux::atmi::reset_tperrno();
+  return delivered;
+}
+
+void client::drain_late_replies() {
+  while (true) {
+    fux::ipc::msg res;
+    try {
+      fux::ipc::qrecv(rpid, res, 0, IPC_NOWAIT);
+    } catch (const std::system_error &) {
+      break;  // nothing queued right now
+    }
+    if (res->cat == fux::ipc::unsol) {
+      // event delivery piggybacks on the periodic sweep so a busy caller
+      // never has to wait for a tpchkunsol to see notifications
+      dispatch_unsol(res);
+    } else if (res->cat == fux::ipc::unblock) {
+      // client-scoped marker without a call descriptor; the wait that
+      // timed out already abandoned its descriptor when it consumed
+      // its own marker, so a straggler here only means a raced one -
+      // drop it
+    } else if (cds.is_stale(res->cd)) {
+      userlog("discarding late reply for call descriptor %d", res->cd);
+      cds.discard_late(res->cd);
+    } else {
+      // a reply for a live call: keep it for its waiter
+      cds.buffer(std::move(res));
+    }
+  }
 }
 
 int client::tpsblktime(int blktime, long flags) {
@@ -435,12 +545,16 @@ int tpappthrterm() {
 }
 
 int tpcancel(int cd) {
+  int rc;
   if (fux::ws::ws_naddr() != nullptr) {
-    return fux::atmi::exception_boundary(
+    rc = fux::atmi::exception_boundary(
         [&] { return fux::ws::get_wsconn().tpcancel(cd); }, -1);
+  } else {
+    rc = fux::atmi::exception_boundary(
+        [&] { return getclient().tpcancel(cd); }, -1);
   }
-  return fux::atmi::exception_boundary([&] { return getclient().tpcancel(cd); },
-                                       -1);
+  FUX_PROBE2(tpcancel, cd, rc);
+  return rc;
 }
 
 int tpacall_group(int grpno, char *svc, char *data, long len, long flags) {
@@ -461,6 +575,7 @@ int tpacall_queue(int msqid, const char *svc, char *data, long len,
 
 int tpacall(char *svc, char *data, long len, long flags) {
   fux::trace::event("{ tpacall(\"%s\", %ld)", svc, len);
+  FUX_PROBE3(tpacall__entry, svc, len, flags);
   int rc = 0;
   if (fux::ws::ws_naddr() != nullptr) {
     rc = fux::atmi::exception_boundary(
@@ -492,11 +607,13 @@ int tpgetrply(int *cd, char **data, long *len, long flags) {
         -1);
   }
   fux::trace::event("} tpgetrply = %d", rc);
+  FUX_PROBE2(tpgetrply__return, cd != nullptr ? *cd : -1, rc);
   return rc;
 }
 int tpcall(char *svc, char *idata, long ilen, char **odata, long *olen,
            long flags) {
   fux::trace::event("{ tpcall(\"%s\", %ld)", svc, ilen);
+  FUX_PROBE2(tpcall__entry, svc, ilen);
   int rc = 0;
   if (fux::ws::ws_naddr() != nullptr) {
     rc = fux::atmi::exception_boundary(
@@ -563,7 +680,23 @@ int tpsetctxt(TPCONTEXT_T context, long /*flags*/) {
   return 0;
 }
 
-int tppost(char * /*eventname*/, char * /*data*/, long /*len*/, long /*flags*/) {
-  TPERROR(TPESYSTEM, "EventBroker not available");
-  return -1;
+void (*tpsetunsol(void (*func)(char *data, long len, long flags)))(char *,
+                                                                    long,
+                                                                    long) {
+  if (fux::ws::ws_naddr() != nullptr) {
+    TPERROR(TPESYSTEM, "tpsetunsol is not available in workstation mode");
+    return nullptr;
+  }
+  auto prev = getclient().setunsol(func);
+  fux::atmi::reset_tperrno();
+  return prev;
+}
+
+int tpchkunsol() {
+  if (fux::ws::ws_naddr() != nullptr) {
+    TPERROR(TPESYSTEM, "tpchkunsol is not available in workstation mode");
+    return -1;
+  }
+  return fux::atmi::exception_boundary([&] { return getclient().chkunsol(); },
+                                       -1);
 }

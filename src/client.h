@@ -30,21 +30,39 @@ class client {
   int tpsblktime(int blktime, long flags);
   int tpgblktime(long flags);
 
+  using unsol_handler_t = void (*)(char *data, long len, long flags);
+  unsol_handler_t setunsol(unsol_handler_t f) {
+    auto prev = unsol_handler_;
+    unsol_handler_ = f;
+    return prev;
+  }
+  // deliver one unsolicited message to the installed handler; the count
+  // delivered (0 when no handler is installed)
+  size_t dispatch_unsol(fux::ipc::msg &res);
+  // drain the reply queue for unsolicited messages, dispatching each;
+  // replies and markers are kept or discarded like in drain_late_replies
+  int chkunsol();
+
   queue_entry get_queue(const char *svc) { return repo_.get_queue(-1, svc); }
 
  private:
   fux::ipc::flags to_flags(long flags);
   long next_blocktime();
+  // drain late replies and timeout markers out of the reply queue; the
+  // platform sweeps on a cadence like this too (about every fifth call)
+  void drain_late_replies();
 
   mib &mibcon_;
   size_t client_;
   service_repository repo_;
   fux::ipc::msg rq;
   int rpid;
+  int sweep_ = 0;
   long blocktime_next;
   long blocktime_all;
   responses cds;
   // reply descriptors whose request went through an XML2FML32 boundary
   // conversion and must be converted back before the caller sees them
   std::set<int> xml_converted;
+  unsol_handler_t unsol_handler_ = nullptr;
 };

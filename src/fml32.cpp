@@ -136,10 +136,11 @@ FBFR32 *Falloc32(FLDOCC32 F, FLDLEN32 V) {
   return fbfr;
 }
 
+// the platform pins FALIGNERR for a null buffer (probed on 12.2)
 #define FBFR32_CHECK(err, fbfr)                              \
   do {                                                       \
     if (fbfr == nullptr) {                                   \
-      FERROR(FNOTFLD, "fbfr is NULL");                       \
+      FERROR(FALIGNERR, "fbfr is NULL");                     \
       return err;                                            \
     }                                                        \
     if ((reinterpret_cast<intptr_t>(fbfr) & (8 - 1)) != 0) { \
@@ -150,12 +151,16 @@ FBFR32 *Falloc32(FLDOCC32 F, FLDLEN32 V) {
 
 #define FLDID32_CHECK(err, fldid)                                           \
   do {                                                                      \
+    if ((fldid) == 0) {                                                     \
+      FERROR(FEINVAL, "fldid is 0");                                        \
+      return err;                                                           \
+    }                                                                       \
     if (!Fbfr32fields::valid_fldtype32(Fbfr32fields::Fldtype32(fieldid))) { \
       FERROR(FTYPERR, "fldid of unknown type");                             \
       return err;                                                           \
     }                                                                       \
     if (fldid == BADFLDID) {                                                \
-      FERROR(FBADFLD, "fldid is 0");                                        \
+      FERROR(FBADFLD, "fldid is BADFLDID");                                 \
       return err;                                                           \
     }                                                                       \
   } while (false)
@@ -341,11 +346,19 @@ int Fdelete32(FBFR32 *fbfr, FLDID32 *fieldid) {
 }
 int Fproj32(FBFR32 *fbfr, FLDID32 *fieldid) {
   FBFR32_CHECK(-1, fbfr);
+  if (fieldid == nullptr) {
+    FERROR(FEINVAL, "fieldid is NULL");
+    return -1;
+  }
   return fux::fml32::exception_boundary([&] { return fbfr->proj(fieldid); },
                                         -1);
 }
 int Fprojcpy32(FBFR32 *dest, FBFR32 *src, FLDID32 *fieldid) {
   FBFR32_CHECK(-1, dest);
+  if (fieldid == nullptr) {
+    FERROR(FEINVAL, "fieldid is NULL");
+    return -1;
+  }
   FBFR32_CHECK(-1, src);
   return fux::fml32::exception_boundary(
       [&] { return dest->projcpy(src, fieldid); }, -1);

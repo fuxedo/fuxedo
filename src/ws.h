@@ -3,6 +3,7 @@
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -63,6 +64,10 @@ class wsconn {
   // the current transaction (dotted xid issued by the WSL), empty when
   // the connection is not in a transaction
   std::string tx_;
+  // descriptors the caller abandoned (timeout or tpcancel): their late
+  // replies are discarded when they arrive, never delivered to a later
+  // wait - same protection as the native client path
+  std::set<uint32_t> stale_;
   // replies that arrived for descriptors nobody waited on yet
   std::map<uint32_t, std::vector<char>> buffered_;
 };

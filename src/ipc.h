@@ -47,7 +47,7 @@ class scoped_semlock {
 namespace ipc {
 
 enum transport : char { queue, file };
-enum category : char { application, admin, unblock };
+enum category : char { application, admin, unblock, unsol };
 enum flags : char { noflags = 0, noblock, notime };
 
 struct msgbase {
@@ -68,6 +68,7 @@ struct msgmem : msgbase {
   int replyq;
   int rval;
   long rcode;
+  pid_t caller;  // originating client, surfaced as svcinfo->cltid
   char data[0];
 };
 

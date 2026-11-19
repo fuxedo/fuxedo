@@ -20,6 +20,7 @@
 #include <sstream>
 
 #include "mib.h"
+#include "events.h"
 #include "ubbreader.h"
 
 #include "misc.h"
@@ -122,7 +123,8 @@ size_t mib::needed(const fux::cfg::domain &cfg) {
          nearest64(cfg.maxservers * cfg.maxservices * sizeof(advertisement)) +
          nearest64(cfg.maxgroups * sizeof(group)) +
          nearest64(cfg.maxaccessers * sizeof(accesser)) +
-         nearest64(transaction_table::needed(100, cfg.maxgroups));
+         nearest64(transaction_table::needed(100, cfg.maxgroups)) +
+         nearest64(event_table::needed(256));
 }
 
 void mib::init_memory() {
@@ -142,6 +144,11 @@ void mib::init_memory() {
 
   off += nearest64(transaction_table::needed(transactions().size,
                                              transactions().max_groups));
+
+  mem_->events_off = off;
+  events().init(256);
+
+  off += nearest64(event_table::needed(events().size));
 }
 
 size_t mib::find_advertisement(size_t service, size_t queue, size_t server) {

@@ -88,6 +88,7 @@ struct mibmem {
   mibarr<accesser> accessers;
 
   size_t transactions_off;
+  size_t events_off;
   char data[];
 
   static constexpr uint64_t ready() { return uint64_t(2) << 32; }
@@ -165,6 +166,9 @@ class mib {
   transaction_table &transactions() {
     return *reinterpret_cast<transaction_table *>(mem_->data +
                                                   mem_->transactions_off);
+  }
+  event_table &events() {
+    return *reinterpret_cast<event_table *>(mem_->data + mem_->events_off);
   }
 
   void advertise(const std::string &servicename, size_t queue, size_t server,

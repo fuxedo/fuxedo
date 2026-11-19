@@ -18,6 +18,7 @@
 // https://docs.oracle.com/cd/E72452_01/tuxedo/docs1222/rf5/rf5.html#1803508
 
 struct transaction_table;
+struct event_table;
 
 struct accesser {
   pid_t pid;

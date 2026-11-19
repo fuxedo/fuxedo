@@ -499,6 +499,7 @@ void tx_suspend() { _tx_suspend(nullptr); }
 void tx_end(bool ok) { _tx_end(ok); }
 void tx_join(fux::gttid gttid) {
   auto &t = getmib().transactions().join(gttid, fux::tx::grpidx);
+  getctxt().gttid = gttid;
   TXINFO info;
   info.xid = t.xid;
   _tx_start(&info, TMJOIN);

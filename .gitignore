@@ -48,6 +48,8 @@ tmp/
 /src/WSL
 /src/TMQUEUE
 /src/TMQFORWARD
+/src/TMUSREVT
+/src/TMSYSEVT
 /src/buildtms
 /src/fux
 /src/mkfldhdr32
@@ -144,3 +146,4 @@ AGENTS.md
 /pytests/scratch/
 /pytests/__pycache__/
 .fuxkeys/
+tests/compat/hardening

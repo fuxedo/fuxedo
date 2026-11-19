@@ -239,7 +239,10 @@ int main(int argc, char *argv[]) {
       bool is_admin = strcmp(srv.servername, "BBL") == 0 ||
                       strcmp(srv.servername, "GWADM") == 0 ||
                       strcmp(srv.servername, "DMADM") == 0;
-      bool is_tms = strncmp(srv.servername, "TMS", 3) == 0;
+      // transaction manager servers are TMS or TMS_<name>; a plain TMS*
+      // prefix would also catch the event servers (TMUSREVT/TMSYSEVT)
+      bool is_tms = strcmp(srv.servername, "TMS") == 0 ||
+                    strncmp(srv.servername, "TMS_", 4) == 0;
       if (admin_only && !is_admin) {
         continue;
       }

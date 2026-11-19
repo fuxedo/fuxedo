@@ -35,6 +35,14 @@ AC_PROG_LN_S
 AX_CXX_COMPILE_STDCXX_17(ext, mandatory)
 AX_CXX_HAVE_FILESYSTEM
 
+# Optional USDT probes (build-time only). sys/sdt.h comes from
+# systemtap-sdt-dev; without it the FUX_PROBE macros compile to nothing.
+AC_CHECK_HEADERS([sys/sdt.h])
+
+# Keep frame pointers so uprobe-based tracers can walk stacks; the ATMI
+# boundary is IPC-bound, the register cost is not measurable here.
+AM_CXXFLAGS="$AM_CXXFLAGS -fno-omit-frame-pointer"
+
 # TLS for domain/workstation links
 PKG_CHECK_MODULES([OPENSSL], [libssl libcrypto], [
   LIBS="$OPENSSL_LIBS $LIBS"

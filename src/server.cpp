@@ -30,6 +30,7 @@
 #include "mib.h"
 #include "misc.h"
 #include "trace.h"
+#include "probes.h"
 #include "trx.h"
 
 #if defined(__cplusplus)
@@ -286,6 +287,8 @@ struct server_thread {
 
   void tpforward(char *svc, char *data, long len, long flags) {
     auto gttid = fux::tx::gttid();
+    // TPNOTRAN: the target must not join the caller's transaction
+    const bool carry_tx = fux::tx::transactional() && !(flags & TPNOTRAN);
     if (fux::tx::transactional()) {
       fux::tx_end(true);
     }
@@ -297,17 +300,29 @@ struct server_thread {
       tpfree(data);
     }
 
-    if (flags != 0) {
-      userlog("tpforward with flags!=0");
-    }
     checked_copy(svc, res->servicename);
-    res->flags = flags;
-    res->replyq = req->replyq;
+    res->flags = carry_tx ? TPTRAN : 0;
+    res->replyq = (flags & TPNOREPLY) ? -1 : req->replyq;
     res->mtype = req->cd;
     res->cd = req->cd;
     res->gttid = gttid;
 
-    fux::ipc::qsend(target.msqid, res, 0, fux::ipc::flags::notime);
+    if ((flags & TPNOREPLY) && req->replyq != -1) {
+      // the caller must not block on a reply that can never come: the
+      // platform releases it with an error as soon as the forward is made
+      fux::ipc::msg noreply;
+      noreply->mtype = req->cd;
+      noreply->cat = fux::ipc::application;
+      noreply->rval = TPESVCERR;
+      noreply->rcode = 0;
+      noreply->cd = req->cd;
+      noreply.set_data(nullptr, 0);
+      fux::ipc::qsend(req->replyq, noreply, 0, fux::ipc::flags::notime);
+    }
+
+    auto sendflags = (flags & TPNOBLOCK) ? fux::ipc::flags::noblock
+                                         : fux::ipc::flags::notime;
+    fux::ipc::qsend(target.msqid, res, 0, sendflags);
 
     longjmp(tpreturn_env, 1);
   }
@@ -369,6 +384,7 @@ static void execute(server_thread *tp) {
   tpsvcinfo.len = static_cast<long>(tp->req.size_data()) -
                   static_cast<long>(fux::mem::headersize());
   tpsvcinfo.cd = tp->req->cd;
+  tpsvcinfo.cltid.clientdata[0] = tp->req->caller;
 
   if (tp->req->flags & TPTRAN) {
     fux::tx_join(tp->req->gttid);
@@ -380,6 +396,7 @@ static void execute(server_thread *tp) {
     fux::trace::event("{ tpservice({\"%s\", %ld, %ld})", tpsvcinfo.name,
                       tpsvcinfo.flags, tpsvcinfo.len);
     auto it = main_ptr->advertisements.find(tpsvcinfo.name);
+    FUX_PROBE3(service__entry, tpsvcinfo.name, tpsvcinfo.len, tpsvcinfo.flags);
     it->second(&tpsvcinfo);
   }
   fux::trace::event("} tpservice");
@@ -680,6 +697,7 @@ void tpreturn(int rval, long rcode, char *data, long len, long flags) try {
   }
   // trace the service's raw values, before the wire remapping below
   fux::trace::event("{ tpreturn(%d, %ld, %ld)", rval, rcode, len);
+  FUX_PROBE3(tpreturn, rval, rcode, len);
   if (rval == TPSUCCESS) {
     rval = TPMINVAL;
   } else if (rval == TPFAIL) {

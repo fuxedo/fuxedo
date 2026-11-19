@@ -13,6 +13,7 @@
 #include "qm.h"
 #include "tmqwire.h"
 #include "trace.h"
+#include "probes.h"
 #include "trx.h"
 
 namespace fux::glob {
@@ -192,6 +193,7 @@ int tpenqueue(char *qspace, char *qname, TPQCTL *ctl, char *data, long len,
     TPERROR(TPEINVAL, "invalid flags %ld", flags);
     return -1;
   }
+  FUX_PROBE3(tpenqueue__entry, qspace, qname, len);
   std::string svc;
   const bool via_server = routed(qspace, &svc);
   if (fux::tx::tx_active() && !transactional_q() && !via_server) {
@@ -298,6 +300,7 @@ int tpdequeue(char *qspace, char *qname, TPQCTL *ctl, char **data, long *len,
   const bool via_server = routed(qspace, &svc);
   fux::trace::event("{ tpdequeue(\"%s\", \"%s\", 0x%lx)", qspace, qname,
                     flags);
+  FUX_PROBE3(tpdequeue__entry, qspace, qname, flags);
   long wait_ms = wait_deadline_ms(flags, ctl);
   long deadline =
       wait_ms > 0

@@ -13,6 +13,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: dependencies
+      # systemtap-sdt-dev enables the USDT probe build (FUX_PROBE macros);
+      # without it the build compiles the probes to no-ops, so this also
+      # keeps the no-probe path covered by the oracle job below
+      run: sudo apt-get update && sudo apt-get install -y systemtap-sdt-dev
     - name: configure
       run: ./autogen.sh && ./configure --prefix=/home/runner/fuxbin
     - name: make

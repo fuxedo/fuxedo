@@ -89,7 +89,9 @@ char *tpalloc(char *type, char *subtype, long size) {
     tptype->init(mem->data, size);
   }
 
-  fux::atmi::reset_tperrno();
+  // the platform leaves tperrno untouched on tpalloc success (probed
+  // on 12.2); only the tptypes/tpfree/tpexport/tpimport/tprealloc
+  // family resets it
   return mem->data;
 }
 
