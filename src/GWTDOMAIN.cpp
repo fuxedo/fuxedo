@@ -411,6 +411,18 @@ void handle_request(int fd, fux::link::frame &f) {
 
 // Drive a 2PC control frame arriving on a link: prepare/commit/rollback
 // coordinate the local branch set, query answers from the machine TLOG.
+// The log records carry the raw gtrid bytes; the dotted wire form
+// reconstructs the rest (outcome matching uses the gtrid only).
+std::string dotted_gtrid(const std::string &raw) {
+  static const char *digits = "0123456789abcdef";
+  std::string out = "0.";
+  for (auto c : raw) {
+    out += digits[static_cast<unsigned char>(c) >> 4];
+    out += digits[static_cast<unsigned char>(c) & 0xf];
+  }
+  return out;
+}
+
 void handle_txnctrl(int fd, uint32_t corrid, uint16_t op,
                     const std::string &xids) {
   auto ack = [&](uint32_t result) {
@@ -439,7 +451,17 @@ void handle_txnctrl(int fd, uint32_t corrid, uint16_t op,
       } catch (const std::exception &) {
         // already tracked; the context association below still applies
       }
-      int rc = fux::tm::coordinate(&xid, fux::tm::prepare);
+      int rc;
+      try {
+        rc = fux::tm::coordinate(&xid, fux::tm::prepare);
+      } catch (const std::out_of_range &) {
+        ack(XAER_NOTA);
+        return;
+      } catch (const std::exception &e) {
+        userlog("GWTDOMAIN: local prepare failed: %s", e.what());
+        ack(XAER_RMERR);
+        return;
+      }
       fux::tx_detach();
       try {
         // a read-only branch is decision-independent: record it
@@ -459,7 +481,15 @@ void handle_txnctrl(int fd, uint32_t corrid, uint16_t op,
         ack(XAER_RMERR);
         return;
       }
-      fux::tm::coordinate(&xid, static_cast<int>(op));
+      try {
+        fux::tm::coordinate(&xid, static_cast<int>(op));
+      } catch (const std::out_of_range &) {
+        // the branch is no longer tracked here (already resolved or
+        // this domain rebooted): the decision is still safe to record
+      } catch (const std::exception &e) {
+        userlog("GWTDOMAIN: local %s failed: %s",
+                op == fux::tm::commit ? "commit" : "rollback", e.what());
+      }
       try {
         dmtlog->append(op == fux::tm::commit ? fux::tlog::record_type::commit
                                              : fux::tlog::record_type::rollback,
@@ -487,7 +517,15 @@ void apply_recovery(const std::string &xids, uint32_t op) {
   try {
     XID xid = fux::to_xid(xids);
     if (op == fux::tm::commit || op == fux::tm::rollback) {
-      fux::tm::coordinate(&xid, static_cast<int>(op));
+      userlog("GWTDOMAIN: recovery resolved %s with %s", xids.c_str(),
+              op == fux::tm::commit ? "COMMIT" : "ROLLBACK");
+      // drive whatever is still tracked locally, then record the
+      // terminal outcome; after a reboot the branch may be gone, which
+      // is fine - the record is what matters
+      try {
+        fux::tm::coordinate(&xid, static_cast<int>(op));
+      } catch (const std::exception &) {
+      }
       if (dmtlog.has_value()) {
         dmtlog->append(op == fux::tm::commit ? fux::tlog::record_type::commit
                                              : fux::tlog::record_type::rollback,
@@ -614,11 +652,17 @@ void on_frame(int fd, fux::link::frame f) {
       // decided for every prepared vote that has no terminal record
       if (dmtlog.has_value()) {
         try {
+          size_t outstanding = 0;
           for (auto &rec : dmtlog->recent()) {
             if (rec.second ==
                 static_cast<int>(fux::tlog::record_type::prepared)) {
-              queue_txnctrl(fd, 3, rec.first, true);
+              queue_txnctrl(fd, 3, dotted_gtrid(rec.first), true);
+              outstanding++;
             }
+          }
+          if (outstanding > 0) {
+            userlog("GWTDOMAIN: %zu in-doubt transaction(s), querying %s",
+                    outstanding, apid.c_str());
           }
         } catch (const std::exception &e) {
           userlog("GWTDOMAIN: DMTLOG scan failed: %s", e.what());
@@ -968,12 +1012,10 @@ int tpsvrinit(int argc, char *argv[]) {
     try {
       dmtlog = fux::tlog::log::open_or_create(
           local->dmtlogdev + "/" + local->dmtlogname, local->dmtlogsize);
-      auto outstanding = dmtlog->recent();
-      if (!outstanding.empty()) {
-        userlog("GWTDOMAIN: %zu outstanding domain transaction record(s) in "
-                "%s, recovery pending",
-                outstanding.size(), local->dmtlogname.c_str());
-      }
+      userlog("GWTDOMAIN: domain transaction log %s open in %s "
+              "(%zu outstanding record(s))",
+              local->dmtlogname.c_str(), local->dmtlogdev.c_str(),
+              dmtlog->recent().size());
     } catch (const std::exception &e) {
       userlog("GWTDOMAIN: cannot open domain transaction log %s in %s: %s",
               local->dmtlogname.c_str(), local->dmtlogdev.c_str(), e.what());

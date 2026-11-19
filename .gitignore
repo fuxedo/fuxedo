@@ -143,3 +143,4 @@ AGENTS.md
 # pytests artifacts
 /pytests/scratch/
 /pytests/__pycache__/
+.fuxkeys/

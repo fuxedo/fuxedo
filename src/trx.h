@@ -36,6 +36,10 @@ enum xa_func { prepare, commit, rollback };
 // XA-style aggregate: XA_OK, XA_RDONLY when no branch needs a second
 // phase, or the first failing branch's result.
 int coordinate(const XID *xid, int op);
+// The full two-phase sequence (prepare, decide, TLOG, second phase) for
+// xid; true when committed. Used by tx_commit and by transaction agents
+// (the workstation listener) that drive a transaction they adopted.
+bool drive(const XID *xid);
 }  // namespace tm
 
 // Adopt an externally-originated transaction (domain gateway receiving

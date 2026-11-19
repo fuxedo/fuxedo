@@ -33,6 +33,10 @@ int main(int argc, char *argv[]) {
   std::string ksig;
   bool admin_only = false;
   bool tms_only = false;
+  bool noop_wait = false;
+  bool noop_pause = false;
+  long noop_seq = 0;
+  std::string errcmd;
 
   auto parser =
       clara::Help(show_help) |
@@ -40,6 +44,15 @@ int main(int argc, char *argv[]) {
       clara::Opt(admin_only)["-A"](
           "shut down only administrative servers (BBL, GWADM, DMADM)") |
       clara::Opt(tms_only)["-S"]("shut down only the TMS servers") |
+      clara::Opt(errcmd, "errcmd")["-e"](
+          "command to run when a server does not shut down") |
+      clara::Opt(noop_seq, "sequence")["-o"](
+          "shutdown sequence number (accepted for compatibility; ignored)") |
+      clara::Opt(noop_wait)["-w"](
+          "wait for the shutdown to complete (default behavior; accepted)") |
+      clara::Opt(noop_pause)["-p"](
+          "pause between server shutdowns (accepted for compatibility; "
+          "ignored)") |
       clara::Opt(srvid, "srvid")["-i"]("server's SRVID in TUXCONFIG") |
       clara::Opt(grpname, "grpname")["-g"]("server's SRVGRP in TUXCONFIG") |
       clara::Opt(srvname, "aout")["-s"]("shut down only servers named aout") |
@@ -72,6 +85,7 @@ int main(int argc, char *argv[]) {
     auto servers = m.servers();
 
     size_t grpfilter = mib::badoff;
+    bool any_failed = false;
     if (!grpname.empty()) {
       grpfilter = m.group_index(grpname);
       if (grpfilter == mib::badoff) {
@@ -158,6 +172,7 @@ int main(int argc, char *argv[]) {
       if (cd == -1) {
         std::cout << ":  shutdown failed (" << tpstrerror(tperrno) << ")"
                   << std::endl;
+        any_failed = true;
       } else {
         if (tpgetrply(&cd, reinterpret_cast<char **>(buf.ptrptr()), 0,
                       TPNOFLAGS) == -1) {
@@ -167,7 +182,12 @@ int main(int argc, char *argv[]) {
           std::cout << ":  shutdown succeeded" << std::endl;
         } else {
           std::cout << ":  shutdown failed (?)" << std::endl;
+          any_failed = true;
         }
+      }
+    }
+    if (any_failed && !errcmd.empty()) {
+      if (system(errcmd.c_str()) == -1) {
       }
     }
 

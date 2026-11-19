@@ -497,16 +497,29 @@ int tpgetrply(int *cd, char **data, long *len, long flags) {
 int tpcall(char *svc, char *idata, long ilen, char **odata, long *olen,
            long flags) {
   fux::trace::event("{ tpcall(\"%s\", %ld)", svc, ilen);
-  int rc = fux::atmi::exception_boundary(
-      [&] {
-        fux::suspend_guard g(!(flags & TPNOTRAN));
-        int cd = getclient().tpacall_group(-1, svc, idata, ilen, flags);
-        if (cd == -1) {
-          return -1;
-        }
-        return getclient().tpgetrply(&cd, odata, olen, flags);
-      },
-      -1);
+  int rc = 0;
+  if (fux::ws::ws_naddr() != nullptr) {
+    rc = fux::atmi::exception_boundary(
+        [&] {
+          int cd = fux::ws::get_wsconn().tpacall(svc, idata, ilen, flags);
+          if (cd == -1 || (flags & TPNOREPLY)) {
+            return cd == -1 ? -1 : 0;
+          }
+          return fux::ws::get_wsconn().tpgetrply(&cd, odata, olen, flags);
+        },
+        -1);
+  } else {
+    rc = fux::atmi::exception_boundary(
+        [&] {
+          fux::suspend_guard g(!(flags & TPNOTRAN));
+          int cd = getclient().tpacall_group(-1, svc, idata, ilen, flags);
+          if (cd == -1) {
+            return -1;
+          }
+          return getclient().tpgetrply(&cd, odata, olen, flags);
+        },
+        -1);
+  }
   fux::trace::event("} tpcall = %d", rc);
   return rc;
 }

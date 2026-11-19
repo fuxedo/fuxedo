@@ -35,12 +35,22 @@ class wsconn {
   int tpsblktime(int blktime, long flags);
   int tpgblktime(long flags);
 
+  // Workstation transactions: the connection carries the transaction and
+  // the WSL drives the two-phase commit domain-side (the client runs no
+  // XA). tpbegin/tpcommit/tpabort are synchronous control exchanges.
+  int tpbegin(unsigned long timeout, long flags);
+  int tpcommit(long flags);
+  int tpabort(long flags);
+  bool in_tx() const { return !tx_.empty(); }
+
  private:
   bool send_frame(fux::link::frame_type type, std::vector<char> payload);
   bool recv_frame(fux::link::frame_type *type, std::vector<char> *payload,
                   long deadline_ms);
   bool wait_ssl(int rc, long deadline_ms);
   long next_blocktime();
+  int tx_rpc(uint16_t op, const std::string &xid, unsigned long timeout,
+             std::string *reply_xid);
 
   int fd_ = -1;
   SSL *ssl_ = nullptr;
@@ -50,6 +60,9 @@ class wsconn {
   uint32_t next_cd_ = 1;
   long blocktime_next_ = 0;
   long blocktime_all_ = 0;
+  // the current transaction (dotted xid issued by the WSL), empty when
+  // the connection is not in a transaction
+  std::string tx_;
   // replies that arrived for descriptors nobody waited on yet
   std::map<uint32_t, std::vector<char>> buffered_;
 };

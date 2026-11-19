@@ -29,7 +29,7 @@ IPCKEY {ipckey}
 "{host}" LMID=tuxapp APPDIR="{dir}" TUXCONFIG="{dir}/tuxconfig" TUXDIR="{tuxdir}"
 
 *GROUPS
-APP LMID=tuxapp GRPNO=1
+APP LMID=tuxapp GRPNO=1 TMSNAME=TMS TMSCOUNT=2
 WS  LMID=tuxapp GRPNO=3
 
 *SERVERS
@@ -54,7 +54,9 @@ class Server:
         pass
 
     def PING(self, args):
-        return t.tpreturn(t.TPSUCCESS, 7, b"PONG")
+        # rcode carries the transaction level so the caller can verify
+        # the call ran inside its transaction
+        return t.tpreturn(t.TPSUCCESS, 7 + t.tpgetlev(), b"PONG")
 
 
 if __name__ == "__main__":
@@ -72,9 +74,36 @@ assert out.rcode == 7, out.rcode
 # a second call exercises reply correlation on a warm link
 out = t.tpcall("PING", b"again")
 assert out.data == b"PONG", out.data
+
+# workstation transactions: begin on the connection, the WSL drives
+# the two-phase commit domain-side
+t.tpbegin(30, 0)
+assert t.tpgetlev() == 1, t.tpgetlev()
+out = t.tpcall("PING", b"tx")
+assert out.data == b"PONG", out.data
+assert out.rcode == 8, out.rcode
+t.tpcommit(0)
+assert t.tpgetlev() == 0, t.tpgetlev()
+out = t.tpcall("PING", b"after")
+assert out.rcode == 7, out.rcode
+
+# abort path
+t.tpbegin(30, 0)
+t.tpcall("PING", b"tx2")
+t.tpabort(0)
+assert t.tpgetlev() == 0, t.tpgetlev()
+
+# nested begin and commit-without-begin are protocol errors
+t.tpbegin(30, 0)
 try:
     t.tpbegin(30, 0)
-    raise AssertionError("tpbegin must be refused over workstation links")
+    raise AssertionError("nested tpbegin must fail")
+except t.XatmiException as e:
+    assert e.code == t.TPEPROTO, e.code
+t.tpabort(0)
+try:
+    t.tpcommit(0)
+    raise AssertionError("tpcommit without begin must fail")
 except t.XatmiException as e:
     assert e.code == t.TPEPROTO, e.code
 t.tpterm()

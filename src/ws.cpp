@@ -26,6 +26,11 @@ namespace {
 
 using steady = std::chrono::steady_clock;
 
+// transaction control operations on the wire
+constexpr uint16_t kTxBegin = 0;
+constexpr uint16_t kTxCommit = 1;
+constexpr uint16_t kTxAbort = 2;
+
 bool split_nwaddr(const std::string &naddr, std::string &host, uint16_t &port) {
   // Oracle allows a comma-separated list and a // prefix; v1 takes the
   // first address
@@ -312,10 +317,7 @@ int wsconn::tpacall(const char *svc, char *data, long len, long flags) {
   if (ssl_ == nullptr && login(nullptr, nullptr, nullptr, nullptr) == -1) {
     return -1;
   }
-  if (fux::tx::transactional()) {
-    TPERROR(TPEPROTO, "transactions are not supported over workstation links");
-    return -1;
-  }
+  bool intx = in_tx() && !(flags & TPNOTRAN);
   if (data != nullptr && tptypes(data, nullptr, nullptr) == -1) {
     return -1;
   }
@@ -349,13 +351,128 @@ int wsconn::tpacall(const char *svc, char *data, long len, long flags) {
   fux::wire::writer w(payload);
   w.str(svc != nullptr ? svc : "");
   w.u32(cd);
-  w.u32(static_cast<uint32_t>(flags & (TPNOTRAN | TPNOREPLY)));
+  w.u32(static_cast<uint32_t>((flags & (TPNOTRAN | TPNOREPLY)) |
+                                (intx ? TPTRAN : 0)));
   w.bytes(wire.data(), wire.size());
+  w.str(intx ? tx_ : "");
   if (!send_frame(fux::link::request, std::move(payload))) {
     return -1;
   }
   fux::atmi::reset_tperrno();
   return static_cast<int>(cd);
+}
+
+// Send a transaction control frame and wait for its ack; reply frames
+// that arrive in between are buffered for tpgetrply. Returns the rval
+// from the ack (0 on success) with tperrno set on wire errors.
+int wsconn::tx_rpc(uint16_t op, const std::string &xid, unsigned long timeout,
+                   std::string *reply_xid) {
+  std::vector<char> payload;
+  fux::wire::writer w(payload);
+  w.u16(op);
+  w.u32(static_cast<uint32_t>(timeout));
+  w.str(xid);
+  if (!send_frame(fux::link::txctl, std::move(payload))) {
+    return -1;
+  }
+  long deadline = next_blocktime();
+  while (true) {
+    fux::link::frame_type type;
+    std::vector<char> reply;
+    if (!recv_frame(&type, &reply, deadline)) {
+      return -1;
+    }
+    if (type == fux::link::txctl) {
+      fux::wire::reader r(reply);
+      uint32_t rval = 0;
+      if (!r.u32(rval)) {
+        TPERROR(TPESYSTEM, "bad transaction reply from WSL");
+        return -1;
+      }
+      if (reply_xid != nullptr) {
+        r.str(*reply_xid);
+      }
+      return static_cast<int>(rval);
+    }
+    if (type == fux::link::reply) {
+      // a late service reply: keep it for tpgetrply
+      fux::wire::reader r(reply);
+      uint32_t rcvd = 0;
+      if (r.u32(rcvd)) {
+        buffered_[rcvd] = std::move(reply);
+      }
+      continue;
+    }
+  }
+}
+
+int wsconn::tpbegin(unsigned long timeout, long flags) {
+  if (ssl_ == nullptr && login(nullptr, nullptr, nullptr, nullptr) == -1) {
+    return -1;
+  }
+  if (in_tx()) {
+    TPERROR(TPEPROTO, "tpbegin() called in transaction");
+    return -1;
+  }
+  if (flags != 0) {
+    TPERROR(TPEINVAL, "flags!=0");
+    return -1;
+  }
+  std::string xid;
+  int rval = tx_rpc(kTxBegin, "", timeout, &xid);
+  if (rval != 0) {
+    if (tperrno == 0 || tperrno == TPMINVAL) {
+      TPERROR(rval, "tpbegin refused by WSL");
+    }
+    return -1;
+  }
+  tx_ = std::move(xid);
+  fux::atmi::reset_tperrno();
+  return 0;
+}
+
+int wsconn::tpcommit(long flags) {
+  if (flags != 0) {
+    TPERROR(TPEINVAL, "flags!=0");
+    return -1;
+  }
+  if (!in_tx()) {
+    TPERROR(TPEPROTO, "tpcommit() without a transaction");
+    return -1;
+  }
+  std::string xid = tx_;
+  int rval = tx_rpc(kTxCommit, xid, 0, nullptr);
+  tx_.clear();
+  if (rval != 0) {
+    if (tperrno == 0 || tperrno == TPMINVAL) {
+      TPERROR(rval, "transaction was rolled back");
+    }
+    return -1;
+  }
+  fux::atmi::reset_tperrno();
+  return 0;
+}
+
+int wsconn::tpabort(long flags) {
+  if (flags != 0) {
+    TPERROR(TPEINVAL, "flags!=0");
+    return -1;
+  }
+  if (!in_tx()) {
+    TPERROR(TPEPROTO, "tpabort() without a transaction");
+    return -1;
+  }
+  std::string xid = tx_;
+  int rval = tx_rpc(kTxAbort, xid, 0, nullptr);
+  tx_.clear();
+  if (rval != 0) {
+    if (tperrno == 0 || tperrno == TPMINVAL) {
+      TPERROR(rval, "tpabort failed");
+    }
+    return -1;
+  }
+  fux::atmi::reset_tperrno();
+  return 0;
 }
 
 int wsconn::tpgetrply(int *cd, char **data, long *len, long flags) {

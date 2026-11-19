@@ -37,6 +37,7 @@
 #include "fux.h"
 #include "mib.h"
 #include "misc.h"
+#include "trx.h"
 #include "wire.h"
 
 extern "C" {
@@ -52,12 +53,21 @@ struct wslink {
   std::unique_ptr<client> cl;
   std::string cltname;
   std::set<int> pending;  // outstanding reply descriptors
+  // the connection's current transaction (dotted xid, empty when none);
+  // this process is the transaction's agent inside the domain
+  std::string tx;
 };
 
 fux::link::engine eng;
 std::unique_ptr<fux::link::security> sec;
 std::map<int, wslink> links;
 steady::time_point now;
+size_t max_clients = 0;  // 0 = unlimited (WSL -x or machine MAXWSCLIENTS)
+
+// transaction control operations (mirrors the client's wire constants)
+constexpr uint16_t kTxBegin = 0;
+constexpr uint16_t kTxCommit = 1;
+constexpr uint16_t kTxAbort = 2;
 
 void send_frame(int fd, fux::link::frame_type type, std::vector<char> payload) {
   eng.queue(fd, {type, std::move(payload)});
@@ -68,6 +78,18 @@ void on_accept(int fd) {
 }
 
 void on_close(int fd) {
+  auto it = links.find(fd);
+  if (it != links.end() && !it->second.tx.empty()) {
+    // the client went away mid-transaction: roll the branch back
+    try {
+      XID xid = fux::to_xid(it->second.tx);
+      fux::tm::coordinate(&xid, fux::tm::rollback);
+      auto &tbl = getmib().transactions();
+      tbl.end(tbl.find(xid));
+    } catch (const std::exception &e) {
+      userlog("WSL: client disconnect rollback failed: %s", e.what());
+    }
+  }
   links.erase(fd);
 }
 
@@ -123,6 +145,22 @@ void handle_login(int fd, fux::link::frame &f) {
   (void)usrname;
   (void)grpname;
   (void)passwd;  // SECURITY NONE: the identity is carried for later
+
+  size_t logged_in = 0;
+  for (auto &[fd, l] : links) {
+    if (l.cl != nullptr) {
+      logged_in++;
+    }
+  }
+  if (max_clients > 0 && logged_in >= max_clients) {
+    userlog("WSL: client limit %zu reached, refusing %s", max_clients,
+            cltname.c_str());
+    std::vector<char> ack;
+    fux::wire::writer w(ack);
+    w.u32(static_cast<uint32_t>(TPELIMIT));
+    send_frame(fd, fux::link::login, std::move(ack));
+    return;
+  }
 
   try {
     auto &l = links[fd];
@@ -187,11 +225,42 @@ void handle_request(int fd, fux::link::frame &f) {
   }
   ilen -= fux::mem::headersize();
 
-  long call_flags = TPNOTRAN;
+  // transactional requests carry the connection's transaction id after
+  // the payload; links that predate workstation transactions omit it
+  std::string gtrid;
+  r.str(gtrid);
+  bool intx = (flags & TPTRAN) != 0;
+  if (intx && gtrid != l.tx) {
+    // a client may only run the transaction it began on this connection
+    userlog("WSL: transactional request for %s refused (%s)", svc.c_str(),
+            gtrid.empty() ? "no transaction id"
+                          : "unknown transaction for this connection");
+    tpfree(buf);
+    refuse(TPEABORT);
+    return;
+  }
+
+  long call_flags = intx ? 0 : TPNOTRAN;
   if (flags & TPNOREPLY) {
     call_flags |= TPNOREPLY;
   }
+  if (intx) {
+    try {
+      fux::tx_adopt(fux::to_xid(gtrid));
+      userlog("WSL: %s runs in transaction %s (level %d)", svc.c_str(),
+              gtrid.c_str(), fux::tx::transactional() ? 1 : 0);
+    } catch (const std::exception &e) {
+      tpfree(buf);
+      userlog("WSL: cannot adopt transaction for %s: %s", svc.c_str(),
+              e.what());
+      refuse(TPEABORT);
+      return;
+    }
+  }
   int rcd = l.cl->tpacall_group(-1, svc.c_str(), buf, ilen, call_flags);
+  if (intx) {
+    fux::tx_detach();
+  }
   if (rcd == -1) {
     tpfree(buf);
     refuse(tperrno);
@@ -203,6 +272,108 @@ void handle_request(int fd, fux::link::frame &f) {
   }
 }
 
+// The connection's transaction agent: begin creates a domain
+// transaction on the client's behalf, commit drives the full two-phase
+// sequence, abort rolls back. Replies reuse the txctl frame:
+// u32 rval, then the dotted xid for begin.
+void handle_txctl(int fd, fux::link::frame &f) {
+  auto it = links.find(fd);
+  if (it == links.end() || it->second.cl == nullptr) {
+    eng.cut(fd);
+    return;
+  }
+  auto &l = it->second;
+  fux::wire::reader r(f.payload);
+  uint16_t op;
+  uint32_t timeout;
+  std::string xids;
+  if (!r.u16(op) || !r.u32(timeout) || !r.str(xids)) {
+    eng.cut(fd);
+    return;
+  }
+  (void)timeout;
+
+  auto ack = [&](uint32_t rval, const std::string &xid) {
+    std::vector<char> payload;
+    fux::wire::writer w(payload);
+    w.u32(rval);
+    w.str(xid);
+    send_frame(fd, fux::link::txctl, std::move(payload));
+  };
+
+  if (op == kTxBegin) {
+    if (!l.tx.empty()) {
+      ack(TPEPROTO, "");
+      return;
+    }
+    // the client runs no XA: this process originates the transaction
+    // and remembers it per connection
+    XID xid = {};
+    xid.formatID = 1;
+    auto id = getmib().genuid();
+    xid.gtrid_length = sizeof(id);
+    xid.bqual_length = 1;
+    std::copy_n(reinterpret_cast<char *>(&id), sizeof(id), xid.data);
+    xid.data[xid.gtrid_length] = 0;
+    try {
+      getmib().transactions().start(xid);
+    } catch (const std::exception &e) {
+      userlog("WSL: cannot start transaction: %s", e.what());
+      ack(TPESYSTEM, "");
+      return;
+    }
+    l.tx = fux::to_string(&xid);
+    ack(0, l.tx);
+    return;
+  }
+
+  if (xids != l.tx) {
+    ack(TPEPROTO, "");
+    return;
+  }
+  XID xid;
+  try {
+    xid = fux::to_xid(xids);
+  } catch (const std::exception &) {
+    l.tx.clear();
+    ack(TPEPROTO, "");
+    return;
+  }
+
+  if (op == kTxCommit) {
+    bool committed = false;
+    try {
+      committed = fux::tm::drive(&xid);
+    } catch (const std::exception &e) {
+      userlog("WSL: transaction drive failed: %s", e.what());
+    }
+    try {
+      auto &tbl = getmib().transactions();
+      tbl.end(tbl.find(xid));
+    } catch (const std::exception &) {
+    }
+    l.tx.clear();
+    ack(committed ? 0 : TPEABORT, "");
+    return;
+  }
+  if (op == kTxAbort) {
+    try {
+      fux::tm::coordinate(&xid, fux::tm::rollback);
+    } catch (const std::exception &e) {
+      userlog("WSL: rollback failed: %s", e.what());
+    }
+    try {
+      auto &tbl = getmib().transactions();
+      tbl.end(tbl.find(xid));
+    } catch (const std::exception &) {
+    }
+    l.tx.clear();
+    ack(0, "");
+    return;
+  }
+  ack(TPEINVAL, "");
+}
+
 void on_frame(int fd, fux::link::frame f) {
   switch (f.type) {
     case fux::link::login:
@@ -210,6 +381,9 @@ void on_frame(int fd, fux::link::frame f) {
       break;
     case fux::link::request:
       handle_request(fd, f);
+      break;
+    case fux::link::txctl:
+      handle_txctl(fd, f);
       break;
     default:
       break;
@@ -289,6 +463,8 @@ int tpsvrinit(int argc, char *argv[]) {
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "-n") == 0 && i + 1 < argc) {
       naddr = argv[++i];
+    } else if (strcmp(argv[i], "-x") == 0 && i + 1 < argc) {
+      max_clients = std::stoul(argv[++i]);
     }
   }
   if (naddr.empty()) {

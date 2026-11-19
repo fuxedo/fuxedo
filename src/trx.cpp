@@ -50,9 +50,7 @@ int tpclose() {
 
 int tpbegin(unsigned long timeout, long flags) {
   if (fux::ws::ws_naddr() != nullptr) {
-    TPERROR(TPEPROTO,
-            "transactions are not supported over workstation links");
-    return -1;
+    return fux::ws::get_wsconn().tpbegin(timeout, flags);
   }
   if (flags != 0) {
     TPERROR(TPEINVAL, "flags!=0");
@@ -82,6 +80,9 @@ int tpbegin(unsigned long timeout, long flags) {
 }
 
 int tpgetlev() {
+  if (fux::ws::ws_naddr() != nullptr) {
+    return fux::ws::get_wsconn().in_tx() ? 1 : 0;
+  }
   int rc = tx_info(nullptr);
 
   if (rc == 0 || rc == 1) {
@@ -116,9 +117,7 @@ static int trx_err(int rc, const char *func) {
 
 int tpabort(long flags) {
   if (fux::ws::ws_naddr() != nullptr) {
-    TPERROR(TPEPROTO,
-            "transactions are not supported over workstation links");
-    return -1;
+    return fux::ws::get_wsconn().tpabort(flags);
   }
   if (flags != 0) {
     TPERROR(TPEINVAL, "flags!=0");
@@ -142,9 +141,7 @@ int tpabort(long flags) {
 
 int tpcommit(long flags) {
   if (fux::ws::ws_naddr() != nullptr) {
-    TPERROR(TPEPROTO,
-            "transactions are not supported over workstation links");
-    return -1;
+    return fux::ws::get_wsconn().tpcommit(flags);
   }
   if (flags != 0) {
     TPERROR(TPEINVAL, "flags!=0");

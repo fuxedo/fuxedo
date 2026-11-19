@@ -36,6 +36,8 @@ namespace fs = std::experimental::filesystem;
 static void do_help() {
   std::cout << "help (h) [{command | all}]" << std::endl;
   std::cout << "printservice (psc) [service]" << std::endl;
+  std::cout << "chgserver -g grpname -i srvid MAXGEN=n GRACE=n RESTART=y|n"
+            << std::endl;
   std::cout << "printtrans (pt)" << std::endl;
   std::cout << "printqueue (pq) [qaddress]" << std::endl;
   std::cout << "printserver (psr) [-m machine] [-g groupname [-R rmid]] [-i "
@@ -60,6 +62,7 @@ struct target_opts {
   std::string grpname;
   int srvid = -1;
   std::vector<std::string> positional;
+  std::vector<std::pair<std::string, std::string>> kv;
 };
 
 static target_opts parse_targets(const std::string &args) {
@@ -75,7 +78,12 @@ static target_opts parse_targets(const std::string &args) {
       std::string m;
       in >> m;  // accepted for changetrace compatibility, ignored here
     } else {
-      t.positional.push_back(word);
+      auto eq = word.find('=');
+      if (eq != std::string::npos) {
+        t.kv.emplace_back(word.substr(0, eq), word.substr(eq + 1));
+      } else {
+        t.positional.push_back(word);
+      }
     }
   }
   return t;
@@ -142,6 +150,55 @@ static void do_advertise(const std::string &args, bool advertise) {
           t.positional[0].c_str(), t.grpname.c_str(), server.srvid);
   std::cout << "\tService " << t.positional[0]
             << (advertise ? " advertised" : " unadvertised") << std::endl;
+}
+
+static void do_chgserver(const std::string &args) {
+  target_opts t = parse_targets(args);
+  if (t.grpname.empty() || t.srvid == -1) {
+    std::cerr << "chgserver: -g group and -i srvid are required"
+              << std::endl;
+    return;
+  }
+  mib &m = require_bb();
+  size_t srv = find_target_server(m, t);
+  auto &server = m.servers().at(srv);
+  if (server.state != state_t::ACTive || !alive(server.pid)) {
+    std::cerr << "chgserver: server is not active" << std::endl;
+    return;
+  }
+  bool changed = false;
+  for (auto &kv : t.kv) {
+    auto key = kv.first;
+    std::transform(key.begin(), key.end(), key.begin(), ::toupper);
+    try {
+      if (key == "MAXGEN") {
+        auto v = std::stoul(kv.second);
+        if (v == 0 || v > 255) {
+          std::cerr << "chgserver: MAXGEN must be 1..255" << std::endl;
+          continue;
+        }
+        server.maxgen = static_cast<uint16_t>(v);
+      } else if (key == "GRACE") {
+        server.grace = std::stol(kv.second);
+      } else if (key == "RESTART") {
+        auto v = kv.second;
+        std::transform(v.begin(), v.end(), v.begin(), ::toupper);
+        server.restart = (v == "Y" || v == "YES");
+      } else {
+        std::cerr << "chgserver: unknown field " << kv.first
+                  << " (MAXGEN, GRACE, RESTART)" << std::endl;
+        continue;
+      }
+      changed = true;
+      userlog("chgserver -g %s -i %d: %s=%s", t.grpname.c_str(),
+              server.srvid, key.c_str(), kv.second.c_str());
+      std::cout << "\t" << key << " = " << kv.second << std::endl;
+    } catch (const std::exception &e) {
+      std::cerr << "chgserver: " << kv.first << ": " << e.what()
+                << std::endl;
+    }
+  }
+  (void)changed;
 }
 
 static void do_suspend(const std::string &args, bool suspend) {
@@ -552,6 +609,10 @@ int main(int argc, char *argv[]) {
         } else if (line.rfind("adv", 0) == 0) {
           if (!refuse_readonly("adv")) {
             do_advertise(line.substr(strlen("adv")), true);
+          }
+        } else if (line.rfind("chgserver", 0) == 0) {
+          if (!refuse_readonly("chgserver")) {
+            do_chgserver(line.substr(strlen("chgserver")));
           }
         } else if (line.rfind("suspend", 0) == 0) {
           if (!refuse_readonly("suspend")) {

@@ -33,6 +33,8 @@ int main(int argc, char *argv[]) {
   bool noop = false;
   bool yes = false;
   bool count = false;
+  long noop_blocks = 0;
+  long noop_blocks2 = 0;
   std::string file;
 
   auto parser =
@@ -40,6 +42,12 @@ int main(int argc, char *argv[]) {
       clara::Opt(noop)["-n"]("perform syntax check, do not load") |
       clara::Opt(yes)["-y"]("answer Yes to all questions") |
       clara::Opt(count)["-c"]("print IPC resources needed for configuration") |
+      clara::Opt(noop_blocks, "blocks")["-b"](
+          "TUXCONFIG size in blocks (accepted for compatibility; the fuxedo "
+          "TUXCONFIG does not need preallocation)") |
+      clara::Opt(noop_blocks2, "blocks")["-w"](
+          "maximum blocks before prompting (accepted for compatibility; "
+          "ignored)") |
       clara::Arg(file, "ubbconfig")("configuration file to load").required();
 
   for (int i = 1; i < argc; i++) {

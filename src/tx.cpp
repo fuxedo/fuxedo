@@ -312,16 +312,29 @@ int tx_commit() {
     return rc;
   }
 
-  std::vector<branch> branches1 = collect(&info.xid);
+  // The classic two-phase sequence for the thread's transaction; agents
+  // (the workstation listener) drive other transactions through
+  // fux::tm::drive() the same way.
+  if (fux::tm::drive(&info.xid)) {
+    return change_state(TX_OK);
+  }
+  return change_state(TX_FAIL);
+}
 
-  command(branches1, &info.xid, fux::tm::prepare);
+namespace fux::tm {
+// The full two-phase sequence for xid against every group that joined
+// it in the shared transaction table: prepare, decide, persist the
+// decision to the machine TLOG, run the second phase. Returns true when
+// committed, false when rolled back. Used by tx_commit and by
+// transaction agents such as the workstation listener.
+bool drive(const XID *xid) {
+  std::vector<branch> branches1 = collect(const_cast<XID *>(xid));
+  command(branches1, const_cast<XID *>(xid), fux::tm::prepare);
 
-  // Collect interested branches for the 2nd phase
   std::vector<branch> branches2;
   bool commit = true;
   for (auto &p : branches1) {
     if (p.result == XA_RDONLY) {
-      // Nothing to do
       continue;
     }
     if (p.result != XA_OK) {
@@ -331,18 +344,18 @@ int tx_commit() {
   }
 
   if (commit) {
-    persist_tlog(&info.xid, branches2);
+    persist_tlog(const_cast<XID *>(xid), branches2);
   }
 
   if (commit) {
-    command(branches2, &info.xid, fux::tm::commit);
-    clean_tlog(&info.xid);
-    return change_state(TX_OK);
+    command(branches2, const_cast<XID *>(xid), fux::tm::commit);
+    clean_tlog(const_cast<XID *>(xid));
   } else {
-    command(branches2, &info.xid, fux::tm::rollback);
-    return change_state(TX_FAIL);
+    command(branches2, const_cast<XID *>(xid), fux::tm::rollback);
   }
+  return commit;
 }
+}  // namespace fux::tm
 
 int tx_rollback() {
   TXINFO info;

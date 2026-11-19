@@ -126,6 +126,11 @@ int main(int argc, char *argv[]) {
   int srvid = -1;
   bool admin_only = false;
   bool tms_only = false;
+  bool noop_wait = false;
+  bool noop_pause = false;
+  long noop_seq = 0;
+  long noop_minsrvs = 0;
+  std::string errcmd;
 
   /*
   Usage: tmboot [-w(ait)] [-n(oexec)] [-q(uiet)] [-y] [-c(heck)] [-d1]
@@ -142,6 +147,17 @@ int main(int argc, char *argv[]) {
       clara::Opt(admin_only)["-A"](
           "boot only administrative servers (BBL, GWADM, DMADM)") |
       clara::Opt(tms_only)["-S"]("boot only the TMS servers") |
+      clara::Opt(errcmd, "errcmd")["-e"](
+          "command to run when a server fails to boot") |
+      clara::Opt(noop_seq, "sequence")["-o"](
+          "boot sequence number (accepted for compatibility; ignored)") |
+      clara::Opt(noop_minsrvs, "minsrvs")["-m"](
+          "minimum servers to boot (accepted for compatibility; ignored)") |
+      clara::Opt(noop_wait)["-w"](
+          "wait for the boot to complete (default behavior; accepted)") |
+      clara::Opt(noop_pause)["-p"](
+          "pause between server boots (accepted for compatibility; "
+          "ignored)") |
       clara::Opt(dlevel, "debug level")["-d"](
           "causes command line options to be printed on the standard output") |
       clara::Opt(srvid, "srvid")["-i"]("server's SRVID in TUXCONFIG") |
@@ -244,7 +260,15 @@ int main(int argc, char *argv[]) {
     // 22.x tmboot exits non-zero when any server initialization failed;
     // 12.x exits 0 either way
     if (fux::compat::is221 && any_failed) {
+      if (!errcmd.empty()) {
+        if (system(errcmd.c_str()) == -1) {
+        }
+      }
       return 1;
+    }
+    if (!fux::compat::is221 && any_failed && !errcmd.empty()) {
+      if (system(errcmd.c_str()) == -1) {
+      }
     }
   } catch (const std::exception &e) {
     std::cerr << e.what() << std::endl;

@@ -16,7 +16,9 @@ tests skip there like the other fuxedo-only tests.
 """
 
 import os
+import pathlib
 import socket
+import struct
 import subprocess
 import sys
 import time
@@ -35,19 +37,22 @@ MODEL SHM
 IPCKEY {ipckey}
 
 *MACHINES
-"{host}" LMID=tuxapp APPDIR="{dir}" TUXCONFIG="{dir}/tuxconfig" TUXDIR="{tuxdir}"
+"{host}" LMID=tuxapp APPDIR="{dir}" TUXCONFIG="{dir}/tuxconfig" TUXDIR="{tuxdir}" {tlogdev}
 
 *GROUPS
 GW1 LMID=tuxapp GRPNO=1
 APP LMID=tuxapp GRPNO=2 TMSNAME=TMS TMSCOUNT=2
-
+{qm_group}
 *SERVERS
 GWADM SRVGRP=GW1 SRVID=1 CLOPT="-- "
 GWTDOMAIN SRVGRP=GW1 SRVID=10 CLOPT="-- "
 "appserver.py" SRVGRP=APP SRVID=1 MIN=1 MAX=1
-
+{qm_server}
 *SERVICES
 """
+
+QM_GROUP = 'QM1 LMID=tuxapp GRPNO=3 TMSNAME=TMSQM TMSCOUNT=2\n\tOPENINFO="TUXEDO/QM:{dir}/QS:QSPACE"'
+QM_SERVER = 'TMQUEUE SRVGRP=QM1 SRVID=1 CLOPT="-s QSPACE:TMQUEUE -- "'
 
 DMCONFIG = """*DM_LOCAL_DOMAINS
 {name} TYPE=TDOMAIN ACCESSPOINTID="{apid}" GWGRP=GW1 CONNECTION_POLICY=ON_STARTUP DMTLOGDEV="{dmtlog}" DMTLOGNAME="DMTLOG_DOM" DMTLOGSIZE=100
@@ -109,6 +114,17 @@ else:
 print("transaction", sys.argv[4], "ok")
 """
 
+TXQCLIENT = """
+import sys
+import tuxedo as t
+t.tpbegin(30, 0)
+t.tpenqueue("QSPACE", "STRING", t.TPQCTL(), "tx-payload")
+out = t.tpcall(sys.argv[1], sys.argv[2].encode())
+assert out.data == sys.argv[3].encode(), (out.data, sys.argv[3])
+t.tpcommit(0)
+print("commit ok")
+"""
+
 
 def ipcrm_key(ipckey):
     # scratch wipes the old tuxconfig before the scrub can use it, and a
@@ -126,9 +142,12 @@ def ipcrm_key(ipckey):
 
 
 def domain(dir, ipckey, port, name, apid, remote, rapid, rport, export,
-           imp, fn):
+           imp, fn, qm=False, tlog=False):
     ubb = UBB.format(ipckey=ipckey, host=socket.gethostname(), dir=dir,
-                     tuxdir=os.environ["TUXDIR"])
+                     tuxdir=os.environ["TUXDIR"],
+                     tlogdev='TLOGDEVICE="{}/TLOG"'.format(dir) if tlog else "",
+                     qm_group=QM_GROUP.format(dir=dir) if qm else "",
+                     qm_server=QM_SERVER if qm else "")
     dm = DMCONFIG.format(name=name, apid=apid, remote=remote, rapid=rapid,
                          port=port, rport=rport, export=export,
                          imp=imp, dmtlog=dir / "DMTLOG")
@@ -150,6 +169,17 @@ def domain(dir, ipckey, port, name, apid, remote, rapid, rport, export,
     run(["tmipcrm", "-y"], env=env, cwd=dir, expect=-1)
     # the DMTLOG device must exist before dmloadcf validates it
     run(["crdl", dir / "DMTLOG"], env=env, cwd=dir)
+    if tlog:
+        run(["crdl", dir / "TLOG"], env=env, cwd=dir)
+    if qm:
+        run(["buildtms", "-o", "TMSQM", "-r", "TUXEDO/QM"], env=env,
+            cwd=dir)
+        (dir / "QS").mkdir(exist_ok=True)
+        run(["qmadmin"],
+            input="qspacecreate QSPACE 47695 100 6 4 9 3 errque n 16\n"
+                  "qopen QSPACE\n"
+                  "qcreate STRING fifo none 2 30 80% 0% -\n",
+            env={**env, "QMCONFIG": dir / "QS"}, cwd=dir)
     # dmloadcf cross-validates GWGRP against TUXCONFIG, so the
     # application configuration lands first; a stale board from a
     # crashed previous run can outlive its tuxconfig file (scratch
@@ -219,6 +249,101 @@ def test_two_domains_transaction():
             out = run([sys.executable, "-c", TXCLIENT, "TOLOWER", "HeLLo",
                        "hello", "abort"], env=env1, cwd=cwd)
             assert "abort ok" in out.stdout, out
+        finally:
+            run(["tmshutdown", "-y"], env=env1, cwd=dir1, expect=None)
+            run(["tmshutdown", "-y"], env=env2, cwd=dir2, expect=None)
+
+
+def server_pids(dir, name):
+    # fuxedo servers carry no appdir in their cmdline; identify them by
+    # working directory (booted servers run with cwd=appdir)
+    out = []
+    for proc in pathlib.Path("/proc").iterdir():
+        if not proc.name.isdigit():
+            continue
+        try:
+            cmd = pathlib.Path(proc / "cmdline").read_bytes().split(b"\0")[0]
+            cwd = os.readlink(proc / "cwd")
+        except (PermissionError, FileNotFoundError, OSError):
+            continue
+        if cwd == str(dir) and pathlib.Path(cmd.decode()).name == name:
+            out.append(int(proc.name))
+    return out
+
+
+def kill_server(dir, name):
+    for pid in server_pids(dir, name):
+        os.kill(pid, 9)
+
+
+def seed_prepared(device, name, gtrid_raw):
+    # write a PREPARED record the way a crash would leave it: meta
+    # pointing at page 0, one record slot [type=4][len][gtrid bytes]
+    logdir = pathlib.Path(device) / name
+    logdir.mkdir(parents=True, exist_ok=True)
+    (logdir / ".tlog").write_bytes(struct.pack("<8sQQQ", b"FUXTLOG1", 0, 100, 0))
+    page = bytearray(512)
+    page[0] = 4
+    page[1] = len(gtrid_raw)
+    page[2:2 + len(gtrid_raw)] = gtrid_raw
+    (logdir / "00000000.page").write_bytes(page)
+
+
+def tlog_has(device, name, rtype, gtrid_raw):
+    logdir = pathlib.Path(device) / name
+    for page in sorted(logdir.glob("*.page")):
+        data = page.read_bytes()
+        pos = 0
+        while pos + 2 <= len(data):
+            t, ln = data[pos], data[pos + 1]
+            if t == 0 or ln == 0 or pos + 2 + ln > len(data):
+                break
+            if t == rtype and data[pos + 2:pos + 2 + ln] == gtrid_raw:
+                return True
+            pos += 2 + ln
+    return False
+
+
+def last_gtrid(ulogdir):
+    import re
+    gtrids = []
+    for ulog in pathlib.Path(ulogdir).glob("ULOG.*"):
+        gtrids += re.findall(r"Calling TM in group \d+ for \d+\.([0-9a-f]+)\.",
+                             ulog.read_text())
+    assert gtrids, "no transaction id found in " + str(ulogdir)
+    return bytes.fromhex(gtrids[-1])
+
+
+def test_two_domains_crash_recovery():
+    base = 27101 + os.getpid() % 500
+    with scratch("dom1") as dir1, scratch("dom2") as dir2:
+        env1 = domain(dir1, 52111 + os.getpid() % 500, base,
+                      "DOM1", "AA.DOM1", "DOM2", "BB.DOM2", base + 1,
+                      "TOUPPER", "TOLOWER", "upper", qm=True, tlog=True)
+        env2 = domain(dir2, 52611 + os.getpid() % 500, base + 1,
+                      "DOM2", "BB.DOM2", "DOM1", "AA.DOM1", base,
+                      "TOLOWER", "TOUPPER", "lower")
+        try:
+            wait_for_link(env1, env2)
+            out = run([sys.executable, "-c", TXQCLIENT, "TOLOWER", "HeLLo",
+                       "hello"], env=env1, cwd=dir1)
+            assert "commit ok" in out.stdout, out
+            gtrid = last_gtrid(dir1)
+            # B crashed right after its prepare vote: plant the record
+            # a crash would have left, then restart B's gateway
+            seed_prepared(dir2 / "DMTLOG", "DMTLOG_DOM", gtrid)
+            kill_server(dir2, "GWTDOMAIN")
+            time.sleep(1)
+            run(["tmboot", "-s", "GWTDOMAIN", "-y"], env=env2, cwd=dir2)
+            # the rebooted gateway asks A for the decision at link-up;
+            # A's TLOG holds COMMIT, so B resolves the branch
+            deadline = time.time() + 45
+            while time.time() < deadline:
+                if tlog_has(dir2 / "DMTLOG", "DMTLOG_DOM", 1, gtrid):
+                    break
+                time.sleep(1)
+            assert tlog_has(dir2 / "DMTLOG", "DMTLOG_DOM", 1, gtrid), \
+                "in-doubt branch was not resolved with COMMIT"
         finally:
             run(["tmshutdown", "-y"], env=env1, cwd=dir1, expect=None)
             run(["tmshutdown", "-y"], env=env2, cwd=dir2, expect=None)
