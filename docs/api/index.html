@@ -117,6 +117,11 @@ both and behave the same.</li>
 implements the call and how it was verified.</li>
 </ul>
 
+<h2>Known 12.2 vs 22.1 differences</h2>
+<p>Most of the API behaves identically on Oracle Tuxedo 12.2 and 22.1.
+The functions below carry pinned behavioral differences; each page
+spells out what differs. fuxedo defaults to the 12.x behavior.</p>
+<li><a href="/api/Fboolev32/">Fboolev32</a>: The expression language and the NULL-argument error reporting differ between 12.2 and 22.1. On 12.2 a missing field in arithmetic counts as 0 (1+missing == 1); 22.1 yields 0 for the whole expression. On NULL fbfr or tree, 12.2 sets Ferror32 to FNOTFLD while 22.1 leaves it unset or sets FALIGNERR. Double-to-string comparisons format with %f on 12.2 ("1.000000") and %g on 22.1 ("1"), so '1.000000' == 1.0 is true on 12.2 and false on 22.1. Adjacent unary operators (!!x) are syntax errors on 22.1 only, and nested ~ evaluates once on 22.1 ( ~(~1) == -2 ) but as an involution on 12.2 ( == 1 ). String escapes: 12.2 decodes \6E as hex, 22.1 does not.
 <h2>Index</h2>
 <table>
 <tr><th>Function</th><th>What it does</th></tr>

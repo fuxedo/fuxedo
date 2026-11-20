@@ -120,10 +120,7 @@ surviving successful calls.</p>
 <p><strong>Timeout.</strong> A late reply that arrives after TPETIME is
 discarded by the client library on a later call; a warning may land in
 the application log (ULOG).</p>""",
-        "versions": "No behavioral differences observed between Oracle "
-                    "Tuxedo 12.2 and 22.1 for this call in our "
-                    "cross-checks; the error table above holds for both. "
-                    "Differences we do pin are listed per function.",
+        "versions": None,
         "example": ("tpcall.c", None),
         "see_also": ["tpacall", "tpgetrply", "tpbegin", "Fchg32"],
     },
@@ -179,8 +176,7 @@ would exceed the kernel per-message limit, and blocking payloads above
 500 bytes, spill to a /tmp file while only a small control message
 waits for space. With TPNOBLOCK the send fails with TPEBLOCK instead,
 without spilling.</p>""",
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("acall.c", "tpacall"),
         "see_also": ["tpcall", "tpgetrply", "tpcancel"],
     },
@@ -228,8 +224,7 @@ receives the reply length.</p>""",
 <p><strong>Scatter/gather.</strong> The usual high-throughput shape is
 a fixed window of tpacall()s with tpgetrply(TPGETANY): whenever a reply
 arrives, issue the next request so the window stays full.</p>""",
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("acall.c", "tpgetrply"),
         "see_also": ["tpacall", "tpcall", "tpcancel"],
     },
@@ -250,8 +245,7 @@ note it.</p>""",
             ("TPESYSTEM", "Platform failure."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("cancel.c", "tpcancel"),
         "see_also": ["tpacall", "tpgetrply"],
     },
@@ -285,8 +279,7 @@ receives an error reply (TPENOENT) instead of a normal result.</p>""",
 caller's transaction; the target service joins it like any participant.
 tpforward, not tpcall, is the right way to chain services within one
 transactional call.</p>""",
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("apisvr.c", "tpforward"),
         "see_also": ["tpcall", "tpreturn"],
     },
@@ -322,8 +315,7 @@ application requires it.</p>""",
 <p><strong>Servers.</strong> Server processes do not call tpinit(); the
 main delivered by buildserver() handles the attach and calls
 tpsvrinit() instead.</p>""",
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("session.c", "tpinit"),
         "see_also": ["tpterm", "tpcall"],
     },
@@ -342,8 +334,7 @@ attachment to be reaped by the bulletin board.</p>""",
             ("TPESYSTEM", "Platform failure while detaching."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("session.c", "tpterm"),
         "see_also": ["tpinit"],
     },
@@ -373,8 +364,7 @@ and ignored for VIEW32 (the view definition decides).</p>""",
                                  "including allocation failure."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("buffers.c", "tpalloc"),
         "see_also": ["tpfree", "tptypes", "Fchg32"],
     },
@@ -391,8 +381,7 @@ must be freed exactly once.</p>""",
         "flags": None,
         "errors": [],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("buffers.c", "tpfree"),
         "see_also": ["tpalloc", "tptypes"],
     },
@@ -415,8 +404,7 @@ units, or -1 with tperrno set on error.</p>""",
             ("TPEINVAL", "ptr is not a typed buffer."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("buffers.c", "tptypes"),
         "see_also": ["tpalloc", "tpfree"],
     },
@@ -447,8 +435,7 @@ moment you need runtime decisions.</p>""",
 <p>Returning -1 makes the server exit and, with RESTART=Y, the bulletin
 board reincarnates it per MAXGEN, so a persistent boot failure shows up
 as repeated shutdown/restart cycles in the log.</p>""",
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("advsvr.c", "tpsvrinit"),
         "see_also": ["tpadvertise", "tpsvrdone", "tpreturn"],
     },
@@ -465,8 +452,7 @@ return; the server exits after the hook.</p>""",
         "flags": None,
         "errors": [],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("advsvr.c", "tpsvrdone"),
         "see_also": ["tpsvrinit", "tpunadvertise"],
     },
@@ -488,8 +474,7 @@ thread, which then exits and is not replaced.</p>""",
         "notes": """
 <p>With MINDISPATCHTHREADS unset the server is single-threaded and this
 hook is not called.</p>""",
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("advsvr.c", "tpsvrthrinit"),
         "see_also": ["tpsvrthrdone", "tpsvrinit"],
     },
@@ -505,8 +490,7 @@ there.</p>""",
         "flags": None,
         "errors": [],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("advsvr.c", "tpsvrthrdone"),
         "see_also": ["tpsvrthrinit"],
     },
@@ -540,8 +524,7 @@ down after the reply, which is how a service asks for a restart.</p>""",
 <p>A service that falls off the end without calling tpreturn() is an
 error path; always end services with tpreturn() or
 <code>tpforward()</code>.</p>""",
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("advsvr.c", "tpreturn"),
         "see_also": ["tpforward", "tpsvrinit"],
     },
@@ -568,8 +551,7 @@ to a different implementation.</p>""",
             ("TPESYSTEM", "Platform failure."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("advsvr.c", "tpadvertise"),
         "see_also": ["tpunadvertise", "tpadvertisex", "tpsvrinit"],
     },
@@ -598,8 +580,7 @@ across threads and queues.</p>""",
             ("TPESYSTEM", "Platform failure."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("advsvr.c", "tpadvertisex"),
         "see_also": ["tpadvertise", "tpunadvertise"],
     },
@@ -618,8 +599,7 @@ server advertises it; requests already queued are still delivered.</p>""",
             ("TPEINVAL", "Invalid name."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("advsvr.c", "tpunadvertise"),
         "see_also": ["tpadvertise", "tpsvrdone"],
     },
@@ -646,7 +626,10 @@ occurrences where a call accepts it.</p>
 <p>In ATMI programs the buffers come from <code>tpalloc("FML32", ...)</code>
 and are released with <code>tpfree()</code>. Outside ATMI, libfml32
 allocates with <code>Falloc32()</code>/<code>Ffree32()</code> and
-resizes with <code>Fresize32()</code>.</p>""",
+resizes with <code>Fresize32()</code>.</p>
+<p>Buffer internals such as field indexes may differ between
+implementations; the API semantics and the Ferror32 contract are
+identical. Projection and join calls are documented separately.</p>""",
         "args": [],
         "flags": None,
         "errors": [
@@ -656,10 +639,7 @@ resizes with <code>Fresize32()</code>.</p>""",
             ("FNOTFLD", "The pointer is not an FML32 buffer."),
         ],
         "notes": None,
-        "versions": "Buffer internals such as field indexes may differ "
-                    "between implementations; the API semantics and the "
-                    "Ferror32 contract are identical. Projection and "
-                    "join calls are documented separately.",
+        "versions": None,
         "example": ("fmldemo.c", None),
         "see_also": ["Fadd32", "Fchg32", "Fboolev32", "Fnext32"],
     },
@@ -687,8 +667,7 @@ the code later edits the same field.</p>""",
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("fmldemo.c", "Fadd32"),
         "see_also": ["Fchg32", "Fdel32", "Fnext32"],
     },
@@ -726,8 +705,7 @@ need nothing else for field writes.</p>""",
 <p>These three behaviors are demonstrated with runnable programs in
 <a href="https://aivarsk.com/2021/06/25/fchg32/">the Fchg32 post on
 the author's blog</a>.</p>""",
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("fmldemo.c", "Fchg32"),
         "see_also": ["Fadd32", "Fget32", "Fdel32"],
     },
@@ -755,8 +733,7 @@ when the occurrence does not exist.</p>""",
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("fmldemo.c", "Fget32"),
         "see_also": ["Fnext32", "Flen32", "Fchg32"],
     },
@@ -781,8 +758,7 @@ equivalent for a single occurrence.</p>""",
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("fmldemo.c", "Fdel32"),
         "see_also": ["Fchg32", "Fadd32"],
     },
@@ -814,8 +790,7 @@ to the buffer size before each call.</p>""",
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("fmldemo.c", "Fnext32"),
         "see_also": ["Fget32", "Fprint32"],
     },
@@ -835,8 +810,7 @@ round-tripping.</p>""",
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("fmldemo.c", "Fprint32"),
         "see_also": ["Ffprint32", "Fwrite32", "Fread32"],
     },
@@ -857,9 +831,8 @@ writing the readable text form to a log or a file.</p>""",
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
-        "example": ("fmldemo.c", None),
+        "versions": None,
+        "example": ("fmldemo.c", "Ffprint32"),
         "see_also": ["Fprint32", "Fboolpr32"],
     },
     "Fwrite32": {
@@ -881,9 +854,7 @@ persistence and interprocess format for fielded buffers.</p>""",
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
         "notes": None,
-        "versions": "The binary transfer form is private to the "
-                    "implementation; buffers are portable through the "
-                    "API, not the file.",
+        "versions": None,
         "example": ("fmldemo.c", "Fwrite32"),
         "see_also": ["Fread32", "Ffprint32"],
     },
@@ -906,7 +877,7 @@ fails with FNOSPACE.</p>""",
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
         "notes": None,
-        "versions": "See Fwrite32 for the portability note.",
+        "versions": None,
         "example": ("fmldemo.c", "Fread32"),
         "see_also": ["Fwrite32", "Fresize32"],
     },
@@ -932,8 +903,20 @@ tree.</p>""",
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": "The expression language and the NULL-argument "
+                    "error reporting differ between 12.2 and 22.1. On "
+                    "12.2 a missing field in arithmetic counts as 0 "
+                    "(1+missing == 1); 22.1 yields 0 for the whole "
+                    "expression. On NULL fbfr or tree, 12.2 sets "
+                    "Ferror32 to FNOTFLD while 22.1 leaves it unset or "
+                    "sets FALIGNERR. Double-to-string comparisons "
+                    "format with %f on 12.2 (\"1.000000\") and %g on "
+                    "22.1 (\"1\"), so '1.000000' == 1.0 is true on "
+                    "12.2 and false on 22.1. Adjacent unary operators "
+                    "(!!x) are syntax errors on 22.1 only, and nested ~ "
+                    "evaluates once on 22.1 ( ~(~1) == -2 ) but as an "
+                    "involution on 12.2 ( == 1 ). String escapes: 12.2 "
+                    "decodes \\6E as hex, 22.1 does not.",
         "example": ("fmldemo.c", "Fboolev32"),
         "see_also": ["Fboolpr32", "Fget32"],
     },
@@ -953,8 +936,7 @@ you debug a filter that does not do what you meant.</p>""",
         "flags": None,
         "errors": [],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("fmldemo.c", "Fboolpr32"),
         "see_also": ["Fboolev32"],
     },
@@ -975,8 +957,7 @@ for code that builds ids dynamically.</p>""",
         "flags": None,
         "errors": [],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("fmldemo.c", None),
         "see_also": ["Fadd32", "fml32"],
     },
@@ -996,8 +977,7 @@ buffer (or size a tpalloc) before Fadd32/Fchg32 fails with FNOSPACE.</p>""",
         "flags": None,
         "errors": [],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("fmldemo.c", "Fsizeof32"),
         "see_also": ["Fsizeof32", "Fadd32"],
     },
@@ -1015,8 +995,7 @@ Compare with Fneeded32() to decide when a resize is due.</p>""",
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("fmldemo.c", "Fsizeof32"),
         "see_also": ["Fneeded32", "Flen32"],
     },
@@ -1040,8 +1019,7 @@ fixed types. -1 with Ferror32 FNOTPRES when the occurrence is absent.</p>""",
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
         "notes": None,
-        "versions": "No differences observed between Oracle Tuxedo 12.2 "
-                    "and 22.1 in our cross-checks.",
+        "versions": None,
         "example": ("fmldemo.c", "Flen32"),
         "see_also": ["Fget32", "Fsizeof32"],
     },
@@ -1114,9 +1092,7 @@ TEMPLATE = """<!DOCTYPE html>
 {flags_section}
 {errors_section}
 {notes_section}
-<h2>12.2 vs 22.1</h2>
-<p>{versions}</p>
-
+{versions_section}
 <h2>Example</h2>
 <p class="example-file">Full source: <code>docs/api/examples/{example_file}</code>
 (build and run with <code>make -C docs/api/examples check
@@ -1154,15 +1130,11 @@ def section(title, rows, head):
 
 def load_example(fname, region):
     src = (EXAMPLES / fname).read_text().splitlines()
-    if region is None:
-        # single-purpose file: no markers, the whole program is the
-        # example
-        return "\n".join(html.escape(line) for line in src)
 
-    # marker lines are stripped from the output; the region they frame
-    # is highlighted instead. regions may nest; each region's span is
-    # its own marker pair, so the inner region lights up on its page
-    # and the outer one still covers it on its own page.
+    # marker lines never reach the HTML. For a single-purpose page
+    # (region None) they are simply stripped; for a shared file the
+    # named region's lines are highlighted instead. Regions may nest;
+    # each region's span is its own marker pair.
     out = []
     stack = []
     spans = {}
@@ -1175,16 +1147,18 @@ def load_example(fname, region):
             if not stack:
                 raise SystemExit(f"unbalanced // doc:end in {fname}")
             name, start = stack.pop()
-            if start == len(out):
-                raise SystemExit(f"region {name} is empty in {fname}")
             spans[name] = (start, len(out))
             continue
         out.append(html.escape(line))
     if stack:
         raise SystemExit(f"region {stack[-1][0]} not closed in {fname}")
+    if region is None:
+        return "\n".join(out)
     if region not in spans:
         raise SystemExit(f"region {region} not found in {fname}")
     start, end = spans[region]
+    if start == end:
+        raise SystemExit(f"region {region} is empty in {fname}")
     out[start] = '<span class="hl">' + out[start]
     out[end - 1] = out[end - 1] + '</span>'
     return "\n".join(out)
@@ -1221,6 +1195,10 @@ def render(name, entry):
     see = ", ".join(
         f'<a href="/api/{s}/">{s}</a>' if s in FUNCTIONS else s
         for s in entry["see_also"])
+    versions_section = ""
+    if entry.get("versions"):
+        versions_section = ("<h2>12.2 vs 22.1</h2>\n<p>"
+                            + entry["versions"] + "</p>\n")
     ex_file, ex_region = entry["example"]
     example_note = ("the lines documenting %s() are highlighted" % name
                     if ex_region else
@@ -1233,6 +1211,7 @@ def render(name, entry):
         flags_section=flags, errors_section=errors, notes_section=notes,
         versions=entry["versions"],
         header=entry.get("header", "atmi.h"),
+        versions_section=versions_section,
         example_file=ex_file, example_note=example_note,
         example_code=load_example(ex_file, ex_region),
         see_also=see, nav=nav_html(name))
@@ -1245,6 +1224,10 @@ def write_index():
             e = FUNCTIONS[n]
             rows.append(f'<tr><td><a href="/api/{n}/">{n}</a></td>'
                         f"<td>{e['title']}.</td></tr>")
+    diffs = "\n".join(
+        f'<li><a href="/api/{n}/">{n}</a>: {FUNCTIONS[n]["versions"]}'
+        for group, names in GROUPS for n in names
+        if FUNCTIONS[n].get("versions"))
     page = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1316,6 +1299,11 @@ both and behave the same.</li>
 implements the call and how it was verified.</li>
 </ul>
 
+<h2>Known 12.2 vs 22.1 differences</h2>
+<p>Most of the API behaves identically on Oracle Tuxedo 12.2 and 22.1.
+The functions below carry pinned behavioral differences; each page
+spells out what differs. fuxedo defaults to the 12.x behavior.</p>
+{diffs}
 <h2>Index</h2>
 <table>
 <tr><th>Function</th><th>What it does</th></tr>

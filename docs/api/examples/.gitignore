@@ -1,7 +1,16 @@
 tuxconfig
 ubbconfig
 apisvr
+advsvr
 apiclient
+tpcall
+acall
+cancel
+buffers
+session
+fmldemo
+demo.h
+demo.fml
 ULOG.*
 stdout
 stderr

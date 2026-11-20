@@ -126,16 +126,15 @@ writing the readable text form to a log or a file.</p>
 </table>
 
 
-<h2>12.2 vs 22.1</h2>
-<p>No differences observed between Oracle Tuxedo 12.2 and 22.1 in our cross-checks.</p>
 
 <h2>Example</h2>
 <p class="example-file">Full source: <code>docs/api/examples/fmldemo.c</code>
 (build and run with <code>make -C docs/api/examples check
-TUXDIR=&lt;install&gt;</code>); the whole program demonstrates Ffprint32().</p>
-<pre><code>// FML32 API examples: one doc:region per documented function. The
-// field identifiers come from the &quot;demo&quot; field table via mkfldhdr32 (see the
-// Makefile). Run inside the sample domain: FLDTBLDIR32=. FIELDTBLS32=demo
+TUXDIR=&lt;install&gt;</code>); the lines documenting Ffprint32() are highlighted.</p>
+<pre><code>// FML32 API examples: the API pages highlight the lines of each
+// documented function. The field identifiers come from the &quot;demo&quot;
+// field table via mkfldhdr32 (see the Makefile). Run inside the
+// sample domain: FLDTBLDIR32=. FIELDTBLS32=demo
 
 #include &lt;stdio.h&gt;
 #include &lt;stdlib.h&gt;
@@ -156,7 +155,6 @@ int main(void) {
     return 1;
   }
 
-  // doc:region Fadd32
   // Fadd32 appends a new occurrence; len 0 lets a string field measure
   // itself
   if (Fadd32(fb, FIRSTNAME, (char *)&quot;Ada&quot;, 0) == -1) {
@@ -173,9 +171,7 @@ int main(void) {
   if (Fadd32(fb, FIRSTNAME, (char *)&quot;Grace&quot;, 0) == -1) {
     return fmlfail(&quot;Fadd32 FIRSTNAME #2&quot;);
   }
-  // doc:end
 
-  // doc:region Fchg32
   // Fchg32 replaces the value at one occurrence...
   long big = 500;
   if (Fchg32(fb, AMOUNT, 0, (char *)&amp;big, 0) == -1) {
@@ -190,17 +186,13 @@ int main(void) {
   if (Fchg32(fb, AMOUNT, 0, NULL, 0) == -1) {
     return fmlfail(&quot;Fchg32 AMOUNT delete&quot;);
   }
-  // doc:end
 
-  // doc:region Fget32
   long got = 0;
   if (Fget32(fb, AMOUNT, 0, (char *)&amp;got, 0) == -1) {
     return fmlfail(&quot;Fget32 AMOUNT&quot;);
   }
-  // doc:end
   printf(&quot;AMOUNT[0]=%ld\n&quot;, got);
 
-  // doc:region Fnext32
   // Fnext32 walks the buffer in field order; start from BADFLDID
   FLDID32 id = BADFLDID;
   FLDOCC32 oc = 0;
@@ -214,9 +206,7 @@ int main(void) {
     }
     printf(&quot;  field=%u oc=%d\n&quot;, id, oc);
   }
-  // doc:end
 
-  // doc:region Fboolev32
   // Fboolco32 compiles the expression into a tree (field names are
   // resolved through the loaded field tables); Fboolev32 evaluates the
   // tree against the buffer
@@ -230,61 +220,51 @@ int main(void) {
   }
   printf(&quot;AMOUNT &gt; 200: %s\n&quot;, match ? &quot;true&quot; : &quot;false&quot;);
 
-  // doc:region Fboolpr32
   // Fboolpr32 prints the parsed expression tree
   Fboolpr32(tree, stdout);
-  // doc:end
 
   free(tree);
-  // doc:end
 
-  // doc:region Flen32
   // Flen32 is the stored length of one occurrence
   long len0 = Flen32(fb, FIRSTNAME, 0);
   if (len0 == -1) {
     return fmlfail(&quot;Flen32&quot;);
   }
-  // doc:end
   printf(&quot;FIRSTNAME[0] len=%ld\n&quot;, len0);
 
-  // doc:region Fsizeof32
   // Fsizeof32 is the whole buffer size; Fneeded32 sizes an addition
   long used = Fsizeof32(fb);
   long need = Fneeded32(3, 32);
-  // doc:end
   printf(&quot;sizeof=%ld needed=%ld\n&quot;, used, need);
 
-  // doc:region Fwrite32
   // Fwrite32/Fread32 move a buffer to and from a FILE
   FILE *out = fopen(&quot;demo.fml&quot;, &quot;w&quot;);
   if (out == NULL || Fwrite32(fb, out) == -1) {
     return fmlfail(&quot;Fwrite32&quot;);
   }
   fclose(out);
-  // doc:end
 
-  // doc:region Fread32
   FBFR32 *copy = (FBFR32 *)tpalloc((char *)&quot;FML32&quot;, NULL, 1024);
   FILE *in = fopen(&quot;demo.fml&quot;, &quot;r&quot;);
   if (copy == NULL || in == NULL || Fread32(copy, in) == -1) {
     return fmlfail(&quot;Fread32&quot;);
   }
   fclose(in);
-  // doc:end
 
-  // doc:region Fprint32
   // Fprint32 prints the buffer to stdout; Ffprint32 takes a FILE
   if (Fprint32(copy) == -1) {
     return fmlfail(&quot;Fprint32&quot;);
   }
-  // doc:end
 
-  // doc:region Fdel32
+<span class="hl">  // Ffprint32 prints the same form to any FILE destination
+  if (Ffprint32(copy, stdout) == -1) {
+    return fmlfail(&quot;Ffprint32&quot;);
+  }</span>
+
   // Fdel32 removes one occurrence; oc -1 removes them all
   if (Fdel32(fb, FIRSTNAME, 1) == -1) {
     return fmlfail(&quot;Fdel32&quot;);
   }
-  // doc:end
 
   tpfree((char *)fb);
   tpfree((char *)copy);

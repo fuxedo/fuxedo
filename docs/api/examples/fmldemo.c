@@ -1,6 +1,7 @@
-// FML32 API examples: one doc:region per documented function. The
-// field identifiers come from the "demo" field table via mkfldhdr32 (see the
-// Makefile). Run inside the sample domain: FLDTBLDIR32=. FIELDTBLS32=demo
+// FML32 API examples: the API pages highlight the lines of each
+// documented function. The field identifiers come from the "demo"
+// field table via mkfldhdr32 (see the Makefile). Run inside the
+// sample domain: FLDTBLDIR32=. FIELDTBLS32=demo
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -141,6 +142,13 @@ int main(void) {
   // Fprint32 prints the buffer to stdout; Ffprint32 takes a FILE
   if (Fprint32(copy) == -1) {
     return fmlfail("Fprint32");
+  }
+  // doc:end
+
+  // doc:region Ffprint32
+  // Ffprint32 prints the same form to any FILE destination
+  if (Ffprint32(copy, stdout) == -1) {
+    return fmlfail("Ffprint32");
   }
   // doc:end
 

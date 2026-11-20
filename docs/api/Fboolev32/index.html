@@ -132,15 +132,16 @@ tree.</p>
 
 
 <h2>12.2 vs 22.1</h2>
-<p>No differences observed between Oracle Tuxedo 12.2 and 22.1 in our cross-checks.</p>
+<p>The expression language and the NULL-argument error reporting differ between 12.2 and 22.1. On 12.2 a missing field in arithmetic counts as 0 (1+missing == 1); 22.1 yields 0 for the whole expression. On NULL fbfr or tree, 12.2 sets Ferror32 to FNOTFLD while 22.1 leaves it unset or sets FALIGNERR. Double-to-string comparisons format with %f on 12.2 ("1.000000") and %g on 22.1 ("1"), so '1.000000' == 1.0 is true on 12.2 and false on 22.1. Adjacent unary operators (!!x) are syntax errors on 22.1 only, and nested ~ evaluates once on 22.1 ( ~(~1) == -2 ) but as an involution on 12.2 ( == 1 ). String escapes: 12.2 decodes \6E as hex, 22.1 does not.</p>
 
 <h2>Example</h2>
 <p class="example-file">Full source: <code>docs/api/examples/fmldemo.c</code>
 (build and run with <code>make -C docs/api/examples check
 TUXDIR=&lt;install&gt;</code>); the lines documenting Fboolev32() are highlighted.</p>
-<pre><code>// FML32 API examples: one doc:region per documented function. The
-// field identifiers come from the &quot;demo&quot; field table via mkfldhdr32 (see the
-// Makefile). Run inside the sample domain: FLDTBLDIR32=. FIELDTBLS32=demo
+<pre><code>// FML32 API examples: the API pages highlight the lines of each
+// documented function. The field identifiers come from the &quot;demo&quot;
+// field table via mkfldhdr32 (see the Makefile). Run inside the
+// sample domain: FLDTBLDIR32=. FIELDTBLS32=demo
 
 #include &lt;stdio.h&gt;
 #include &lt;stdlib.h&gt;
@@ -260,6 +261,11 @@ int main(void) {
   // Fprint32 prints the buffer to stdout; Ffprint32 takes a FILE
   if (Fprint32(copy) == -1) {
     return fmlfail(&quot;Fprint32&quot;);
+  }
+
+  // Ffprint32 prints the same form to any FILE destination
+  if (Ffprint32(copy, stdout) == -1) {
+    return fmlfail(&quot;Ffprint32&quot;);
   }
 
   // Fdel32 removes one occurrence; oc -1 removes them all
