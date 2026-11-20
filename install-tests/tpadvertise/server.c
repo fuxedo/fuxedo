@@ -22,5 +22,12 @@ int tpsvrinit(int argc, char *argv[]) {
     return -1;
   }
   assert(tpadvertise("SERVICE", SERVICE2) == -1 && tperrno == TPEMATCH);
+  // the tpadvertisex placement flags need their prerequisites: a
+  // secondary-queue advertisement on a server without SECONDARYRQ=Y
+  // fails with TPENOSECONDARYRQ
+  assert(tpadvertisex("NOSEC", SERVICE, TPSECONDARYRQ) == -1 &&
+         tperrno == TPENOSECONDARYRQ);
+  assert(tpadvertisex("SING", SERVICE, TPSINGLETON) != -1);
+  assert(tpunadvertise("SING") != -1);
   return 0;
 }

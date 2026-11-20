@@ -22,16 +22,21 @@ EXAMPLES = ROOT / "examples"
 
 GROUPS = [
     ("XATMI: session", ["tpinit", "tpterm"]),
+    ("XATMI: errors", ["tperrno", "tpstrerror"]),
     ("XATMI: calls", ["tpcall", "tpacall", "tpgetrply", "tpcancel",
                       "tpforward"]),
-    ("XATMI: buffers", ["tpalloc", "tpfree", "tptypes"]),
+    ("XATMI: buffers", ["tpalloc", "tpfree", "tptypes", "tpexport",
+                        "tpimport"]),
+    ("XATMI: transactions", ["tpbegin", "tpgetlev", "tpsuspend",
+                             "tpresume", "tpcommit", "tpabort"]),
     ("XATMI: server", ["tpsvrinit", "tpsvrdone", "tpsvrthrinit",
                        "tpsvrthrdone", "tpreturn", "tpadvertise",
                        "tpadvertisex", "tpunadvertise"]),
-    ("FML32", ["fml32", "Fadd32", "Fchg32", "Fget32", "Fdel32", "Fnext32",
-               "Fprint32", "Ffprint32", "Fwrite32", "Fread32", "Fboolev32",
-               "Fboolpr32", "Fmkfldid32", "Fneeded32", "Fsizeof32",
-               "Flen32"]),
+    ("FML32", ["fml32", "Ferror32", "Fstrerror32", "Fadd32", "Fchg32",
+               "Fget32", "Fdel32", "Fnext32",
+               "Fprint32", "Ffprint32", "Fwrite32", "Fread32", "Fboolco32",
+               "Fboolev32", "Fboolpr32", "Fmkfldid32", "Fneeded32",
+               "Fsizeof32", "Flen32"]),
 ]
 
 # Each entry: title, synopsis, body sections (HTML), example (file,
@@ -278,10 +283,58 @@ receives an error reply (TPENOENT) instead of a normal result.</p>""",
 <p><strong>Transactions.</strong> A forward keeps the request inside the
 caller's transaction; the target service joins it like any participant.
 tpforward, not tpcall, is the right way to chain services within one
-transactional call.</p>""",
+transactional call.</p>
+<p><strong>C++.</strong> tpforward() never returns, and the service
+frame is discarded without running destructors (the same mechanics as
+<code>tpreturn()</code>): objects with non-trivial destructors declared
+in the service body leak or stay locked. Free resources before the
+forward, or keep the forward as the last statement after plain
+C-style cleanup.</p>""",
         "versions": None,
         "example": ("apisvr.c", "tpforward"),
         "see_also": ["tpcall", "tpreturn"],
+    },
+    "tperrno": {
+        "title": "the ATMI error indicator",
+        "group": "XATMI: errors",
+        "synopsis": "int tperrno;  // a macro wrapping thread-local "
+                    "storage",
+        "description": """
+<p>Every ATMI call reports failure through tperrno: on a -1 or NULL
+return it holds one of the TPE* error codes (TPEINVAL, TPENOENT,
+TPETIME, TPESVCFAIL, ... documented per function). A successful call
+does <strong>not</strong> reset it, so the value is meaningful only
+immediately after a failure; each thread holds its own. Render the
+code with <code>tpstrerror()</code>. The FML32 calls use their own
+indicator, <code>Ferror32</code>.</p>""",
+        "args": [],
+        "flags": None,
+        "errors": [],
+        "notes": """
+<p>Code that checks tperrno unconditionally after every call is a bug
+in the making: on success it reports the outcome of an earlier,
+unrelated failure. The convention is <code>if (call() == -1) switch
+(tperrno)</code>, nothing more.</p>""",
+        "versions": None,
+        "example": ("session.c", "tperrno"),
+        "see_also": ["tpstrerror", "Ferror32"],
+    },
+    "tpstrerror": {
+        "title": "render a tperrno code",
+        "group": "XATMI: errors",
+        "synopsis": "char *tpstrerror(int err);",
+        "description": """
+<p>tpstrerror() returns the message text for a tperrno error code.
+The pointer refers to a static buffer that later calls may overwrite,
+and the call itself does not touch tperrno, so it is safe to use
+inside an error path built around the current value.</p>""",
+        "args": [("err", "The error code, typically tperrno.")],
+        "flags": None,
+        "errors": [],
+        "notes": None,
+        "versions": None,
+        "example": ("session.c", "tpstrerror"),
+        "see_also": ["tperrno"],
     },
     "tpinit": {
         "title": "join an application",
@@ -408,6 +461,245 @@ units, or -1 with tperrno set on error.</p>""",
         "example": ("buffers.c", "tptypes"),
         "see_also": ["tpalloc", "tpfree"],
     },
+    "tpbegin": {
+        "title": "start a transaction",
+        "group": "XATMI: transactions",
+        "synopsis": "int tpbegin(unsigned long timeout, long flags);",
+        "description": """
+<p>tpbegin() puts the caller in transaction mode. Calls made while in
+transaction mode join the transaction (unless TPNOTRAN opts them
+out), and the transaction ends with <code>tpcommit()</code> or
+<code>tpabort()</code>. timeout is the limit in seconds; 0 selects
+the platform default. A transaction with no resource managers commits
+trivially, which is why demarcation can be exercised without a
+database.</p>""",
+        "args": [
+            ("timeout", "Seconds before the transaction is rolled back; "
+                        "0 means the platform default."),
+            ("flags", "0; TPNOBLOCK/TPNOTIME/TPSIGRSTRT govern internal "
+                      "waits."),
+        ],
+        "flags": [
+            ("TPNOBLOCK, TPNOTIME, TPSIGRSTRT", "Wait disposition for "
+                                                "internal operations."),
+        ],
+        "errors": [
+            ("TPEINVAL", "Invalid timeout or flags."),
+            ("TPEPROTO", "The caller is already in transaction mode."),
+            ("TPESYSTEM, TPEOS", "Platform failure."),
+        ],
+        "notes": """
+<p><strong>Return value.</strong> Returns 1 on success, -1 on
+error, on the platform and in fuxedo. Check <code>== -1</code>, not
+truthiness: <code>if (tpbegin(...))</code> treats a successful begin
+as failure.</p>""",
+        "versions": None,
+        "example": ("txdemo.c", "tpbegin"),
+        "see_also": ["tpcommit", "tpabort", "tpgetlev"],
+    },
+    "tpgetlev": {
+        "title": "are we in transaction mode?",
+        "group": "XATMI: transactions",
+        "synopsis": "int tpgetlev(void);",
+        "description": """
+<p>tpgetlev() reports whether the caller is in transaction mode:
+TP_IN_TRANSACTION (1) or TP_NOT_IN_TRANSACTION (0). Cheap enough to
+call freely when code paths branch on the transaction state.</p>""",
+        "args": [],
+        "flags": None,
+        "errors": [
+            ("TPESYSTEM", "Platform failure answering the query."),
+        ],
+        "notes": None,
+        "versions": None,
+        "example": ("txdemo.c", "tpgetlev"),
+        "see_also": ["tpbegin", "tpsuspend"],
+    },
+    "tpsuspend": {
+        "title": "stash the current transaction",
+        "group": "XATMI: transactions",
+        "synopsis": "int tpsuspend(TPTRANID *tranid, long flags);",
+        "description": """
+<p>tpsuspend() saves the caller's transaction into a TPTRANID and
+leaves transaction mode, so another thread can <code>tpresume()</code>
+it, or the same thread can do non-transactional work first. The
+transaction keeps running against its timeout while suspended.</p>""",
+        "args": [
+            ("tranid", "Output for the transaction identifier; pass it "
+                       "to tpresume."),
+            ("flags", "0."),
+        ],
+        "flags": None,
+        "errors": [
+            ("TPEPROTO", "Not in transaction mode, or an invalid "
+                         "suspend state."),
+            ("TPESYSTEM", "Platform failure."),
+        ],
+        "notes": None,
+        "versions": None,
+        "example": ("txdemo.c", "tpsuspend"),
+        "see_also": ["tpresume", "tpbegin"],
+    },
+    "tpresume": {
+        "title": "re-enter a stashed transaction",
+        "group": "XATMI: transactions",
+        "synopsis": "int tpresume(TPTRANID *tranid, long flags);",
+        "description": """
+<p>tpresume() re-enters the transaction previously saved by
+<code>tpsuspend()</code>, in this thread. A stashed transaction must
+be resumed exactly once; abandoning it leaks the transaction until
+its timeout rolls it back.</p>""",
+        "args": [
+            ("tranid", "The identifier filled by tpsuspend."),
+            ("flags", "0."),
+        ],
+        "flags": None,
+        "errors": [
+            ("TPEPROTO", "Already in transaction mode, or the identifier "
+                         "is not a suspended transaction."),
+            ("TPESYSTEM", "Platform failure."),
+        ],
+        "notes": None,
+        "versions": None,
+        "example": ("txdemo.c", "tpresume"),
+        "see_also": ["tpsuspend", "tpcommit"],
+    },
+    "tpcommit": {
+        "title": "commit the current transaction",
+        "group": "XATMI: transactions",
+        "synopsis": "int tpcommit(long flags);",
+        "description": """
+<p>tpcommit() ends the caller's transaction with a commit. With no
+resource managers this is bookkeeping; with participants it runs
+two-phase commit, and the error table below shows how the exotic
+outcomes surface (TPEHAZARD, TPEHEURISTIC). After the call the caller
+is no longer in transaction mode, and a tpreturn(TPSUCCESS) inside a
+service commits implicitly the same way.</p>""",
+        "args": [("flags", "0, or TPNOBLOCK/TPNOTIME/TPSIGRSTRT for the "
+                           "wait disposition.")],
+        "flags": [
+            ("TPNOBLOCK, TPNOTIME, TPSIGRSTRT", "Wait disposition for "
+                                                "the commit."),
+        ],
+        "errors": [
+            ("TPEABORT", "The transaction was rolled back instead; "
+                         "reported when commit could not complete."),
+            ("TPEHAZARD", "Commit outcome is uncertain; manual "
+                          "reconciliation may be needed."),
+            ("TPEHEURISTIC", "A participant resolved heuristically."),
+            ("TPEPROTO", "Not in transaction mode."),
+            ("TPETIME", "The commit wait timed out."),
+            ("TPESYSTEM, TPEOS", "Platform failure."),
+        ],
+        "notes": """
+<p><strong>Return value.</strong> Returns 1 on success, -1 on
+error, on the platform and in fuxedo. Check <code>== -1</code>, not
+truthiness: <code>if (tpbegin(...))</code> treats a successful begin
+as failure.</p>""",
+        "versions": None,
+        "example": ("txdemo.c", "tpcommit"),
+        "see_also": ["tpabort", "tpbegin"],
+    },
+    "tpabort": {
+        "title": "roll the current transaction back",
+        "group": "XATMI: transactions",
+        "synopsis": "int tpabort(long flags);",
+        "description": """
+<p>tpabort() rolls the caller's transaction back and leaves
+transaction mode. All participating work is undone; the transaction
+timeout rolls back automatically when the deadline passes.</p>""",
+        "args": [("flags", "0.")],
+        "flags": None,
+        "errors": [
+            ("TPEPROTO", "Not in transaction mode."),
+            ("TPESYSTEM", "Platform failure."),
+        ],
+        "notes": """
+<p><strong>Return value.</strong> Returns 1 on success, -1 on
+error, on the platform and in fuxedo. Check <code>== -1</code>, not
+truthiness: <code>if (tpbegin(...))</code> treats a successful begin
+as failure.</p>""",
+        "versions": None,
+        "example": ("txdemo.c", "tpabort"),
+        "see_also": ["tpcommit", "tpbegin"],
+    },
+    "tpexport": {
+        "title": "render a typed buffer in portable form",
+        "group": "XATMI: buffers",
+        "synopsis": "int tpexport(char *ibuf, long ilen, char *ostr,\n"
+                    "             long *olen, long flags);",
+        "description": """
+<p>tpexport() renders a typed buffer into a machine-independent form
+suitable for files, pipes, or byte streams; <code>tpimport()</code>
+rebuilds the buffer from that form. *olen carries the size of ostr on
+entry and receives the written length. The export preserves the type,
+so the rebuilt buffer needs no tpalloc from the caller.</p>""",
+        "args": [
+            ("ibuf, ilen", "Source buffer and length; ilen 0 for "
+                           "self-describing types."),
+            ("ostr, olen", "Output storage; *olen is its size on entry "
+                           "and the written length on return."),
+            ("flags", "0, or TPEX_STRING for the text form."),
+        ],
+        "flags": [
+            ("TPEX_STRING", "Export in the readable text form instead "
+                            "of the binary form."),
+            ("TPEX_XDR64LONG", "64-bit long encoding (22.x headers "
+                               "only)."),
+        ],
+        "errors": [
+            ("TPEINVAL", "Bad buffer, sizes, or flags."),
+            ("TPEOS, TPESYSTEM", "Platform failure, including a short "
+                                 "ostr."),
+        ],
+        "notes": None,
+        "versions": "Unknown flag bits are rejected with TPEINVAL on "
+                    "12.2 and accepted on 22.1. TPEX_XDR64LONG only "
+                    "exists in the 22.x headers.",
+        "example": ("buffers.c", "tpexport"),
+        "see_also": ["tpimport", "tpalloc"],
+    },
+    "tpimport": {
+        "title": "rebuild a typed buffer from its portable form",
+        "group": "XATMI: buffers",
+        "synopsis": "int tpimport(char *istr, long ilen,\n"
+                    "             char **obuf, long *olen, long flags);",
+        "description": """
+<p>tpimport() rebuilds a buffer stored by <code>tpexport()</code>.
+*obuf addresses the target buffer pointer and *olen its size on
+entry; on return the buffer pointer and the rebuilt length are
+updated. When the target is too small, 22.x grows it with tprealloc
+and updates *obuf, so the caller should always use the returned
+pointer and release it with tpfree().</p>""",
+        "args": [
+            ("istr, ilen", "The exported form and its length."),
+            ("obuf, olen", "Address of the target buffer pointer; "
+                           "*olen carries the buffer size on entry."),
+            ("flags", "0, or TPEX_STRING when the source uses the text "
+                      "form."),
+        ],
+        "flags": [
+            ("TPEX_STRING", "Read the text form."),
+        ],
+        "errors": [
+            ("TPEINVAL", "Bad input, sizes, or flags."),
+            ("TPEOS, TPESYSTEM", "Platform failure, including malformed "
+                                 "input (22.x reports TPESYSTEM)."),
+        ],
+        "notes": None,
+        "versions": "Four pinned differences. A NULL *obuf fails with "
+                    "TPEINVAL on 12.2; 22.x allocates the buffer (free "
+                    "it with tpfree). Malformed input reports TPEPROTO "
+                    "on 12.2 and TPESYSTEM on 22.x. An undersized "
+                    "target is grown via tprealloc on 22.x, while 12.2 "
+                    "fails or, with a binary FML export, writes past "
+                    "the buffer; size the target generously on 12.2. "
+                    "Unknown flag bits are rejected on 12.2 and "
+                    "accepted on 22.x. fuxedo follows the 22.x "
+                    "behavior throughout.",
+        "example": ("buffers.c", "tpimport"),
+        "see_also": ["tpexport", "tpalloc"],
+    },
 
     # --- server lifecycle -------------------------------------------------
     "tpsvrinit": {
@@ -523,7 +815,14 @@ down after the reply, which is how a service asks for a restart.</p>""",
         "notes": """
 <p>A service that falls off the end without calling tpreturn() is an
 error path; always end services with tpreturn() or
-<code>tpforward()</code>.</p>""",
+<code>tpforward()</code>.</p>
+<p><strong>C++.</strong> tpreturn() does not return: the service frame
+is torn down without running destructors, so RAII guards,
+<code>std::string</code>s and locks declared in the service body never
+clean up (a frequent source of leaks and deadlocks). Release resources
+explicitly before the call, keep short-lived objects in inner scopes
+that close earlier, or end the service with C-style cleanup and a
+single tpreturn at the bottom.</p>""",
         "versions": None,
         "example": ("advsvr.c", "tpreturn"),
         "see_also": ["tpforward", "tpsvrinit"],
@@ -556,34 +855,67 @@ to a different implementation.</p>""",
         "see_also": ["tpunadvertise", "tpadvertisex", "tpsvrinit"],
     },
     "tpadvertisex": {
-        "title": "advertise a service with extended placement",
+        "title": "advertise a service with placement flags",
         "group": "XATMI: server",
         "synopsis": "int tpadvertisex(char *svcname,\n"
                     "                   void (*func)(TPSVCINFO *),\n"
                     "                   long flags);",
         "description": """
-<p>tpadvertisex() is tpadvertise() with placement control: it binds a
-name to a function and, when the name is already advertised on this
-server, replaces the binding atomically. flags select placement
-attributes for the advertisement on platforms that schedule services
-across threads and queues.</p>""",
+<p>tpadvertisex() is tpadvertise() with placement control, and the
+flags are the point of the call. flags=0 behaves exactly like
+<code>tpadvertise()</code>: the name binds to the function on the
+server's main request queue, replacing the binding when the name is
+already advertised on this server with the same function. The other
+combinations move the advertisement or guard it:</p>""",
         "args": [
             ("svcname", "The service name."),
-            ("func", "The handler function."),
-            ("flags", "Placement attributes; 0 is a plain "
-                      "advertisement."),
+            ("func", "The handler function, declared with buildserver "
+                     "-s."),
+            ("flags", "0, TPSINGLETON, TPSECONDARYRQ, or both ORed."),
         ],
-        "flags": None,
+        "flags": [
+            ("0", "Plain advertisement on the main request queue, like "
+                  "tpadvertise()."),
+            ("TPSINGLETON", "Advertise on the main queue and require the "
+                            "name to be unique in the application: when "
+                            "another server already advertises it, the "
+                            "call fails with TPENOSINGLETON."),
+            ("TPSECONDARYRQ", "Advertise on the server's secondary "
+                              "request queue, which requires "
+                              "SECONDARYRQ=Y in the server "
+                              "configuration; otherwise the call fails "
+                              "with TPENOSECONDARYRQ. Multiple servers "
+                              "may advertise the same name this way."),
+            ("TPSINGLETON | TPSECONDARYRQ", "Both: the secondary-queue "
+                                            "placement plus the "
+                                            "uniqueness check, so either "
+                                            "TPENOSECONDARYRQ or "
+                                            "TPENOSINGLETON can fail the "
+                                            "call."),
+        ],
         "errors": [
+            ("TPENOSINGLETON", "TPSINGLETON was set and another server "
+                               "already advertises the name."),
+            ("TPENOSECONDARYRQ", "TPSECONDARYRQ was set and the server "
+                                 "is not booted with SECONDARYRQ=Y."),
+            ("TPEMATCH", "The name is advertised on this server with a "
+                         "different function."),
             ("TPELIMIT", "The service table is full."),
             ("TPEINVAL", "Invalid name, function, or flags."),
             ("TPESYSTEM", "Platform failure."),
         ],
-        "notes": None,
+        "notes": """
+<p>Services on the secondary queue show up in the MIB with
+<code>TA_RQADDR=UNKNOWN</code>, which distinguishes them from
+main-queue advertisements. The four flag combinations were mapped out
+in <a href="https://aivarsk.com/2019/10/27/tpadvertisex-solved/">the
+tpadvertisex post on the author's blog</a>; Oracle's own documentation
+of the flags is thin.</p>""",
         "versions": None,
         "example": ("advsvr.c", "tpadvertisex"),
         "see_also": ["tpadvertise", "tpunadvertise"],
     },
+
     "tpunadvertise": {
         "title": "withdraw a service advertisement (server only)",
         "group": "XATMI: server",
@@ -642,6 +974,44 @@ identical. Projection and join calls are documented separately.</p>""",
         "versions": None,
         "example": ("fmldemo.c", None),
         "see_also": ["Fadd32", "Fchg32", "Fboolev32", "Fnext32"],
+    },
+    "Ferror32": {
+        "title": "the FML32 error indicator",
+        "group": "FML32",
+        "header": "fml32.h",
+        "synopsis": "int Ferror32;  // a macro wrapping thread-local "
+                    "storage",
+        "description": """
+<p>Every FML32 call reports failure through Ferror32: on a -1 or NULL
+return it holds one of the F* error codes (FEINVAL, FNOSPACE,
+FNOTPRES, FSYNTAX, ...). Like <code>tperrno</code> it is not reset by
+successful calls, so it is meaningful only right after a failure;
+each thread holds its own value. Render the code with
+<code>Fstrerror32()</code>.</p>""",
+        "args": [],
+        "flags": None,
+        "errors": [],
+        "notes": None,
+        "versions": None,
+        "example": ("fmldemo.c", "Ferror32"),
+        "see_also": ["Fstrerror32", "fml32"],
+    },
+    "Fstrerror32": {
+        "title": "render an FML32 error code",
+        "group": "FML32",
+        "header": "fml32.h",
+        "synopsis": "char *Fstrerror32(int err);",
+        "description": """
+<p>Fstrerror32() returns the message text for an FML32 error code,
+usually <code>Ferror32</code>. The pointer refers to a static buffer
+that later calls may overwrite; copy it if it must survive.</p>""",
+        "args": [("err", "The error code, typically Ferror32.")],
+        "flags": None,
+        "errors": [],
+        "notes": None,
+        "versions": None,
+        "example": ("fmldemo.c", "Fstrerror32"),
+        "see_also": ["Ferror32"],
     },
     "Fadd32": {
         "title": "append a field occurrence",
@@ -771,7 +1141,7 @@ equivalent for a single occurrence.</p>""",
                     "*len);",
         "description": """
 <p>Fnext32() walks the buffer in field order. Start with
-<code>*fieldid = BADFLDID</code> and <code>*oc = 0</code>; each call
+<code>*fieldid = FIRSTFLDID</code> and <code>*oc = 0</code>; each call
 reports the next field and occurrence. The return value is 1 while a
 field was returned, 0 when the walk is done, and -1 on error
 (Ferror32), so loops terminate on <code>!= 1</code>. value and len may
@@ -881,6 +1251,45 @@ fails with FNOSPACE.</p>""",
         "example": ("fmldemo.c", "Fread32"),
         "see_also": ["Fwrite32", "Fresize32"],
     },
+    "Fboolco32": {
+        "title": "compile a boolean expression",
+        "group": "FML32",
+        "header": "fml32.h",
+        "synopsis": "char *Fboolco32(char *expression);",
+        "description": """
+<p>Fboolco32() compiles a boolean expression into an evaluation tree
+that <code>Fboolev32()</code> and <code>Ffloatev32()</code> evaluate
+and <code>Fboolpr32()</code> prints. Field names in the expression are
+resolved through the loaded field tables (FLDTBLDIR32/FIELDTBLS32) at
+compile time. The returned tree is allocated with malloc() and
+released with free(); a NULL return reports the failure in Ferror32.</p>""",
+        "args": [
+            ("expression", "The expression text, for example "
+                           "\"AMOUNT > 200 &amp;&amp; FIRSTNAME == "
+                           "'Ada'\". Comparisons, &amp;&amp;, ||, !, "
+                           "arithmetic and parentheses are supported."),
+        ],
+        "flags": None,
+        "errors": [
+            ("FSYNTAX", "The expression does not parse."),
+            ("FBADNAME", "A field name is unknown."),
+            ("FEBADOP", "A field has a type the expression language "
+                        "does not support."),
+        ],
+        "notes": None,
+        "versions": "The expression language itself differs between "
+                    "12.2 and 22.1. Adjacent unary operators (!!x, ~~x, "
+                    "- -x) are syntax errors on 22.1 and compile on "
+                    "12.2. Nested ~ evaluates once on 22.1 ( ~(~1) == "
+                    "-2 ) but as a proper involution on 12.2 ( == 1 ). "
+                    "String escapes: 12.2 decodes \\6E-style hex, "
+                    "22.1 does not. Double-to-string comparisons "
+                    "format with %f on 12.2 (\"1.000000\") and %g on "
+                    "22.1 (\"1\"), so '1.000000' == 1.0 is true on "
+                    "12.2 and false on 22.1.",
+        "example": ("fmldemo.c", "Fboolco32"),
+        "see_also": ["Fboolev32", "Fboolpr32"],
+    },
     "Fboolev32": {
         "title": "evaluate a boolean expression over a buffer",
         "group": "FML32",
@@ -903,20 +1312,12 @@ tree.</p>""",
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
         "notes": None,
-        "versions": "The expression language and the NULL-argument "
-                    "error reporting differ between 12.2 and 22.1. On "
-                    "12.2 a missing field in arithmetic counts as 0 "
-                    "(1+missing == 1); 22.1 yields 0 for the whole "
-                    "expression. On NULL fbfr or tree, 12.2 sets "
-                    "Ferror32 to FNOTFLD while 22.1 leaves it unset or "
-                    "sets FALIGNERR. Double-to-string comparisons "
-                    "format with %f on 12.2 (\"1.000000\") and %g on "
-                    "22.1 (\"1\"), so '1.000000' == 1.0 is true on "
-                    "12.2 and false on 22.1. Adjacent unary operators "
-                    "(!!x) are syntax errors on 22.1 only, and nested ~ "
-                    "evaluates once on 22.1 ( ~(~1) == -2 ) but as an "
-                    "involution on 12.2 ( == 1 ). String escapes: 12.2 "
-                    "decodes \\6E as hex, 22.1 does not.",
+        "versions": "On NULL fbfr or tree, 12.2 sets Ferror32 to "
+                    "FNOTFLD while 22.1 leaves it unset or sets "
+                    "FALIGNERR. A missing field in arithmetic counts "
+                    "as 0 on 12.2 (1+missing == 1); 22.1 yields 0 for "
+                    "the whole expression. Expression-language "
+                    "differences are listed on the Fboolco32 page.",
         "example": ("fmldemo.c", "Fboolev32"),
         "see_also": ["Fboolpr32", "Fget32"],
     },

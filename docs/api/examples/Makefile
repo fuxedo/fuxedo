@@ -17,7 +17,7 @@ export FLDTBLDIR32 := $(CURDIR)
 export FIELDTBLS32 := demo
 export TMPDIR := $(CURDIR)/.tmp
 
-CLIENTS := tpcall acall cancel buffers session fmldemo
+CLIENTS := tpcall acall cancel buffers session fmldemo txdemo
 
 check: tuxconfig apisvr advsvr $(CLIENTS)
 	mkdir -p $(TMPDIR)

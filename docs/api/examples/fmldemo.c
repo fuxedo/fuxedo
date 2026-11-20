@@ -11,7 +11,15 @@
 #include "demo.h"
 
 static int fmlfail(const char *what) {
-  fprintf(stderr, "%s failed: Ferror32=%d\n", what, Ferror32);
+  // doc:region Ferror32
+  // Ferror32 holds the code of the last failed FML32 call; it is not
+  // cleared by success, so read it only after a -1/NULL return
+  int code = Ferror32;
+  // doc:end
+  // doc:region Fstrerror32
+  // Fstrerror32 renders an FML32 error code as text
+  fprintf(stderr, "%s failed: %s (%d)\n", what, Fstrerror32(code), code);
+  // doc:end
   return 1;
 }
 
@@ -67,8 +75,8 @@ int main(void) {
   printf("AMOUNT[0]=%ld\n", got);
 
   // doc:region Fnext32
-  // Fnext32 walks the buffer in field order; start from BADFLDID
-  FLDID32 id = BADFLDID;
+  // Fnext32 walks the buffer in field order; FIRSTFLDID starts the walk
+  FLDID32 id = FIRSTFLDID;
   FLDOCC32 oc = 0;
   char value[128];
   FLDLEN32 vlen = sizeof(value);
@@ -83,10 +91,12 @@ int main(void) {
   // doc:end
 
   // doc:region Fboolev32
-  // Fboolco32 compiles the expression into a tree (field names are
-  // resolved through the loaded field tables); Fboolev32 evaluates the
-  // tree against the buffer
+  // the expression is compiled once and evaluated against the buffer
+  // doc:region Fboolco32
+  // Fboolco32 compiles the expression into a tree; field names are
+  // resolved through the loaded field tables
   char *tree = Fboolco32((char *)"AMOUNT > 200");
+  // doc:end
   if (tree == NULL) {
     return fmlfail("Fboolco32");
   }

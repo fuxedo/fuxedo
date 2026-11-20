@@ -53,6 +53,11 @@
 <li><a href="/api/tpinit/">tpinit</a></li>
 <li><a href="/api/tpterm/">tpterm</a></li>
 </ul>
+<h2>XATMI: errors</h2>
+<ul>
+<li><a href="/api/tperrno/">tperrno</a></li>
+<li><a href="/api/tpstrerror/">tpstrerror</a></li>
+</ul>
 <h2>XATMI: calls</h2>
 <ul>
 <li><a href="/api/tpcall/">tpcall</a></li>
@@ -66,6 +71,17 @@
 <li><a href="/api/tpalloc/">tpalloc</a></li>
 <li><a href="/api/tpfree/">tpfree</a></li>
 <li><a href="/api/tptypes/">tptypes</a></li>
+<li><a href="/api/tpexport/">tpexport</a></li>
+<li><a href="/api/tpimport/">tpimport</a></li>
+</ul>
+<h2>XATMI: transactions</h2>
+<ul>
+<li><a href="/api/tpbegin/">tpbegin</a></li>
+<li><a href="/api/tpgetlev/">tpgetlev</a></li>
+<li><a href="/api/tpsuspend/">tpsuspend</a></li>
+<li><a href="/api/tpresume/">tpresume</a></li>
+<li><a href="/api/tpcommit/">tpcommit</a></li>
+<li><a href="/api/tpabort/">tpabort</a></li>
 </ul>
 <h2>XATMI: server</h2>
 <ul>
@@ -81,6 +97,8 @@
 <h2>FML32</h2>
 <ul>
 <li><a href="/api/fml32/">fml32</a></li>
+<li><a href="/api/Ferror32/">Ferror32</a></li>
+<li><a href="/api/Fstrerror32/">Fstrerror32</a></li>
 <li><a href="/api/Fadd32/">Fadd32</a></li>
 <li><a href="/api/Fchg32/">Fchg32</a></li>
 <li><a href="/api/Fget32/">Fget32</a></li>
@@ -90,6 +108,7 @@
 <li><a href="/api/Ffprint32/">Ffprint32</a></li>
 <li><a href="/api/Fwrite32/">Fwrite32</a></li>
 <li><a href="/api/Fread32/">Fread32</a></li>
+<li><a href="/api/Fboolco32/">Fboolco32</a></li>
 <li><a href="/api/Fboolev32/">Fboolev32</a></li>
 <li><a href="/api/Fboolpr32/">Fboolpr32</a></li>
 <li><a href="/api/Fmkfldid32/">Fmkfldid32</a></li>
@@ -140,7 +159,11 @@ TUXDIR=&lt;install&gt;</code>); the lines documenting Fneeded32() are highlighte
 #include &quot;demo.h&quot;
 
 static int fmlfail(const char *what) {
-  fprintf(stderr, &quot;%s failed: Ferror32=%d\n&quot;, what, Ferror32);
+  // Ferror32 holds the code of the last failed FML32 call; it is not
+  // cleared by success, so read it only after a -1/NULL return
+  int code = Ferror32;
+  // Fstrerror32 renders an FML32 error code as text
+  fprintf(stderr, &quot;%s failed: %s (%d)\n&quot;, what, Fstrerror32(code), code);
   return 1;
 }
 
@@ -189,8 +212,8 @@ int main(void) {
   }
   printf(&quot;AMOUNT[0]=%ld\n&quot;, got);
 
-  // Fnext32 walks the buffer in field order; start from BADFLDID
-  FLDID32 id = BADFLDID;
+  // Fnext32 walks the buffer in field order; FIRSTFLDID starts the walk
+  FLDID32 id = FIRSTFLDID;
   FLDOCC32 oc = 0;
   char value[128];
   FLDLEN32 vlen = sizeof(value);
@@ -203,9 +226,9 @@ int main(void) {
     printf(&quot;  field=%u oc=%d\n&quot;, id, oc);
   }
 
-  // Fboolco32 compiles the expression into a tree (field names are
-  // resolved through the loaded field tables); Fboolev32 evaluates the
-  // tree against the buffer
+  // the expression is compiled once and evaluated against the buffer
+  // Fboolco32 compiles the expression into a tree; field names are
+  // resolved through the loaded field tables
   char *tree = Fboolco32((char *)&quot;AMOUNT &gt; 200&quot;);
   if (tree == NULL) {
     return fmlfail(&quot;Fboolco32&quot;);

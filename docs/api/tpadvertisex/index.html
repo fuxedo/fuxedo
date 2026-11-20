@@ -3,25 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>tpadvertisex() - advertise a service with extended placement | Fuxedo API reference</title>
-<meta name="description" content="tpadvertisex() - advertise a service with extended placement. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<title>tpadvertisex() - advertise a service with placement flags | Fuxedo API reference</title>
+<meta name="description" content="tpadvertisex() - advertise a service with placement flags. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
 <meta name="keywords" content="tpadvertisex, tpadvertisex example, Oracle Tuxedo tpadvertisex, Tuxedo C API, Fuxedo, XATMI,tpadvertise,tpunadvertise">
 <link rel="canonical" href="https://fuxedo.io/api/tpadvertisex/">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://fuxedo.io/api/tpadvertisex/">
-<meta property="og:title" content="tpadvertisex() - advertise a service with extended placement">
-<meta property="og:description" content="tpadvertisex() - advertise a service with extended placement. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta property="og:title" content="tpadvertisex() - advertise a service with placement flags">
+<meta property="og:description" content="tpadvertisex() - advertise a service with placement flags. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="tpadvertisex() - advertise a service with extended placement">
-<meta name="twitter:description" content="tpadvertisex() - advertise a service with extended placement. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="twitter:title" content="tpadvertisex() - advertise a service with placement flags">
+<meta name="twitter:description" content="tpadvertisex() - advertise a service with placement flags. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@graph": [
     {
       "@type": "TechArticle",
-      "headline": "tpadvertisex() - advertise a service with extended placement",
-      "description": "tpadvertisex() - advertise a service with extended placement. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.",
+      "headline": "tpadvertisex() - advertise a service with placement flags",
+      "description": "tpadvertisex() - advertise a service with placement flags. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.",
       "url": "https://fuxedo.io/api/tpadvertisex/",
       "isPartOf": {"@type": "WebSite", "name": "Fuxedo API reference", "url": "https://fuxedo.io/api/"},
       "programmingLanguage": "C",
@@ -44,7 +44,7 @@
 <body>
 <div class="page">
 <h1><img src="/fuxedo.svg" alt="Fuxedo logo">tpadvertisex()</h1>
-<p class="tagline">advertise a service with extended placement</p>
+<p class="tagline">advertise a service with placement flags</p>
 
 <div class="api-layout">
 <nav class="api-nav">
@@ -52,6 +52,11 @@
 <ul>
 <li><a href="/api/tpinit/">tpinit</a></li>
 <li><a href="/api/tpterm/">tpterm</a></li>
+</ul>
+<h2>XATMI: errors</h2>
+<ul>
+<li><a href="/api/tperrno/">tperrno</a></li>
+<li><a href="/api/tpstrerror/">tpstrerror</a></li>
 </ul>
 <h2>XATMI: calls</h2>
 <ul>
@@ -66,6 +71,17 @@
 <li><a href="/api/tpalloc/">tpalloc</a></li>
 <li><a href="/api/tpfree/">tpfree</a></li>
 <li><a href="/api/tptypes/">tptypes</a></li>
+<li><a href="/api/tpexport/">tpexport</a></li>
+<li><a href="/api/tpimport/">tpimport</a></li>
+</ul>
+<h2>XATMI: transactions</h2>
+<ul>
+<li><a href="/api/tpbegin/">tpbegin</a></li>
+<li><a href="/api/tpgetlev/">tpgetlev</a></li>
+<li><a href="/api/tpsuspend/">tpsuspend</a></li>
+<li><a href="/api/tpresume/">tpresume</a></li>
+<li><a href="/api/tpcommit/">tpcommit</a></li>
+<li><a href="/api/tpabort/">tpabort</a></li>
 </ul>
 <h2>XATMI: server</h2>
 <ul>
@@ -81,6 +97,8 @@
 <h2>FML32</h2>
 <ul>
 <li><a href="/api/fml32/">fml32</a></li>
+<li><a href="/api/Ferror32/">Ferror32</a></li>
+<li><a href="/api/Fstrerror32/">Fstrerror32</a></li>
 <li><a href="/api/Fadd32/">Fadd32</a></li>
 <li><a href="/api/Fchg32/">Fchg32</a></li>
 <li><a href="/api/Fget32/">Fget32</a></li>
@@ -90,6 +108,7 @@
 <li><a href="/api/Ffprint32/">Ffprint32</a></li>
 <li><a href="/api/Fwrite32/">Fwrite32</a></li>
 <li><a href="/api/Fread32/">Fread32</a></li>
+<li><a href="/api/Fboolco32/">Fboolco32</a></li>
 <li><a href="/api/Fboolev32/">Fboolev32</a></li>
 <li><a href="/api/Fboolpr32/">Fboolpr32</a></li>
 <li><a href="/api/Fmkfldid32/">Fmkfldid32</a></li>
@@ -110,29 +129,49 @@ int tpadvertisex(char *svcname,
 
 <h2>Description</h2>
 
-<p>tpadvertisex() is tpadvertise() with placement control: it binds a
-name to a function and, when the name is already advertised on this
-server, replaces the binding atomically. flags select placement
-attributes for the advertisement on platforms that schedule services
-across threads and queues.</p>
+<p>tpadvertisex() is tpadvertise() with placement control, and the
+flags are the point of the call. flags=0 behaves exactly like
+<code>tpadvertise()</code>: the name binds to the function on the
+server's main request queue, replacing the binding when the name is
+already advertised on this server with the same function. The other
+combinations move the advertisement or guard it:</p>
 
 <h2>Arguments</h2>
 <table>
 <tr><th>Argument</th><th>Description</th></tr>
 <tr><td>svcname</td><td>The service name.</td></tr>
-<tr><td>func</td><td>The handler function.</td></tr>
-<tr><td>flags</td><td>Placement attributes; 0 is a plain advertisement.</td></tr>
+<tr><td>func</td><td>The handler function, declared with buildserver -s.</td></tr>
+<tr><td>flags</td><td>0, TPSINGLETON, TPSECONDARYRQ, or both ORed.</td></tr>
 </table>
 
+<h2>Flags</h2>
+<table>
+<tr><th>Flag</th><th>Description</th></tr>
+<tr><td>0</td><td>Plain advertisement on the main request queue, like tpadvertise().</td></tr>
+<tr><td>TPSINGLETON</td><td>Advertise on the main queue and require the name to be unique in the application: when another server already advertises it, the call fails with TPENOSINGLETON.</td></tr>
+<tr><td>TPSECONDARYRQ</td><td>Advertise on the server's secondary request queue, which requires SECONDARYRQ=Y in the server configuration; otherwise the call fails with TPENOSECONDARYRQ. Multiple servers may advertise the same name this way.</td></tr>
+<tr><td>TPSINGLETON | TPSECONDARYRQ</td><td>Both: the secondary-queue placement plus the uniqueness check, so either TPENOSECONDARYRQ or TPENOSINGLETON can fail the call.</td></tr>
+</table>
 
 <h2>Errors (tperrno)</h2>
 <table>
 <tr><th>Code</th><th>Description</th></tr>
+<tr><td>TPENOSINGLETON</td><td>TPSINGLETON was set and another server already advertises the name.</td></tr>
+<tr><td>TPENOSECONDARYRQ</td><td>TPSECONDARYRQ was set and the server is not booted with SECONDARYRQ=Y.</td></tr>
+<tr><td>TPEMATCH</td><td>The name is advertised on this server with a different function.</td></tr>
 <tr><td>TPELIMIT</td><td>The service table is full.</td></tr>
 <tr><td>TPEINVAL</td><td>Invalid name, function, or flags.</td></tr>
 <tr><td>TPESYSTEM</td><td>Platform failure.</td></tr>
 </table>
 
+<h2>Notes</h2>
+
+<p>Services on the secondary queue show up in the MIB with
+<code>TA_RQADDR=UNKNOWN</code>, which distinguishes them from
+main-queue advertisements. The four flag combinations were mapped out
+in <a href="https://aivarsk.com/2019/10/27/tpadvertisex-solved/">the
+tpadvertisex post on the author's blog</a>; Oracle's own documentation
+of the flags is thin.</p>
 
 
 <h2>Example</h2>

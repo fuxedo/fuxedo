@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tpresume() - re-enter a stashed transaction | Fuxedo API reference</title>
+<meta name="description" content="tpresume() - re-enter a stashed transaction. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="keywords" content="tpresume, tpresume example, Oracle Tuxedo tpresume, Tuxedo C API, Fuxedo, XATMI,tpsuspend,tpcommit">
+<link rel="canonical" href="https://fuxedo.io/api/tpresume/">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://fuxedo.io/api/tpresume/">
+<meta property="og:title" content="tpresume() - re-enter a stashed transaction">
+<meta property="og:description" content="tpresume() - re-enter a stashed transaction. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="tpresume() - re-enter a stashed transaction">
+<meta name="twitter:description" content="tpresume() - re-enter a stashed transaction. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "tpresume() - re-enter a stashed transaction",
+      "description": "tpresume() - re-enter a stashed transaction. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.",
+      "url": "https://fuxedo.io/api/tpresume/",
+      "isPartOf": {"@type": "WebSite", "name": "Fuxedo API reference", "url": "https://fuxedo.io/api/"},
+      "programmingLanguage": "C",
+      "license": "https://opensource.org/licenses/MIT"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Fuxedo", "item": "https://fuxedo.io/"},
+        {"@type": "ListItem", "position": 2, "name": "API reference", "item": "https://fuxedo.io/api/"},
+        {"@type": "ListItem", "position": 3, "name": "tpresume"}
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/api/api.css">
+</head>
+<body>
+<div class="page">
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">tpresume()</h1>
+<p class="tagline">re-enter a stashed transaction</p>
+
+<div class="api-layout">
+<nav class="api-nav">
+<h2>XATMI: session</h2>
+<ul>
+<li><a href="/api/tpinit/">tpinit</a></li>
+<li><a href="/api/tpterm/">tpterm</a></li>
+</ul>
+<h2>XATMI: errors</h2>
+<ul>
+<li><a href="/api/tperrno/">tperrno</a></li>
+<li><a href="/api/tpstrerror/">tpstrerror</a></li>
+</ul>
+<h2>XATMI: calls</h2>
+<ul>
+<li><a href="/api/tpcall/">tpcall</a></li>
+<li><a href="/api/tpacall/">tpacall</a></li>
+<li><a href="/api/tpgetrply/">tpgetrply</a></li>
+<li><a href="/api/tpcancel/">tpcancel</a></li>
+<li><a href="/api/tpforward/">tpforward</a></li>
+</ul>
+<h2>XATMI: buffers</h2>
+<ul>
+<li><a href="/api/tpalloc/">tpalloc</a></li>
+<li><a href="/api/tpfree/">tpfree</a></li>
+<li><a href="/api/tptypes/">tptypes</a></li>
+<li><a href="/api/tpexport/">tpexport</a></li>
+<li><a href="/api/tpimport/">tpimport</a></li>
+</ul>
+<h2>XATMI: transactions</h2>
+<ul>
+<li><a href="/api/tpbegin/">tpbegin</a></li>
+<li><a href="/api/tpgetlev/">tpgetlev</a></li>
+<li><a href="/api/tpsuspend/">tpsuspend</a></li>
+<li><a class="here" href="/api/tpresume/">tpresume</a></li>
+<li><a href="/api/tpcommit/">tpcommit</a></li>
+<li><a href="/api/tpabort/">tpabort</a></li>
+</ul>
+<h2>XATMI: server</h2>
+<ul>
+<li><a href="/api/tpsvrinit/">tpsvrinit</a></li>
+<li><a href="/api/tpsvrdone/">tpsvrdone</a></li>
+<li><a href="/api/tpsvrthrinit/">tpsvrthrinit</a></li>
+<li><a href="/api/tpsvrthrdone/">tpsvrthrdone</a></li>
+<li><a href="/api/tpreturn/">tpreturn</a></li>
+<li><a href="/api/tpadvertise/">tpadvertise</a></li>
+<li><a href="/api/tpadvertisex/">tpadvertisex</a></li>
+<li><a href="/api/tpunadvertise/">tpunadvertise</a></li>
+</ul>
+<h2>FML32</h2>
+<ul>
+<li><a href="/api/fml32/">fml32</a></li>
+<li><a href="/api/Ferror32/">Ferror32</a></li>
+<li><a href="/api/Fstrerror32/">Fstrerror32</a></li>
+<li><a href="/api/Fadd32/">Fadd32</a></li>
+<li><a href="/api/Fchg32/">Fchg32</a></li>
+<li><a href="/api/Fget32/">Fget32</a></li>
+<li><a href="/api/Fdel32/">Fdel32</a></li>
+<li><a href="/api/Fnext32/">Fnext32</a></li>
+<li><a href="/api/Fprint32/">Fprint32</a></li>
+<li><a href="/api/Ffprint32/">Ffprint32</a></li>
+<li><a href="/api/Fwrite32/">Fwrite32</a></li>
+<li><a href="/api/Fread32/">Fread32</a></li>
+<li><a href="/api/Fboolco32/">Fboolco32</a></li>
+<li><a href="/api/Fboolev32/">Fboolev32</a></li>
+<li><a href="/api/Fboolpr32/">Fboolpr32</a></li>
+<li><a href="/api/Fmkfldid32/">Fmkfldid32</a></li>
+<li><a href="/api/Fneeded32/">Fneeded32</a></li>
+<li><a href="/api/Fsizeof32/">Fsizeof32</a></li>
+<li><a href="/api/Flen32/">Flen32</a></li>
+</ul>
+</nav>
+
+<div class="api-main">
+
+<h2>Synopsis</h2>
+<pre><code>#include &lt;atmi.h&gt;
+
+int tpresume(TPTRANID *tranid, long flags);</code></pre>
+
+<h2>Description</h2>
+
+<p>tpresume() re-enters the transaction previously saved by
+<code>tpsuspend()</code>, in this thread. A stashed transaction must
+be resumed exactly once; abandoning it leaks the transaction until
+its timeout rolls it back.</p>
+
+<h2>Arguments</h2>
+<table>
+<tr><th>Argument</th><th>Description</th></tr>
+<tr><td>tranid</td><td>The identifier filled by tpsuspend.</td></tr>
+<tr><td>flags</td><td>0.</td></tr>
+</table>
+
+
+<h2>Errors (tperrno)</h2>
+<table>
+<tr><th>Code</th><th>Description</th></tr>
+<tr><td>TPEPROTO</td><td>Already in transaction mode, or the identifier is not a suspended transaction.</td></tr>
+<tr><td>TPESYSTEM</td><td>Platform failure.</td></tr>
+</table>
+
+
+
+<h2>Example</h2>
+<p class="example-file">Full source: <code>docs/api/examples/txdemo.c</code>
+(build and run with <code>make -C docs/api/examples check
+TUXDIR=&lt;install&gt;</code>); the lines documenting tpresume() are highlighted.</p>
+<pre><code>// Transaction demarcation examples: tpbegin/tpgetlev/tpsuspend/
+// tpresume/tpcommit/tpabort in a client. No resource manager is
+// involved, so the transaction has no participants and the commit is
+// trivial on any platform.
+
+#include &lt;stdio.h&gt;
+#include &lt;atmi.h&gt;
+
+static int fail(const char *what) {
+  fprintf(stderr, &quot;%s failed: %s (%d)\n&quot;, what, tpstrerror(tperrno),
+          tperrno);
+  return 1;
+}
+
+int main(void) {
+  // tpbegin starts a transaction; the argument is the timeout in
+  // seconds (0 selects the platform default)
+  if (tpbegin(30, 0) == -1) {
+    return fail(&quot;tpbegin&quot;);
+  }
+
+  // tpgetlev answers whether the caller is in transaction mode:
+  // TP_IN_TRANSACTION or TP_NOT_IN_TRANSACTION
+  int lev = tpgetlev();
+  printf(&quot;after begin: %d\n&quot;, lev);
+
+  // tpsuspend stashes the transaction in a TPTRANID so the thread can
+  // leave transaction mode (another thread resumes it, or the same
+  // thread resumes it later)
+  TPTRANID tranid;
+  if (tpsuspend(&amp;tranid, 0) == -1) {
+    return fail(&quot;tpsuspend&quot;);
+  }
+  printf(&quot;after suspend: %d\n&quot;, tpgetlev());
+
+<span class="hl">  // tpresume re-enters the stashed transaction
+  if (tpresume(&amp;tranid, 0) == -1) {
+    return fail(&quot;tpresume&quot;);
+  }</span>
+  printf(&quot;after resume: %d\n&quot;, tpgetlev());
+
+  // tpcommit ends the transaction with a commit; without participants
+  // this is trivial, with resource managers it runs two-phase commit
+  if (tpcommit(0) == -1) {
+    return fail(&quot;tpcommit&quot;);
+  }
+  printf(&quot;after commit: %d\n&quot;, tpgetlev());
+
+  if (tpbegin(30, 0) == -1) {
+    return fail(&quot;tpbegin&quot;);
+  }
+  // tpabort rolls the transaction back
+  if (tpabort(0) == -1) {
+    return fail(&quot;tpabort&quot;);
+  }
+  printf(&quot;after abort: %d\n&quot;, tpgetlev());
+  return 0;
+}</code></pre>
+
+<p>See also: <a href="/api/tpsuspend/">tpsuspend</a>, <a href="/api/tpcommit/">tpcommit</a>.</p>
+
+<p class="compat-line">fuxedo: supported.
+Cross-checked against Oracle Tuxedo 12.2.2 and 22.1
+with the API hardening suite.</p>
+
+</div>
+</div>
+
+<footer>
+<p>Part of the <a href="/api/">Fuxedo API reference</a>.
+<a href="https://github.com/fuxedo/fuxedo">Fuxedo</a> is the open source
+alternative to Oracle Tuxedo: same API, same commands, same System V IPC
+mechanics.</p>
+</footer>
+</div>
+</body>
+</html>

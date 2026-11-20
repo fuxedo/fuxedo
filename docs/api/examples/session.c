@@ -13,7 +13,16 @@ int main(int argc, char **argv) {
   // NULL joins with defaults; a TPINIT carries usrname, cltname,
   // passwd, grpname, and identification data for apps that require it
   if (tpinit((TPINIT *)NULL) == -1) {
-    fprintf(stderr, "tpinit failed: tperrno=%d\n", tperrno);
+    // doc:region tperrno
+    // tperrno holds the code of the last failed ATMI call; a
+    // successful call does not reset it, so read it right after the
+    // failure
+    int code = tperrno;
+    // doc:end
+    // doc:region tpstrerror
+    // tpstrerror renders a tperrno code as text
+    fprintf(stderr, "tpinit failed: %s (%d)\n", tpstrerror(code), code);
+    // doc:end
     return 1;
   }
   // doc:end

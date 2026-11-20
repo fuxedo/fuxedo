@@ -131,7 +131,6 @@ struct server_main {
   void inactive() { m_.servers().at(mib_server).state = state_t::INActive; }
 
   int tpadvertisex(const char *svcname, void (*func)(TPSVCINFO *), long flags) {
-    // TODO: flags
     fux::scoped_fuxlock lock(mutex);
 
     if (svcname == nullptr || strlen(svcname) == 0) {
@@ -185,7 +184,8 @@ struct server_main {
         auto queue = mib_queue;
         if (secondary) {
           if (!m_.servers().at(mib_server).secondaryrq) {
-            TPERROR(TPEPROTO, "%s not booted with SECONDARYRQ=Y", svcname);
+            TPERROR(TPENOSECONDARYRQ, "%s not booted with SECONDARYRQ=Y",
+                    svcname);
             return -1;
           }
           m_.make_secondary_rqaddr(mib_server);

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tpexport() - render a typed buffer in portable form | Fuxedo API reference</title>
+<meta name="description" content="tpexport() - render a typed buffer in portable form. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="keywords" content="tpexport, tpexport example, Oracle Tuxedo tpexport, Tuxedo C API, Fuxedo, XATMI,tpimport,tpalloc">
+<link rel="canonical" href="https://fuxedo.io/api/tpexport/">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://fuxedo.io/api/tpexport/">
+<meta property="og:title" content="tpexport() - render a typed buffer in portable form">
+<meta property="og:description" content="tpexport() - render a typed buffer in portable form. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="tpexport() - render a typed buffer in portable form">
+<meta name="twitter:description" content="tpexport() - render a typed buffer in portable form. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "tpexport() - render a typed buffer in portable form",
+      "description": "tpexport() - render a typed buffer in portable form. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.",
+      "url": "https://fuxedo.io/api/tpexport/",
+      "isPartOf": {"@type": "WebSite", "name": "Fuxedo API reference", "url": "https://fuxedo.io/api/"},
+      "programmingLanguage": "C",
+      "license": "https://opensource.org/licenses/MIT"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Fuxedo", "item": "https://fuxedo.io/"},
+        {"@type": "ListItem", "position": 2, "name": "API reference", "item": "https://fuxedo.io/api/"},
+        {"@type": "ListItem", "position": 3, "name": "tpexport"}
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/api/api.css">
+</head>
+<body>
+<div class="page">
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">tpexport()</h1>
+<p class="tagline">render a typed buffer in portable form</p>
+
+<div class="api-layout">
+<nav class="api-nav">
+<h2>XATMI: session</h2>
+<ul>
+<li><a href="/api/tpinit/">tpinit</a></li>
+<li><a href="/api/tpterm/">tpterm</a></li>
+</ul>
+<h2>XATMI: errors</h2>
+<ul>
+<li><a href="/api/tperrno/">tperrno</a></li>
+<li><a href="/api/tpstrerror/">tpstrerror</a></li>
+</ul>
+<h2>XATMI: calls</h2>
+<ul>
+<li><a href="/api/tpcall/">tpcall</a></li>
+<li><a href="/api/tpacall/">tpacall</a></li>
+<li><a href="/api/tpgetrply/">tpgetrply</a></li>
+<li><a href="/api/tpcancel/">tpcancel</a></li>
+<li><a href="/api/tpforward/">tpforward</a></li>
+</ul>
+<h2>XATMI: buffers</h2>
+<ul>
+<li><a href="/api/tpalloc/">tpalloc</a></li>
+<li><a href="/api/tpfree/">tpfree</a></li>
+<li><a href="/api/tptypes/">tptypes</a></li>
+<li><a class="here" href="/api/tpexport/">tpexport</a></li>
+<li><a href="/api/tpimport/">tpimport</a></li>
+</ul>
+<h2>XATMI: transactions</h2>
+<ul>
+<li><a href="/api/tpbegin/">tpbegin</a></li>
+<li><a href="/api/tpgetlev/">tpgetlev</a></li>
+<li><a href="/api/tpsuspend/">tpsuspend</a></li>
+<li><a href="/api/tpresume/">tpresume</a></li>
+<li><a href="/api/tpcommit/">tpcommit</a></li>
+<li><a href="/api/tpabort/">tpabort</a></li>
+</ul>
+<h2>XATMI: server</h2>
+<ul>
+<li><a href="/api/tpsvrinit/">tpsvrinit</a></li>
+<li><a href="/api/tpsvrdone/">tpsvrdone</a></li>
+<li><a href="/api/tpsvrthrinit/">tpsvrthrinit</a></li>
+<li><a href="/api/tpsvrthrdone/">tpsvrthrdone</a></li>
+<li><a href="/api/tpreturn/">tpreturn</a></li>
+<li><a href="/api/tpadvertise/">tpadvertise</a></li>
+<li><a href="/api/tpadvertisex/">tpadvertisex</a></li>
+<li><a href="/api/tpunadvertise/">tpunadvertise</a></li>
+</ul>
+<h2>FML32</h2>
+<ul>
+<li><a href="/api/fml32/">fml32</a></li>
+<li><a href="/api/Ferror32/">Ferror32</a></li>
+<li><a href="/api/Fstrerror32/">Fstrerror32</a></li>
+<li><a href="/api/Fadd32/">Fadd32</a></li>
+<li><a href="/api/Fchg32/">Fchg32</a></li>
+<li><a href="/api/Fget32/">Fget32</a></li>
+<li><a href="/api/Fdel32/">Fdel32</a></li>
+<li><a href="/api/Fnext32/">Fnext32</a></li>
+<li><a href="/api/Fprint32/">Fprint32</a></li>
+<li><a href="/api/Ffprint32/">Ffprint32</a></li>
+<li><a href="/api/Fwrite32/">Fwrite32</a></li>
+<li><a href="/api/Fread32/">Fread32</a></li>
+<li><a href="/api/Fboolco32/">Fboolco32</a></li>
+<li><a href="/api/Fboolev32/">Fboolev32</a></li>
+<li><a href="/api/Fboolpr32/">Fboolpr32</a></li>
+<li><a href="/api/Fmkfldid32/">Fmkfldid32</a></li>
+<li><a href="/api/Fneeded32/">Fneeded32</a></li>
+<li><a href="/api/Fsizeof32/">Fsizeof32</a></li>
+<li><a href="/api/Flen32/">Flen32</a></li>
+</ul>
+</nav>
+
+<div class="api-main">
+
+<h2>Synopsis</h2>
+<pre><code>#include &lt;atmi.h&gt;
+
+int tpexport(char *ibuf, long ilen, char *ostr,
+             long *olen, long flags);</code></pre>
+
+<h2>Description</h2>
+
+<p>tpexport() renders a typed buffer into a machine-independent form
+suitable for files, pipes, or byte streams; <code>tpimport()</code>
+rebuilds the buffer from that form. *olen carries the size of ostr on
+entry and receives the written length. The export preserves the type,
+so the rebuilt buffer needs no tpalloc from the caller.</p>
+
+<h2>Arguments</h2>
+<table>
+<tr><th>Argument</th><th>Description</th></tr>
+<tr><td>ibuf, ilen</td><td>Source buffer and length; ilen 0 for self-describing types.</td></tr>
+<tr><td>ostr, olen</td><td>Output storage; *olen is its size on entry and the written length on return.</td></tr>
+<tr><td>flags</td><td>0, or TPEX_STRING for the text form.</td></tr>
+</table>
+
+<h2>Flags</h2>
+<table>
+<tr><th>Flag</th><th>Description</th></tr>
+<tr><td>TPEX_STRING</td><td>Export in the readable text form instead of the binary form.</td></tr>
+<tr><td>TPEX_XDR64LONG</td><td>64-bit long encoding (22.x headers only).</td></tr>
+</table>
+
+<h2>Errors (tperrno)</h2>
+<table>
+<tr><th>Code</th><th>Description</th></tr>
+<tr><td>TPEINVAL</td><td>Bad buffer, sizes, or flags.</td></tr>
+<tr><td>TPEOS, TPESYSTEM</td><td>Platform failure, including a short ostr.</td></tr>
+</table>
+
+
+<h2>12.2 vs 22.1</h2>
+<p>Unknown flag bits are rejected with TPEINVAL on 12.2 and accepted on 22.1. TPEX_XDR64LONG only exists in the 22.x headers.</p>
+
+<h2>Example</h2>
+<p class="example-file">Full source: <code>docs/api/examples/buffers.c</code>
+(build and run with <code>make -C docs/api/examples check
+TUXDIR=&lt;install&gt;</code>); the lines documenting tpexport() are highlighted.</p>
+<pre><code>// tpalloc()/tptypes()/tpfree() example: typed buffer lifecycle.
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;atmi.h&gt;
+
+int main(void) {
+  char *buf = tpalloc(&quot;STRING&quot;, NULL, 64);
+  if (buf == NULL) {
+    fprintf(stderr, &quot;tpalloc failed: tperrno=%d\n&quot;, tperrno);
+    return 1;
+  }
+
+  char type[8] = {0};
+  char subtype[16] = {0};
+  long len = tptypes(buf, type, subtype);
+  if (len == -1) {
+    fprintf(stderr, &quot;tptypes failed: tperrno=%d\n&quot;, tperrno);
+    tpfree(buf);
+    return 1;
+  }
+  printf(&quot;type=%s subtype=%s len=%ld\n&quot;, type, subtype, len);
+
+  strcpy(buf, &quot;hello&quot;);
+
+<span class="hl">  // tpexport renders a typed buffer into a portable form that
+  // tpimport rebuilds
+  char exported[256];
+  long elen = sizeof(exported);
+  if (tpexport(buf, 0, exported, &amp;elen, 0) == -1) {
+    fprintf(stderr, &quot;tpexport failed: tperrno=%d\n&quot;, tperrno);
+    tpfree(buf);
+    return 1;
+  }</span>
+
+  // tpimport rebuilds the buffer; *obuf points at the target buffer
+  // and *olen carries its size (22.x grows the buffer when the data
+  // does not fit)
+  char *back = tpalloc(&quot;STRING&quot;, NULL, 128);
+  long blen = 128;
+  if (back == NULL || tpimport(exported, elen, &amp;back, &amp;blen, 0) == -1) {
+    fprintf(stderr, &quot;tpimport failed: tperrno=%d\n&quot;, tperrno);
+    tpfree(buf);
+    tpfree(back);
+    return 1;
+  }
+  printf(&quot;roundtrip: %s\n&quot;, back);
+  tpfree(back);
+
+  tpfree(buf);
+  return 0;
+}</code></pre>
+
+<p>See also: <a href="/api/tpimport/">tpimport</a>, <a href="/api/tpalloc/">tpalloc</a>.</p>
+
+<p class="compat-line">fuxedo: supported.
+Cross-checked against Oracle Tuxedo 12.2.2 and 22.1
+with the API hardening suite.</p>
+
+</div>
+</div>
+
+<footer>
+<p>Part of the <a href="/api/">Fuxedo API reference</a>.
+<a href="https://github.com/fuxedo/fuxedo">Fuxedo</a> is the open source
+alternative to Oracle Tuxedo: same API, same commands, same System V IPC
+mechanics.</p>
+</footer>
+</div>
+</body>
+</html>

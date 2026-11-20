@@ -13,6 +13,7 @@ trap 'tmshutdown -y 2>/dev/null; exit 1' EXIT HUP INT TERM
 ./cancel anything
 ./buffers
 ./session "mixed Case"
+./txdemo
 ./tpcall GREET "hello there"
 ./tpcall GREETX "hello there"
 ./fmldemo

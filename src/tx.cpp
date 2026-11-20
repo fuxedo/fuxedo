@@ -186,7 +186,14 @@ int tx_begin() {
 
   TXINFO info;
   info.xid = xid();
-  getctxt().gttid = getmib().transactions().start(info.xid, fux::tx::grpidx);
+  // a caller without a group (a client) starts the transaction
+  // unaffiliated; group bits are added when a service call joins it.
+  // Joining unconditionally would stamp group index 0 and make the
+  // commit drive a TMS that was never part of the transaction
+  getctxt().gttid = fux::tx::grpno != 0
+                        ? getmib().transactions().start(info.xid,
+                                                        fux::tx::grpidx)
+                        : getmib().transactions().start(info.xid);
   return _tx_start(&info);
 }
 

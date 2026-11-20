@@ -10,6 +10,8 @@
   <url><loc>https://fuxedo.io/api/</loc></url>
   <url><loc>https://fuxedo.io/api/tpinit/</loc></url>
   <url><loc>https://fuxedo.io/api/tpterm/</loc></url>
+  <url><loc>https://fuxedo.io/api/tperrno/</loc></url>
+  <url><loc>https://fuxedo.io/api/tpstrerror/</loc></url>
   <url><loc>https://fuxedo.io/api/tpcall/</loc></url>
   <url><loc>https://fuxedo.io/api/tpacall/</loc></url>
   <url><loc>https://fuxedo.io/api/tpgetrply/</loc></url>
@@ -18,6 +20,14 @@
   <url><loc>https://fuxedo.io/api/tpalloc/</loc></url>
   <url><loc>https://fuxedo.io/api/tpfree/</loc></url>
   <url><loc>https://fuxedo.io/api/tptypes/</loc></url>
+  <url><loc>https://fuxedo.io/api/tpexport/</loc></url>
+  <url><loc>https://fuxedo.io/api/tpimport/</loc></url>
+  <url><loc>https://fuxedo.io/api/tpbegin/</loc></url>
+  <url><loc>https://fuxedo.io/api/tpgetlev/</loc></url>
+  <url><loc>https://fuxedo.io/api/tpsuspend/</loc></url>
+  <url><loc>https://fuxedo.io/api/tpresume/</loc></url>
+  <url><loc>https://fuxedo.io/api/tpcommit/</loc></url>
+  <url><loc>https://fuxedo.io/api/tpabort/</loc></url>
   <url><loc>https://fuxedo.io/api/tpsvrinit/</loc></url>
   <url><loc>https://fuxedo.io/api/tpsvrdone/</loc></url>
   <url><loc>https://fuxedo.io/api/tpsvrthrinit/</loc></url>
@@ -27,6 +37,8 @@
   <url><loc>https://fuxedo.io/api/tpadvertisex/</loc></url>
   <url><loc>https://fuxedo.io/api/tpunadvertise/</loc></url>
   <url><loc>https://fuxedo.io/api/fml32/</loc></url>
+  <url><loc>https://fuxedo.io/api/Ferror32/</loc></url>
+  <url><loc>https://fuxedo.io/api/Fstrerror32/</loc></url>
   <url><loc>https://fuxedo.io/api/Fadd32/</loc></url>
   <url><loc>https://fuxedo.io/api/Fchg32/</loc></url>
   <url><loc>https://fuxedo.io/api/Fget32/</loc></url>
@@ -36,6 +48,7 @@
   <url><loc>https://fuxedo.io/api/Ffprint32/</loc></url>
   <url><loc>https://fuxedo.io/api/Fwrite32/</loc></url>
   <url><loc>https://fuxedo.io/api/Fread32/</loc></url>
+  <url><loc>https://fuxedo.io/api/Fboolco32/</loc></url>
   <url><loc>https://fuxedo.io/api/Fboolev32/</loc></url>
   <url><loc>https://fuxedo.io/api/Fboolpr32/</loc></url>
   <url><loc>https://fuxedo.io/api/Fmkfldid32/</loc></url>
