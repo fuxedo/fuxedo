@@ -43,32 +43,42 @@ int main(int argc, char *argv[]) {
   cd = tpacall("SLEEP", sndbuf, 0, 0);
   assert(cd > 0);
 
-  for (;;) {
-    start = time(NULL);
-    ret = tpacall("SERVICE", sndbuf, 0, 0);
-    if (ret == -1) {
-      assert(tperrno == TPETIME);
-      assert(time(NULL) - start >= 3);
+  // reply-side timeout semantics while the server sleeps. Queue-full
+  // SEND behavior (TPEBLOCK, spill promotion) moved to the
+  // deterministic hisstrace chain in pytests/test_strace.py - here the
+  // server queue never fills, and relying on incidental accumulation
+  // broke with the platform's file-transfer promotion.
+  cd = tpacall("SERVICE", sndbuf, 0, 0);
+  assert(cd > 0);
+  start = time(NULL);
+  ret = tpgetrply(&cd, &rcvbuf, &rcvlen, 0);
+  assert(ret == -1);
+  assert(tperrno == TPETIME);
+  assert(time(NULL) - start >= 3);
+  tpcancel(cd);
 
-      ret = tpacall("SERVICE", sndbuf, 0, TPNOBLOCK);
-      assert(ret == -1);
-      assert(tperrno == TPEBLOCK);
+  cd = tpacall("SERVICE", sndbuf, 0, 0);
+  assert(cd > 0);
+  // TPBLK_NEXT is consumed by the send's blocktime lookup; set it for
+  // the reply wait specifically
+  assert(tpsblktime(1, TPBLK_NEXT) != -1);
+  start = time(NULL);
+  ret = tpgetrply(&cd, &rcvbuf, &rcvlen, 0);
+  assert(ret == -1);
+  assert(tperrno == TPETIME);
+  assert(time(NULL) - start >= 1);
+  assert(time(NULL) - start < 3);
+  tpcancel(cd);
 
-      start = time(NULL);
-      assert(tpsblktime(1, TPBLK_NEXT) != -1);
-      ret = tpacall("SERVICE", sndbuf, 0, 0);
-      assert(ret == -1);
-      assert(tperrno == TPETIME);
-      assert(time(NULL) - start >= 1);
-      assert(time(NULL) - start < 3);
+  // outlive the pending SLEEP so the queued SERVICE requests run; then
+  // a plain call must succeed against the free server
+  sleep(12);
+  cd = tpacall("SERVICE", sndbuf, 0, 0);
+  assert(cd > 0);
+  ret = tpgetrply(&cd, &rcvbuf, &rcvlen, 0);
+  assert(ret != -1);
+  assert(strcmp(rcvbuf, "HELLO") == 0);
 
-      sleep(6);
-
-      ret = tpacall("SERVICE", sndbuf, 0, 0);
-      assert(ret != -1);
-      break;
-    }
-  }
   tpfree(sndbuf);
   tpfree(rcvbuf);
   return 0;

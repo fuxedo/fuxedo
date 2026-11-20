@@ -37,6 +37,26 @@ int main() {
   assert(rc == 1);
   assert(tpgetlev() == 0);
 
+  // a service in a group without a TMS cannot join a transaction
+  rc = tpbegin(30, 0);
+  assert(rc == 1);
+  ret = tpcall("NOTXSSVC", sndbuf, 0, &rcvbuf, &rcvlen, 0);
+  assert(ret == -1);
+  assert(tperrno == TPETRAN);
+  ret = tpcall("NOTXSSVC", sndbuf, 0, &rcvbuf, &rcvlen, TPNOTRAN);
+  assert(ret != -1);
+  rc = tpcommit(0);
+  assert(rc == 1);
+
+  // no-reply calls are forbidden inside a transaction
+  rc = tpbegin(30, 0);
+  assert(rc == 1);
+  ret = tpacall("FWDNOTRAN", sndbuf, 0, TPNOREPLY);
+  assert(ret == -1);
+  assert(tperrno == TPEPROTO);
+  rc = tpabort(0);
+  assert(rc == 1);
+
   tpfree(sndbuf);
   tpfree(rcvbuf);
   return 0;

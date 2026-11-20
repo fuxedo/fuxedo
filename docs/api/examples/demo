@@ -1,0 +1,6 @@
+# Demo fields for the FML32 API reference examples. See
+# docs/api/examples/fmldemo.c and the FML32 pages.
+*base 10000
+FIRSTNAME 1 string
+LASTNAME 2 string
+AMOUNT 3 long

@@ -3,7 +3,7 @@ AC_CONFIG_MACRO_DIRS([m4])
 AC_CONFIG_HEADERS([src/config.h])
 
 # Oracle Tuxedo generation to emulate: 12.1 (default) or 22.1. Fixed per
-# build; see src/compat.h and private/notes/compat-mode.md.
+# build; see src/compat.h and the compat-mode design note.
 AC_ARG_WITH([tuxedo-compat],
   AS_HELP_STRING([--with-tuxedo-compat=VER],
     [Oracle Tuxedo behavior to emulate: 12.1 or 22.1 @<:@default=12.1@:>@]),

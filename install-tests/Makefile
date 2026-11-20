@@ -4,6 +4,7 @@ default:
 	make clean
 
 check:
+	mkdir -p tmp
 	make -C unit
 	make -C view 
 	make -C build
@@ -16,6 +17,7 @@ check:
 	make -C tpforward
 	make -C blocktime
 	make -C eventbr
+	make -C conv
 	make -C txnull
 	make -C qmtx
 	make -C restart
@@ -34,15 +36,21 @@ ORACLE_DIRS = unit view server tmshutdown tpinit tpcall tpacall \
 # 22.1 narrows to the compile-and-API suites: its tmipcrm refuses to
 # run without an attached bulletin board, which wedges the boot-oriented
 # directories' cleanup steps, and tmboot returns before the bulletin
-# board accepts clients. See private/notes/oracle-version-differences.md.
+# board accepts clients; see the oracle-version-differences note.
 ORACLE_221_DIRS = unit view
 
+# spill files and other temp artifacts stay out of the system /tmp:
+# the suites point TMPDIR at a scratch dir (Tuxedo honors it per-process)
+export TMPDIR := $(abspath tmp)
+
 check-compat:
+	mkdir -p tmp
 	@for d in $(ORACLE_DIRS); do \
 		timeout 300 $(MAKE) -C $$d || exit 1; \
 	done
 
 check-compat-221:
+	mkdir -p tmp
 	@for d in $(ORACLE_221_DIRS); do \
 		timeout 300 $(MAKE) -C $$d || exit 1; \
 	done
@@ -59,6 +67,8 @@ clean:
 	make -C tpadvertise clean
 	make -C tpforward clean
 	make -C blocktime clean
+	make -C eventbr clean
+	make -C conv clean
 	make -C txnull
 	make -C qmtx
 	make -C restart

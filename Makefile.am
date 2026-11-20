@@ -212,6 +212,20 @@ clang-format:
 installcheck-local:
 	TUXDIR=$(prefix) CXX="$(CXX)" CXXFLAGS="$(CXXFLAGS) $(AM_CXXFLAGS) $(AM_LDFLAGS)" make -C install-tests
 
+# Build and run the API reference examples, then regenerate the pages.
+# Needs an install first: make install DESTDIR=$$PWD/tmp/dest
+check-api:
+	$(MAKE) -C docs/api/examples check TUXDIR=$(or $(FUXEDO_TUXDIR),$(CURDIR)/tmp/dest/usr/local)
+	python3 $(srcdir)/docs/api/gen.py
+
+EXTRA_DIST = docs/api/gen.py docs/api/api.css docs/api/index.html \
+	docs/api/examples/Makefile docs/api/examples/run.sh \
+	docs/api/examples/ubbconfig.in docs/api/examples/apisvr.c \
+	docs/api/examples/advsvr.c docs/api/examples/tpcall.c \
+	docs/api/examples/acall.c docs/api/examples/cancel.c \
+	docs/api/examples/buffers.c docs/api/examples/session.c \
+	docs/api/examples/fmldemo.c docs/api/examples/demo
+
 install-exec-hook:
 	(cd $(DESTDIR)${libdir}; $(LN_S) -f libfuxedo.so libtmib.so)
 	(cd $(DESTDIR)${libdir}; $(LN_S) -f libfuxedo.so libtux.so)

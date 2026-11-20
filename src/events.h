@@ -6,7 +6,11 @@
 #include <cstddef>
 #include <sys/types.h>
 
+#include <fml32.h>
+
 #include "misc.h"
+
+class mib;
 
 // Event subscription table: lives in bulletin board shared memory so
 // tppost/tpnotify can match subscribers and push straight into their
@@ -14,13 +18,31 @@
 // the event server. The event server (TMUSREVT/TMSYSEVT) owns the
 // on-disk copy: a plain FML text file appended per subscription change.
 
+namespace fux {
+namespace evw {
+// Internal wire field between the WS tppost shim and the event server
+// (fuxedo owns both ends, user-range field number, no external contract)
+inline FLDID32 f_data() { return Fmkfldid32(FLD_CARRAY, 1); }
+}  // namespace evw
+}  // namespace fux
+
+namespace fux {
+namespace events {
+// Match subscribers in the bulletin board and push the message into
+// each subscriber's unsolicited channel. Shared by tppost (local) and
+// the event server's post op (WS-routed).
+int deliver(::mib &m, const char *eventname, char *data, long len);
+}  // namespace events
+}  // namespace fux
+
 struct event_subscription {
   uint64_t handle;  // 1000000000+, like the platform
   pid_t pid;        // subscriber process, liveness-checked on post
   int rpid;         // subscriber unsolicited queue id
   bool used;
   char eventname[128];
-  char filter[256];
+  char filter[256];       // expression text, recorded in the .dat file
+  char filtertree[1024];  // compiled Fboolco32 tree, matched on post
 };
 
 struct event_table {

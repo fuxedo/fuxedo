@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tpterm() - leave an application | Fuxedo API reference</title>
+<meta name="description" content="tpterm() - leave an application. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="keywords" content="tpterm, tpterm example, Oracle Tuxedo tpterm, Tuxedo C API, Fuxedo, XATMI,tpinit">
+<link rel="canonical" href="https://fuxedo.io/api/tpterm/">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://fuxedo.io/api/tpterm/">
+<meta property="og:title" content="tpterm() - leave an application">
+<meta property="og:description" content="tpterm() - leave an application. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="tpterm() - leave an application">
+<meta name="twitter:description" content="tpterm() - leave an application. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "tpterm() - leave an application",
+      "description": "tpterm() - leave an application. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.",
+      "url": "https://fuxedo.io/api/tpterm/",
+      "isPartOf": {"@type": "WebSite", "name": "Fuxedo API reference", "url": "https://fuxedo.io/api/"},
+      "programmingLanguage": "C",
+      "license": "https://opensource.org/licenses/MIT"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Fuxedo", "item": "https://fuxedo.io/"},
+        {"@type": "ListItem", "position": 2, "name": "API reference", "item": "https://fuxedo.io/api/"},
+        {"@type": "ListItem", "position": 3, "name": "tpterm"}
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/api/api.css">
+</head>
+<body>
+<div class="page">
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">tpterm()</h1>
+<p class="tagline">leave an application</p>
+
+<div class="api-layout">
+<nav class="api-nav">
+<h2>XATMI: session</h2>
+<ul>
+<li><a href="/api/tpinit/">tpinit</a></li>
+<li><a class="here" href="/api/tpterm/">tpterm</a></li>
+</ul>
+<h2>XATMI: calls</h2>
+<ul>
+<li><a href="/api/tpcall/">tpcall</a></li>
+<li><a href="/api/tpacall/">tpacall</a></li>
+<li><a href="/api/tpgetrply/">tpgetrply</a></li>
+<li><a href="/api/tpcancel/">tpcancel</a></li>
+<li><a href="/api/tpforward/">tpforward</a></li>
+</ul>
+<h2>XATMI: buffers</h2>
+<ul>
+<li><a href="/api/tpalloc/">tpalloc</a></li>
+<li><a href="/api/tpfree/">tpfree</a></li>
+<li><a href="/api/tptypes/">tptypes</a></li>
+</ul>
+<h2>XATMI: server</h2>
+<ul>
+<li><a href="/api/tpsvrinit/">tpsvrinit</a></li>
+<li><a href="/api/tpsvrdone/">tpsvrdone</a></li>
+<li><a href="/api/tpsvrthrinit/">tpsvrthrinit</a></li>
+<li><a href="/api/tpsvrthrdone/">tpsvrthrdone</a></li>
+<li><a href="/api/tpreturn/">tpreturn</a></li>
+<li><a href="/api/tpadvertise/">tpadvertise</a></li>
+<li><a href="/api/tpadvertisex/">tpadvertisex</a></li>
+<li><a href="/api/tpunadvertise/">tpunadvertise</a></li>
+</ul>
+<h2>FML32</h2>
+<ul>
+<li><a href="/api/fml32/">fml32</a></li>
+<li><a href="/api/Fadd32/">Fadd32</a></li>
+<li><a href="/api/Fchg32/">Fchg32</a></li>
+<li><a href="/api/Fget32/">Fget32</a></li>
+<li><a href="/api/Fdel32/">Fdel32</a></li>
+<li><a href="/api/Fnext32/">Fnext32</a></li>
+<li><a href="/api/Fprint32/">Fprint32</a></li>
+<li><a href="/api/Ffprint32/">Ffprint32</a></li>
+<li><a href="/api/Fwrite32/">Fwrite32</a></li>
+<li><a href="/api/Fread32/">Fread32</a></li>
+<li><a href="/api/Fboolev32/">Fboolev32</a></li>
+<li><a href="/api/Fboolpr32/">Fboolpr32</a></li>
+<li><a href="/api/Fmkfldid32/">Fmkfldid32</a></li>
+<li><a href="/api/Fneeded32/">Fneeded32</a></li>
+<li><a href="/api/Fsizeof32/">Fsizeof32</a></li>
+<li><a href="/api/Flen32/">Flen32</a></li>
+</ul>
+</nav>
+
+<div class="api-main">
+
+<h2>Synopsis</h2>
+<pre><code>#include &lt;atmi.h&gt;
+
+int tpterm(void);</code></pre>
+
+<h2>Description</h2>
+
+<p>tpterm() detaches the process from the application, releasing the
+access slot and any outstanding resources. Call it when the process is
+done with the application; exiting without tpterm() leaves the
+attachment to be reaped by the bulletin board.</p>
+
+
+
+<h2>Errors (tperrno)</h2>
+<table>
+<tr><th>Code</th><th>Description</th></tr>
+<tr><td>TPESYSTEM</td><td>Platform failure while detaching.</td></tr>
+</table>
+
+
+<h2>12.2 vs 22.1</h2>
+<p>No differences observed between Oracle Tuxedo 12.2 and 22.1 in our cross-checks.</p>
+
+<h2>Example</h2>
+<p class="example-file">Full source: <code>docs/api/examples/session.c</code>
+(build and run with <code>make -C docs/api/examples check
+TUXDIR=&lt;install&gt;</code>); the lines documenting tpterm() are highlighted.</p>
+<pre><code>// tpinit()/tpterm() example: explicit session control. A regular
+// client can skip both; the first ATMI call joins the application with
+// defaults and the detach happens at process exit.
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;atmi.h&gt;
+
+int main(int argc, char **argv) {
+  const char *input = argc &gt; 1 ? argv[1] : &quot;hello&quot;;
+
+  // NULL joins with defaults; a TPINIT carries usrname, cltname,
+  // passwd, grpname, and identification data for apps that require it
+  if (tpinit((TPINIT *)NULL) == -1) {
+    fprintf(stderr, &quot;tpinit failed: tperrno=%d\n&quot;, tperrno);
+    return 1;
+  }
+
+  char *req = tpalloc(&quot;STRING&quot;, NULL, strlen(input) + 1);
+  char *rsp = tpalloc(&quot;STRING&quot;, NULL, strlen(input) + 1);
+  long rlen = 0;
+  int rc = 0;
+  if (req == NULL || rsp == NULL) {
+    fprintf(stderr, &quot;tpalloc failed: tperrno=%d\n&quot;, tperrno);
+    rc = 1;
+  } else {
+    strcpy(req, input);
+    if (tpcall(&quot;TOUPPER&quot;, req, 0, &amp;rsp, &amp;rlen, 0) == -1) {
+      fprintf(stderr, &quot;tpcall failed: tperrno=%d\n&quot;, tperrno);
+      rc = 1;
+    } else {
+      printf(&quot;%s -&gt; %s\n&quot;, req, rsp);
+    }
+  }
+  tpfree(req);
+  tpfree(rsp);
+
+<span class="hl">  tpterm();</span>
+  return rc;
+}</code></pre>
+
+<p>See also: <a href="/api/tpinit/">tpinit</a>.</p>
+
+<p class="compat-line">fuxedo: supported.
+Cross-checked against Oracle Tuxedo 12.2.2 and 22.1
+with the API hardening suite.</p>
+
+</div>
+</div>
+
+<footer>
+<p>Part of the <a href="/api/">Fuxedo API reference</a>.
+<a href="https://github.com/fuxedo/fuxedo">Fuxedo</a> is the open source
+alternative to Oracle Tuxedo: same API, same commands, same System V IPC
+mechanics.</p>
+</footer>
+</div>
+</body>
+</html>

@@ -228,7 +228,8 @@ class mib {
                         size_t server);
   size_t make_service(const std::string &servicename);
 
-  size_t make_accesser(pid_t pid);
+  size_t make_accesser(pid_t pid, const char *cltname = nullptr,
+                       const char *usrname = nullptr);
 
   int make_service_rqaddr(size_t server);
   int make_secondary_rqaddr(size_t server);
@@ -259,6 +260,16 @@ class mib {
 
 mib &getmib();
 std::string getubb();
+
+namespace fux::clnt {
+// Client-side conversational hooks. The public tpsend/tprecv/tpdiscon
+// entry points live in server.cpp and dispatch here outside a
+// conversational service context.
+int tpconnect(char *svc, char *data, long len, long flags);
+int tpsend(int cd, char *data, long len, long flags, long *revent);
+int tprecv(int cd, char **data, long *len, long flags, long *revent);
+int tpdiscon(int cd);
+}  // namespace fux::clnt
 namespace fux::tx {
 extern uint16_t grpno;
 }

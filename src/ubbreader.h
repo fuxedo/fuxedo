@@ -26,7 +26,7 @@ class ubbreader : public basic_parser {
         if (object == "DEFAULT:" || object == "DEFAULT") {
           // Default parameters for the entries of this section
           ubb_params defparams;
-          kv_list(&defparams, false, true);
+          kv_list(&defparams, true, true);
           auto &defs = defaults_[cursection];
           for (auto &kv : defparams) {
             defs[kv.first] = kv.second;
@@ -52,7 +52,7 @@ class ubbreader : public basic_parser {
           config.resources[object] = value;
         } else {
           ubb_params ubbparams;
-          kv_list(&ubbparams, false, true);
+          kv_list(&ubbparams, true, true);
           // Section defaults apply unless the entry overrides them
           ubb_params merged(defaults_[cursection]);
           for (auto &kv : ubbparams) {

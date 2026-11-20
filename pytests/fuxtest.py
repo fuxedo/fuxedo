@@ -15,6 +15,11 @@ import subprocess
 ROOT = pathlib.Path(__file__).resolve().parent
 SCRATCH_ROOT = ROOT / "scratch"
 
+# keep spill files and other temp artifacts inside the scratch tree:
+# Tuxedo honors TMPDIR per-process (file transfer spills included)
+os.environ["TMPDIR"] = str(SCRATCH_ROOT / "tmp")
+os.makedirs(os.environ["TMPDIR"], exist_ok=True)
+
 
 def check_env():
     tuxdir = os.environ.get("TUXDIR")

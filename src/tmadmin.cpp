@@ -30,6 +30,7 @@ namespace fs = std::experimental::filesystem;
 #include "ipc.h"
 
 #include "mib.h"
+#include "events.h"
 #include "tlog.h"
 #include "trx.h"
 
@@ -39,6 +40,7 @@ static void do_help() {
   std::cout << "chgserver -g grpname -i srvid MAXGEN=n GRACE=n RESTART=y|n"
             << std::endl;
   std::cout << "printtrans (pt)" << std::endl;
+  std::cout << "printevents" << std::endl;
   std::cout << "printqueue (pq) [qaddress]" << std::endl;
   std::cout << "printserver (psr) [-m machine] [-g groupname [-R rmid]] [-i "
                "srvid] [-q qaddress]"
@@ -452,7 +454,26 @@ static void do_dumptlog() {
   }
 }
 
+static void do_printevents() {
+  mib &m = getmib();
+  auto &tbl = m.events();
+
+  std::cout << "Subscription Handle    Event Name    Filter    Client Pid"
+            << std::endl;
+
+  for (size_t i = 0; i < tbl.len; i++) {
+    auto &sub = tbl.at(i);
+    if (!sub.used) {
+      continue;
+    }
+    std::cout << sub.handle << "    " << sub.eventname << "    "
+              << (sub.filter[0] != '\0' ? sub.filter : "-") << "    "
+              << sub.pid << std::endl;
+  }
+}
+
 static void do_printtrans() {
+
   mib &m = getmib();
   auto &tbl = m.transactions();
 
@@ -588,6 +609,8 @@ int main(int argc, char *argv[]) {
           }
         } else if (line == "printtrans" || line == "pt") {
           do_printtrans();
+        } else if (line == "printevents") {
+          do_printevents();
         } else if (line == "printqueue" || line == "pq") {
           do_printqueue();
         } else if (line == "printserver" || line == "psr") {

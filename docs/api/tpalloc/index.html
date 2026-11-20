@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tpalloc() - allocate a typed buffer | Fuxedo API reference</title>
+<meta name="description" content="tpalloc() - allocate a typed buffer. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="keywords" content="tpalloc, tpalloc example, Oracle Tuxedo tpalloc, Tuxedo C API, Fuxedo, XATMI,tpfree,tptypes,Fchg32">
+<link rel="canonical" href="https://fuxedo.io/api/tpalloc/">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://fuxedo.io/api/tpalloc/">
+<meta property="og:title" content="tpalloc() - allocate a typed buffer">
+<meta property="og:description" content="tpalloc() - allocate a typed buffer. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="tpalloc() - allocate a typed buffer">
+<meta name="twitter:description" content="tpalloc() - allocate a typed buffer. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "tpalloc() - allocate a typed buffer",
+      "description": "tpalloc() - allocate a typed buffer. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.",
+      "url": "https://fuxedo.io/api/tpalloc/",
+      "isPartOf": {"@type": "WebSite", "name": "Fuxedo API reference", "url": "https://fuxedo.io/api/"},
+      "programmingLanguage": "C",
+      "license": "https://opensource.org/licenses/MIT"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Fuxedo", "item": "https://fuxedo.io/"},
+        {"@type": "ListItem", "position": 2, "name": "API reference", "item": "https://fuxedo.io/api/"},
+        {"@type": "ListItem", "position": 3, "name": "tpalloc"}
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/api/api.css">
+</head>
+<body>
+<div class="page">
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">tpalloc()</h1>
+<p class="tagline">allocate a typed buffer</p>
+
+<div class="api-layout">
+<nav class="api-nav">
+<h2>XATMI: session</h2>
+<ul>
+<li><a href="/api/tpinit/">tpinit</a></li>
+<li><a href="/api/tpterm/">tpterm</a></li>
+</ul>
+<h2>XATMI: calls</h2>
+<ul>
+<li><a href="/api/tpcall/">tpcall</a></li>
+<li><a href="/api/tpacall/">tpacall</a></li>
+<li><a href="/api/tpgetrply/">tpgetrply</a></li>
+<li><a href="/api/tpcancel/">tpcancel</a></li>
+<li><a href="/api/tpforward/">tpforward</a></li>
+</ul>
+<h2>XATMI: buffers</h2>
+<ul>
+<li><a class="here" href="/api/tpalloc/">tpalloc</a></li>
+<li><a href="/api/tpfree/">tpfree</a></li>
+<li><a href="/api/tptypes/">tptypes</a></li>
+</ul>
+<h2>XATMI: server</h2>
+<ul>
+<li><a href="/api/tpsvrinit/">tpsvrinit</a></li>
+<li><a href="/api/tpsvrdone/">tpsvrdone</a></li>
+<li><a href="/api/tpsvrthrinit/">tpsvrthrinit</a></li>
+<li><a href="/api/tpsvrthrdone/">tpsvrthrdone</a></li>
+<li><a href="/api/tpreturn/">tpreturn</a></li>
+<li><a href="/api/tpadvertise/">tpadvertise</a></li>
+<li><a href="/api/tpadvertisex/">tpadvertisex</a></li>
+<li><a href="/api/tpunadvertise/">tpunadvertise</a></li>
+</ul>
+<h2>FML32</h2>
+<ul>
+<li><a href="/api/fml32/">fml32</a></li>
+<li><a href="/api/Fadd32/">Fadd32</a></li>
+<li><a href="/api/Fchg32/">Fchg32</a></li>
+<li><a href="/api/Fget32/">Fget32</a></li>
+<li><a href="/api/Fdel32/">Fdel32</a></li>
+<li><a href="/api/Fnext32/">Fnext32</a></li>
+<li><a href="/api/Fprint32/">Fprint32</a></li>
+<li><a href="/api/Ffprint32/">Ffprint32</a></li>
+<li><a href="/api/Fwrite32/">Fwrite32</a></li>
+<li><a href="/api/Fread32/">Fread32</a></li>
+<li><a href="/api/Fboolev32/">Fboolev32</a></li>
+<li><a href="/api/Fboolpr32/">Fboolpr32</a></li>
+<li><a href="/api/Fmkfldid32/">Fmkfldid32</a></li>
+<li><a href="/api/Fneeded32/">Fneeded32</a></li>
+<li><a href="/api/Fsizeof32/">Fsizeof32</a></li>
+<li><a href="/api/Flen32/">Flen32</a></li>
+</ul>
+</nav>
+
+<div class="api-main">
+
+<h2>Synopsis</h2>
+<pre><code>#include &lt;atmi.h&gt;
+
+char *tpalloc(char *type, char *subtype, long size);</code></pre>
+
+<h2>Description</h2>
+
+<p>tpalloc() allocates a typed buffer. type is one of STRING, CARRAY,
+FML32, or VIEW32; subtype names the view for VIEW32 and is NULL
+otherwise. All ATMI calls take tpalloc'd buffers, and every buffer
+passed across the API must come from tpalloc().</p>
+<p>The size meaning depends on the type: bytes for CARRAY (the exact
+length sent), the maximum string length including the terminator for
+STRING, the initial fielded-buffer size for FML32 (it grows as needed),
+and ignored for VIEW32 (the view definition decides).</p>
+
+<h2>Arguments</h2>
+<table>
+<tr><th>Argument</th><th>Description</th></tr>
+<tr><td>type</td><td>STRING, CARRAY, FML32, or VIEW32.</td></tr>
+<tr><td>subtype</td><td>View name for VIEW32; NULL otherwise.</td></tr>
+<tr><td>size</td><td>Initial size in the type's units; 0 where the definition decides.</td></tr>
+</table>
+
+
+<h2>Errors (tperrno)</h2>
+<table>
+<tr><th>Code</th><th>Description</th></tr>
+<tr><td>TPEINVAL</td><td>Unknown type or subtype.</td></tr>
+<tr><td>TPESYSTEM, TPEOS</td><td>Platform or operating system failure, including allocation failure.</td></tr>
+</table>
+
+
+<h2>12.2 vs 22.1</h2>
+<p>No differences observed between Oracle Tuxedo 12.2 and 22.1 in our cross-checks.</p>
+
+<h2>Example</h2>
+<p class="example-file">Full source: <code>docs/api/examples/buffers.c</code>
+(build and run with <code>make -C docs/api/examples check
+TUXDIR=&lt;install&gt;</code>); the lines documenting tpalloc() are highlighted.</p>
+<pre><code>// tpalloc()/tptypes()/tpfree() example: typed buffer lifecycle.
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;atmi.h&gt;
+
+int main(void) {
+<span class="hl">  char *buf = tpalloc(&quot;STRING&quot;, NULL, 64);
+  if (buf == NULL) {
+    fprintf(stderr, &quot;tpalloc failed: tperrno=%d\n&quot;, tperrno);
+    return 1;
+  }</span>
+
+  char type[8] = {0};
+  char subtype[16] = {0};
+  long len = tptypes(buf, type, subtype);
+  if (len == -1) {
+    fprintf(stderr, &quot;tptypes failed: tperrno=%d\n&quot;, tperrno);
+    tpfree(buf);
+    return 1;
+  }
+  printf(&quot;type=%s subtype=%s len=%ld\n&quot;, type, subtype, len);
+
+  strcpy(buf, &quot;hello&quot;);
+
+  tpfree(buf);
+  return 0;
+}</code></pre>
+
+<p>See also: <a href="/api/tpfree/">tpfree</a>, <a href="/api/tptypes/">tptypes</a>, <a href="/api/Fchg32/">Fchg32</a>.</p>
+
+<p class="compat-line">fuxedo: supported.
+Cross-checked against Oracle Tuxedo 12.2.2 and 22.1
+with the API hardening suite.</p>
+
+</div>
+</div>
+
+<footer>
+<p>Part of the <a href="/api/">Fuxedo API reference</a>.
+<a href="https://github.com/fuxedo/fuxedo">Fuxedo</a> is the open source
+alternative to Oracle Tuxedo: same API, same commands, same System V IPC
+mechanics.</p>
+</footer>
+</div>
+</body>
+</html>

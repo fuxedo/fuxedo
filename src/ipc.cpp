@@ -13,10 +13,13 @@
 #include "probes.h"
 
 #include <fcntl.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 
 namespace fux::ipc {
@@ -133,7 +136,17 @@ int qcreate() {
   return msqid;
 }
 
-static const size_t MAX_QUEUE_MSG_SIZE = 4000;
+static size_t queue_msgmax() {
+  static const size_t max = [] {
+    std::ifstream proc("/proc/sys/kernel/msgmax");
+    size_t value = 0;
+    if (proc >> value && value > 0) {
+      return value;
+    }
+    return size_t{8192};
+  }();
+  return max;
+}
 
 static bool msgsnd_timed(int msqid, void *ptr, size_t len, enum flags flag,
                          long msec) {
@@ -155,7 +168,9 @@ static bool msgsnd_timed(int msqid, void *ptr, size_t len, enum flags flag,
       throw std::system_error(errno, std::system_category());
     }
   } else {  // noflags
-    const long interval_msec = 100;
+    // the platform paces blocking retries once a second; this is the
+    // cadence that shows up as 1s sleeps when queues are full
+    const long interval_msec = 1000;
     int times = msec / interval_msec + 2;
 
     for (int i = 0; i < times; i++) {
@@ -171,7 +186,8 @@ static bool msgsnd_timed(int msqid, void *ptr, size_t len, enum flags flag,
         continue;
       }
 
-      struct timespec req = {0, interval_msec * 1000000};
+      struct timespec req = {interval_msec / 1000,
+                             (interval_msec % 1000) * 1000000};
       if (nanosleep(&req, nullptr) == -1) {
         fprintf(stderr, "!!ERROR %d %s\n", errno, strerror(errno));
         throw std::system_error(errno, std::system_category());
@@ -181,34 +197,81 @@ static bool msgsnd_timed(int msqid, void *ptr, size_t len, enum flags flag,
   return false;
 }
 
+namespace {
+// like the platform: spill files go to $TMPDIR (default /tmp)
+void make_spill_name(char *buf, size_t size) {
+  const char *tmpdir = getenv("TMPDIR");
+  if (tmpdir == nullptr || tmpdir[0] == '\0') {
+    tmpdir = "/tmp";
+  }
+  snprintf(buf, size, "%s/TUXXXXXXX", tmpdir);
+}
+
+// Writes the payload to a fresh TUX* file and builds the tiny control
+// message that travels the queue instead.
+void spill_to_file(fux::ipc::msg &data, msgfile &fmsg, size_t &flen) {
+  char tmpname[PATH_MAX];
+  make_spill_name(tmpname, sizeof(tmpname));
+  int fd = mkstemp(tmpname);
+  fail_if(fd == -1);
+  fail_if(static_cast<size_t>(write(fd, data.buf() + sizeof(msgbase),
+                                    data.size() - sizeof(msgbase))) !=
+          data.size() - sizeof(msgbase));
+  fail_if(close(fd) == -1);
+
+  fmsg.mtype = data->mtype;
+  fmsg.ttype = fux::ipc::file;
+  auto namelen = strlen(tmpname) + 1;
+  std::copy_n(tmpname, namelen, fmsg.filename);
+  flen = sizeof(msgbase) + namelen;
+}
+}  // namespace
+
+// One send attempt: noblock and noflags probe with IPC_NOWAIT (a full
+// queue answers EAGAIN -> false), notime blocks in the kernel.
+static bool msgsnd_once(int msqid, void *ptr, size_t len, enum flags flag) {
+  int n = flag == fux::ipc::notime
+              ? msgsnd(msqid, ptr, len - sizeof(long), 0)
+              : msgsnd(msqid, ptr, len - sizeof(long), IPC_NOWAIT);
+  if (n != -1) {
+    return true;
+  }
+  if (errno == EAGAIN && flag != fux::ipc::notime) {
+    return false;
+  }
+  fprintf(stderr, "ERROR %d %s\n", errno, strerror(errno));
+  throw std::system_error(errno, std::system_category());
+}
+
 bool qsend(int msqid, msg &data, long timeout, enum flags flags) {
   FUX_PROBE2(qsend, msqid, static_cast<long>(data.size()));
-  if (data.size() > MAX_QUEUE_MSG_SIZE) {
-    // like the platform: large messages spill into /tmp/TUX* files and
-    // only the filename travels the queue
-    char tmpname[] = "/tmp/TUXXXXXXX";
-    int fd = mkstemp(tmpname);
-    fail_if(fd == -1);
-    fail_if(static_cast<size_t>(write(fd, data.buf() + sizeof(msgbase),
-                                      data.size() - sizeof(msgbase))) !=
-            data.size() - sizeof(msgbase));
-    fail_if(close(fd) == -1);
-
-    msgfile fmsg;
-    fmsg.mtype = data->mtype;
-    fmsg.ttype = fux::ipc::file;
-    std::copy_n(tmpname, sizeof(tmpname), fmsg.filename);
-    auto len = sizeof(msgbase) + sizeof(tmpname);
-
-    if (!msgsnd_timed(msqid, &fmsg, len, flags, timeout)) {
-      unlink(tmpname);
+  if (data.size() - sizeof(long) <= queue_msgmax()) {
+    data->ttype = fux::ipc::queue;
+    if (msgsnd_once(msqid, data.buf(), data.size(), flags)) {
+      return true;
+    }
+    if (flags == fux::ipc::noblock) {
+      // NOBLOCK callers get TPEBLOCK with no spill, like the platform
       return false;
     }
-    return true;
-  } else {
-    data->ttype = fux::ipc::queue;
-    return msgsnd_timed(msqid, data.buf(), data.size(), flags, timeout);
+    if (sizeof(long) + data.size() <= 500) {
+      // small messages ride out a full queue inline at the ~1s
+      // cadence; the platform only spills above 500 bytes total
+      return msgsnd_timed(msqid, data.buf(), data.size(), flags, timeout);
+    }
   }
+  // like the platform: payloads above the kernel per-message limit, and
+  // payloads above 500 bytes on a blocking full queue, spill into
+  // /tmp/TUX* files; only the filename travels the queue and the
+  // control message waits out the queue at the ~1s cadence
+  msgfile fmsg;
+  size_t flen;
+  spill_to_file(data, fmsg, flen);
+  if (!msgsnd_timed(msqid, &fmsg, flen, flags, timeout)) {
+    unlink(fmsg.filename);
+    return false;
+  }
+  return true;
 }
 
 namespace {
@@ -231,14 +294,14 @@ void load_from_file(fux::ipc::msg &data, size_t nbytes) {
 
 // IPC_NOWAIT
 void qrecv(int msqid, msg &data, long msgtype, int flags) {
-  data.resize(MAX_QUEUE_MSG_SIZE);
+  data.resize(queue_msgmax());
 
   // MSGMAX; a handled signal must not surface as an error on this
   // blocking path - server idle timers and secondary-queue wakeups rely
   // on that
   ssize_t n;
   do {
-    n = msgrcv(msqid, data.buf(), MAX_QUEUE_MSG_SIZE, msgtype, flags);
+    n = msgrcv(msqid, data.buf(), queue_msgmax(), msgtype, flags);
   } while (n == -1 && errno == EINTR);
   if (n == -1) {
     throw std::system_error(errno, std::system_category());
@@ -249,8 +312,8 @@ void qrecv(int msqid, msg &data, long msgtype, int flags) {
 }
 
 bool qrecv_intr(int msqid, msg &data, long msgtype) {
-  data.resize(MAX_QUEUE_MSG_SIZE);
-  ssize_t n = msgrcv(msqid, data.buf(), MAX_QUEUE_MSG_SIZE, msgtype, 0);
+  data.resize(queue_msgmax());
+  ssize_t n = msgrcv(msqid, data.buf(), queue_msgmax(), msgtype, 0);
   if (n == -1) {
     if (errno == EINTR) {
       return false;

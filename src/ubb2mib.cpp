@@ -80,6 +80,9 @@ void ubb2mib(ubbconfig &u, mib &m) {
   }
 
   m.mach().blocktime = std::stol(blocktime) * std::stol(scanunit);
+  m.mach().maxwsclients = std::stol(mach.second["MAXWSCLIENTS"].empty()
+                                        ? "0"
+                                        : mach.second["MAXWSCLIENTS"]);
 
   auto &domain = m.domain();
   domain.ipckey = m.cfg().ipckey;

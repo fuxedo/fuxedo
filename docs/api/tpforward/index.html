@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tpforward() - hand the request to another service (server only) | Fuxedo API reference</title>
+<meta name="description" content="tpforward() - hand the request to another service (server only). Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="keywords" content="tpforward, tpforward example, Oracle Tuxedo tpforward, Tuxedo C API, Fuxedo, XATMI,tpcall,tpreturn">
+<link rel="canonical" href="https://fuxedo.io/api/tpforward/">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://fuxedo.io/api/tpforward/">
+<meta property="og:title" content="tpforward() - hand the request to another service (server only)">
+<meta property="og:description" content="tpforward() - hand the request to another service (server only). Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="tpforward() - hand the request to another service (server only)">
+<meta name="twitter:description" content="tpforward() - hand the request to another service (server only). Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "tpforward() - hand the request to another service (server only)",
+      "description": "tpforward() - hand the request to another service (server only). Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.",
+      "url": "https://fuxedo.io/api/tpforward/",
+      "isPartOf": {"@type": "WebSite", "name": "Fuxedo API reference", "url": "https://fuxedo.io/api/"},
+      "programmingLanguage": "C",
+      "license": "https://opensource.org/licenses/MIT"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Fuxedo", "item": "https://fuxedo.io/"},
+        {"@type": "ListItem", "position": 2, "name": "API reference", "item": "https://fuxedo.io/api/"},
+        {"@type": "ListItem", "position": 3, "name": "tpforward"}
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/api/api.css">
+</head>
+<body>
+<div class="page">
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">tpforward()</h1>
+<p class="tagline">hand the request to another service (server only)</p>
+
+<div class="api-layout">
+<nav class="api-nav">
+<h2>XATMI: session</h2>
+<ul>
+<li><a href="/api/tpinit/">tpinit</a></li>
+<li><a href="/api/tpterm/">tpterm</a></li>
+</ul>
+<h2>XATMI: calls</h2>
+<ul>
+<li><a href="/api/tpcall/">tpcall</a></li>
+<li><a href="/api/tpacall/">tpacall</a></li>
+<li><a href="/api/tpgetrply/">tpgetrply</a></li>
+<li><a href="/api/tpcancel/">tpcancel</a></li>
+<li><a class="here" href="/api/tpforward/">tpforward</a></li>
+</ul>
+<h2>XATMI: buffers</h2>
+<ul>
+<li><a href="/api/tpalloc/">tpalloc</a></li>
+<li><a href="/api/tpfree/">tpfree</a></li>
+<li><a href="/api/tptypes/">tptypes</a></li>
+</ul>
+<h2>XATMI: server</h2>
+<ul>
+<li><a href="/api/tpsvrinit/">tpsvrinit</a></li>
+<li><a href="/api/tpsvrdone/">tpsvrdone</a></li>
+<li><a href="/api/tpsvrthrinit/">tpsvrthrinit</a></li>
+<li><a href="/api/tpsvrthrdone/">tpsvrthrdone</a></li>
+<li><a href="/api/tpreturn/">tpreturn</a></li>
+<li><a href="/api/tpadvertise/">tpadvertise</a></li>
+<li><a href="/api/tpadvertisex/">tpadvertisex</a></li>
+<li><a href="/api/tpunadvertise/">tpunadvertise</a></li>
+</ul>
+<h2>FML32</h2>
+<ul>
+<li><a href="/api/fml32/">fml32</a></li>
+<li><a href="/api/Fadd32/">Fadd32</a></li>
+<li><a href="/api/Fchg32/">Fchg32</a></li>
+<li><a href="/api/Fget32/">Fget32</a></li>
+<li><a href="/api/Fdel32/">Fdel32</a></li>
+<li><a href="/api/Fnext32/">Fnext32</a></li>
+<li><a href="/api/Fprint32/">Fprint32</a></li>
+<li><a href="/api/Ffprint32/">Ffprint32</a></li>
+<li><a href="/api/Fwrite32/">Fwrite32</a></li>
+<li><a href="/api/Fread32/">Fread32</a></li>
+<li><a href="/api/Fboolev32/">Fboolev32</a></li>
+<li><a href="/api/Fboolpr32/">Fboolpr32</a></li>
+<li><a href="/api/Fmkfldid32/">Fmkfldid32</a></li>
+<li><a href="/api/Fneeded32/">Fneeded32</a></li>
+<li><a href="/api/Fsizeof32/">Fsizeof32</a></li>
+<li><a href="/api/Flen32/">Flen32</a></li>
+</ul>
+</nav>
+
+<div class="api-main">
+
+<h2>Synopsis</h2>
+<pre><code>#include &lt;atmi.h&gt;
+
+void tpforward(char *svc, char *data, long len, long flags);</code></pre>
+
+<h2>Description</h2>
+
+<p>tpforward() is called from a service and hands the current request
+to another service. It does not return: the forwarding service
+terminates, and the reply produced by the target service goes to the
+original caller with the forwarding service's return code semantics
+cleared. The caller cannot tell the request was forwarded.</p>
+<p>The target service name must be advertised; otherwise the caller
+receives an error reply (TPENOENT) instead of a normal result.</p>
+
+<h2>Arguments</h2>
+<table>
+<tr><th>Argument</th><th>Description</th></tr>
+<tr><td>svc</td><td>The service that will produce the reply.</td></tr>
+<tr><td>data, len</td><td>The (possibly rewritten) request. As usual, len 0 means the buffer length for self-describing types.</td></tr>
+<tr><td>flags</td><td>Currently no forward-specific flags; pass 0.</td></tr>
+</table>
+
+
+<h2>Errors (tperrno)</h2>
+<table>
+<tr><th>Code</th><th>Description</th></tr>
+<tr><td>TPENOENT</td><td>svc is not advertised; reported to the caller as an error reply.</td></tr>
+</table>
+
+<h2>Notes</h2>
+
+<p><strong>Transactions.</strong> A forward keeps the request inside the
+caller's transaction; the target service joins it like any participant.
+tpforward, not tpcall, is the right way to chain services within one
+transactional call.</p>
+
+<h2>12.2 vs 22.1</h2>
+<p>No differences observed between Oracle Tuxedo 12.2 and 22.1 in our cross-checks.</p>
+
+<h2>Example</h2>
+<p class="example-file">Full source: <code>docs/api/examples/apisvr.c</code>
+(build and run with <code>make -C docs/api/examples check
+TUXDIR=&lt;install&gt;</code>); the lines documenting tpforward() are highlighted.</p>
+<pre><code>// Sample server for the API reference examples. TOUPPER does the work;
+// FORWARD exists to demonstrate tpforward().
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;ctype.h&gt;
+#include &lt;atmi.h&gt;
+
+void TOUPPER(TPSVCINFO *svcinfo) {
+  for (char *p = svcinfo-&gt;data; *p != &#x27;\0&#x27;; p++) {
+    *p = (char)toupper((unsigned char)*p);
+  }
+  tpreturn(TPSUCCESS, 0, svcinfo-&gt;data, 0, 0);
+}
+
+<span class="hl">void FORWARD(TPSVCINFO *svcinfo) {
+  // hand the request to TOUPPER; tpforward does not return
+  tpforward((char *)&quot;TOUPPER&quot;, svcinfo-&gt;data, svcinfo-&gt;len, 0);
+}</span></code></pre>
+
+<p>See also: <a href="/api/tpcall/">tpcall</a>, <a href="/api/tpreturn/">tpreturn</a>.</p>
+
+<p class="compat-line">fuxedo: supported.
+Cross-checked against Oracle Tuxedo 12.2.2 and 22.1
+with the API hardening suite.</p>
+
+</div>
+</div>
+
+<footer>
+<p>Part of the <a href="/api/">Fuxedo API reference</a>.
+<a href="https://github.com/fuxedo/fuxedo">Fuxedo</a> is the open source
+alternative to Oracle Tuxedo: same API, same commands, same System V IPC
+mechanics.</p>
+</footer>
+</div>
+</body>
+</html>

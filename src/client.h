@@ -18,7 +18,8 @@
 // instance per remote client instead.
 class client {
  public:
-  client(mib &mibcon);
+  client(mib &mibcon, const char *cltname = nullptr,
+         const char *usrname = nullptr);
   ~client();
 
   int tpacall_group(int grpno, const char *svc, char *data, long len,
@@ -43,6 +44,14 @@ class client {
   // replies and markers are kept or discarded like in drain_late_replies
   int chkunsol();
 
+  // conversational client API
+  int tpconnect(const char *svc, char *data, long len, long flags);
+  int tpsend(int cd, char *data, long len, long flags, long *revent);
+  int tprecv(int cd, char **data, long *len, long flags, long *revent);
+  int tpdiscon(int cd);
+  // best-effort DISCONIMM for every open conversation (tpterm cleanup)
+  void disconnect_convs();
+
   queue_entry get_queue(const char *svc) { return repo_.get_queue(-1, svc); }
 
  private:
@@ -65,4 +74,13 @@ class client {
   // conversion and must be converted back before the caller sees them
   std::set<int> xml_converted;
   unsol_handler_t unsol_handler_ = nullptr;
+  // conversational connections owned by this context; descriptors start
+  // at fux::ipc::conv_base so they never collide with reply descriptors
+  // or their message types on the reply queue
+  struct conv_state {
+    int msqid;     // the service's request queue
+    bool open;     // terminal event not yet received
+    bool send_mine;  // half-duplex send permission
+  };
+  std::map<int, conv_state> convs_;
 };

@@ -23,9 +23,16 @@ int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags);
 
 int tppost(char *eventname, char *data, long len, long flags);
 
+int tpconnect(char *svc, char *data, long len, long flags);
+int tpsend(int cd, char *data, long len, long flags, long *revent);
+int tprecv(int cd, char **data, long *len, long flags, long *revent);
+int tpdiscon(int cd);
+
 long tpsubscribe(char *eventexpr, char *filter, TPEVCTL *ctl, long flags);
 int tpunsubscribe(long subscription, long flags);
 int tpnotify(CLIENTID *cltid, char *data, long len, long flags);
+int tpbroadcast(char *lmid, char *usrname, char *cltname, char *data,
+                long len, long flags);
 void (*tpsetunsol(void (*func)(char *data, long len, long flags)))(char *,
                                                                     long,
                                                                     long);

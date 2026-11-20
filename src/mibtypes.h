@@ -24,6 +24,8 @@ struct accesser {
   pid_t pid;
   int rpid;
   std::chrono::steady_clock::time_point rpid_timeout;
+  char cltname[MAXTIDENT + 2];  // from TPINIT, for broadcast filtering
+  char usrname[MAXTIDENT + 2];
 
   bool valid() const { return pid != 0; }
   void invalidate() {
@@ -64,6 +66,7 @@ struct t_machine {
   char tlogdevice[256];
   char envfile[256];
   long blocktime;
+  long maxwsclients;  // 0 = unlimited unless WSL -x says otherwise
 };
 
 struct group {

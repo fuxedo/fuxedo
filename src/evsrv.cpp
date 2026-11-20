@@ -30,6 +30,7 @@
 #include "fux.h"
 #include "mib.h"
 #include "misc.h"
+#include "tmqwire.h"
 
 namespace {
 
@@ -70,7 +71,7 @@ void append_subscribe(uint64_t handle, pid_t pid, const std::string &expr,
   s += "\nTA_CLIENTID\t" + clientid_str(pid);
   s += "\nTA_EVENT_EXPR\t" + expr + "\n";
   if (!filter.empty()) {
-    s += "TA_FILTER\t" + filter + "\n";
+    s += "TA_EVENT_FILTER\t" + filter + "\n";
   }
   append_raw(s);
 }
@@ -90,6 +91,34 @@ int find_rpid(mib &m, pid_t pid) {
     }
   }
   return -1;
+}
+
+// The compiled tree is a binary blob whose first two bytes carry its
+// length; a string copy would truncate at the first NUL. Returns false
+// when the tree does not fit.
+static bool copy_tree(const char *compiled, char (&tree)[1024]) {
+  if (compiled == nullptr) {
+    return false;
+  }
+  unsigned n = static_cast<unsigned char>(compiled[0]) |
+               (static_cast<unsigned char>(compiled[1]) << 8);
+  if (n < 4 || n + 1 > sizeof(tree)) {
+    return false;
+  }
+  std::copy_n(compiled, n, tree);
+  tree[n] = '\0';
+  return true;
+}
+
+// Compile the filter expression once: the tree lives in the bulletin
+// board entry (matched per post), the text goes to the .dat file.
+// Fboolco32 returns an internal buffer, so copy immediately.
+static bool compile_filter(const std::string &filter, char (&tree)[1024]) {
+  tree[0] = '\0';
+  if (filter.empty()) {
+    return true;
+  }
+  return copy_tree(Fboolco32(const_cast<char *>(filter.c_str())), tree);
 }
 
 void compact(mib &m) {
@@ -119,7 +148,7 @@ void compact(mib &m) {
     out += sub.eventname;
     out += "\n";
     if (sub.filter[0] != '\0') {
-      out += "TA_FILTER\t";
+      out += "TA_EVENT_FILTER\t";
       out += sub.filter;
       out += "\n";
     }
@@ -203,7 +232,7 @@ void replay(mib &m) {
       dead++;
       return;
     }
-    const char *flt = get("TA_FILTER");
+    const char *flt = get("TA_EVENT_FILTER");
 
     try {
       size_t pos = m.events().alloc();
@@ -213,7 +242,15 @@ void replay(mib &m) {
       sub.rpid = find_rpid(m, pid);
       sub.used = true;
       checked_copy(expr, sub.eventname);
-      checked_copy(flt != nullptr ? flt : "", sub.filter);
+      std::string filt = flt != nullptr ? flt : "";
+      if (!compile_filter(filt, sub.filtertree)) {
+        m.events().free(pos);
+        userlog("EVSVR: filter does not compile, dropping handle %llu",
+                static_cast<unsigned long long>(h));
+        dead++;
+        return;
+      }
+      checked_copy(filt, sub.filter);
       live++;
     } catch (const std::out_of_range &) {
       userlog("EVSVR: subscription table full, dropping handle %llu",
@@ -270,6 +307,29 @@ void EVT(TPSVCINFO *svcinfo) {
   try {
     auto &m = getmib();
     pid_t pid = static_cast<pid_t>(svcinfo->cltid.clientdata[0]);
+
+    if (rq.count(fux::evw::f_data()) > 0) {
+      // WS-routed post: match subscribers and deliver on the caller's
+      // behalf (workstation clients have no bulletin board)
+      std::string expr = rq.get<std::string>(TA_EVENT_EXPR, 0, "");
+      std::string wire = rq.getbytes(fux::evw::f_data(), 0);
+      char *buf = tpalloc(const_cast<char *>("CARRAY"), nullptr,
+                          static_cast<long>(wire.size()) + 64);
+      long olen = 0;
+      if (!wire.empty() &&
+          tpimport(&wire[0], static_cast<long>(wire.size()), &buf, &olen,
+                   0) == -1) {
+        TPERROR(TPEINVAL, "cannot import posted data");
+        fail = true;
+      } else {
+        fail = fux::events::deliver(m, expr.c_str(),
+                                    wire.empty() ? nullptr : buf, olen) == -1;
+      }
+      tpfree(buf);
+      fux::tpreturn(fail ? TPFAIL : TPSUCCESS, 0, rs);
+      return;
+    }
+
     auto lock = m.data_lock();
 
     if (rq.count(TA_SUBSCRIPTION_HANDLE) > 0) {
@@ -289,7 +349,7 @@ void EVT(TPSVCINFO *svcinfo) {
         TPERROR(TPEINVAL, "TA_EVENT_EXPR is required");
         fail = true;
       } else {
-        std::string filter = rq.get<std::string>(TA_FILTER, 0, "");
+        std::string filter = rq.get<std::string>(TA_EVENT_FILTER, 0, "");
         uint64_t h = g_next_handle++;
         try {
           size_t pos = m.events().alloc();
@@ -299,6 +359,11 @@ void EVT(TPSVCINFO *svcinfo) {
           sub.rpid = find_rpid(m, pid);
           sub.used = true;
           checked_copy(expr, sub.eventname);
+          if (!compile_filter(filter, sub.filtertree)) {
+            m.events().free(pos);
+            TPERROR(TPEINVAL, "filter expression does not compile");
+            fail = true;
+          }
           checked_copy(filter, sub.filter);
         } catch (const std::out_of_range &) {
           TPERROR(TPELIMIT, "Subscription table is full");

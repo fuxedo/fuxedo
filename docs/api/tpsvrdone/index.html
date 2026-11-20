@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tpsvrdone() - server shutdown hook | Fuxedo API reference</title>
+<meta name="description" content="tpsvrdone() - server shutdown hook. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="keywords" content="tpsvrdone, tpsvrdone example, Oracle Tuxedo tpsvrdone, Tuxedo C API, Fuxedo, XATMI,tpsvrinit,tpunadvertise">
+<link rel="canonical" href="https://fuxedo.io/api/tpsvrdone/">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://fuxedo.io/api/tpsvrdone/">
+<meta property="og:title" content="tpsvrdone() - server shutdown hook">
+<meta property="og:description" content="tpsvrdone() - server shutdown hook. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="tpsvrdone() - server shutdown hook">
+<meta name="twitter:description" content="tpsvrdone() - server shutdown hook. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "tpsvrdone() - server shutdown hook",
+      "description": "tpsvrdone() - server shutdown hook. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.",
+      "url": "https://fuxedo.io/api/tpsvrdone/",
+      "isPartOf": {"@type": "WebSite", "name": "Fuxedo API reference", "url": "https://fuxedo.io/api/"},
+      "programmingLanguage": "C",
+      "license": "https://opensource.org/licenses/MIT"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Fuxedo", "item": "https://fuxedo.io/"},
+        {"@type": "ListItem", "position": 2, "name": "API reference", "item": "https://fuxedo.io/api/"},
+        {"@type": "ListItem", "position": 3, "name": "tpsvrdone"}
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/api/api.css">
+</head>
+<body>
+<div class="page">
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">tpsvrdone()</h1>
+<p class="tagline">server shutdown hook</p>
+
+<div class="api-layout">
+<nav class="api-nav">
+<h2>XATMI: session</h2>
+<ul>
+<li><a href="/api/tpinit/">tpinit</a></li>
+<li><a href="/api/tpterm/">tpterm</a></li>
+</ul>
+<h2>XATMI: calls</h2>
+<ul>
+<li><a href="/api/tpcall/">tpcall</a></li>
+<li><a href="/api/tpacall/">tpacall</a></li>
+<li><a href="/api/tpgetrply/">tpgetrply</a></li>
+<li><a href="/api/tpcancel/">tpcancel</a></li>
+<li><a href="/api/tpforward/">tpforward</a></li>
+</ul>
+<h2>XATMI: buffers</h2>
+<ul>
+<li><a href="/api/tpalloc/">tpalloc</a></li>
+<li><a href="/api/tpfree/">tpfree</a></li>
+<li><a href="/api/tptypes/">tptypes</a></li>
+</ul>
+<h2>XATMI: server</h2>
+<ul>
+<li><a href="/api/tpsvrinit/">tpsvrinit</a></li>
+<li><a class="here" href="/api/tpsvrdone/">tpsvrdone</a></li>
+<li><a href="/api/tpsvrthrinit/">tpsvrthrinit</a></li>
+<li><a href="/api/tpsvrthrdone/">tpsvrthrdone</a></li>
+<li><a href="/api/tpreturn/">tpreturn</a></li>
+<li><a href="/api/tpadvertise/">tpadvertise</a></li>
+<li><a href="/api/tpadvertisex/">tpadvertisex</a></li>
+<li><a href="/api/tpunadvertise/">tpunadvertise</a></li>
+</ul>
+<h2>FML32</h2>
+<ul>
+<li><a href="/api/fml32/">fml32</a></li>
+<li><a href="/api/Fadd32/">Fadd32</a></li>
+<li><a href="/api/Fchg32/">Fchg32</a></li>
+<li><a href="/api/Fget32/">Fget32</a></li>
+<li><a href="/api/Fdel32/">Fdel32</a></li>
+<li><a href="/api/Fnext32/">Fnext32</a></li>
+<li><a href="/api/Fprint32/">Fprint32</a></li>
+<li><a href="/api/Ffprint32/">Ffprint32</a></li>
+<li><a href="/api/Fwrite32/">Fwrite32</a></li>
+<li><a href="/api/Fread32/">Fread32</a></li>
+<li><a href="/api/Fboolev32/">Fboolev32</a></li>
+<li><a href="/api/Fboolpr32/">Fboolpr32</a></li>
+<li><a href="/api/Fmkfldid32/">Fmkfldid32</a></li>
+<li><a href="/api/Fneeded32/">Fneeded32</a></li>
+<li><a href="/api/Fsizeof32/">Fsizeof32</a></li>
+<li><a href="/api/Flen32/">Flen32</a></li>
+</ul>
+</nav>
+
+<div class="api-main">
+
+<h2>Synopsis</h2>
+<pre><code>#include &lt;atmi.h&gt;
+
+void tpsvrdone(void);</code></pre>
+
+<h2>Description</h2>
+
+<p>tpsvrdone() is the server shutdown hook, called once at orderly
+shutdown after the last request has finished. Withdraw advertisements,
+close files and connections, and log the exit here. There is no error
+return; the server exits after the hook.</p>
+
+
+
+
+
+<h2>12.2 vs 22.1</h2>
+<p>No differences observed between Oracle Tuxedo 12.2 and 22.1 in our cross-checks.</p>
+
+<h2>Example</h2>
+<p class="example-file">Full source: <code>docs/api/examples/advsvr.c</code>
+(build and run with <code>make -C docs/api/examples check
+TUXDIR=&lt;install&gt;</code>); the lines documenting tpsvrdone() are highlighted.</p>
+<pre><code>// Server lifecycle examples: tpsvrinit/tpsvrdone, the per-dispatch
+// thread pair, runtime advertising, and tpreturn. Booted without -s
+// advertisements; everything is advertised from tpsvrinit().
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;atmi.h&gt;
+#include &lt;userlog.h&gt;
+
+void GREET(TPSVCINFO *svcinfo) {
+  // tpreturn ends the call: TPSUCCESS delivers data as the reply,
+  // TPFAIL reports an application failure (tpurcode carries rcode),
+  // TPEXIT ends the call and takes the server down
+  tpreturn(TPSUCCESS, 0, svcinfo-&gt;data, 0, 0);
+}
+
+int tpsvrthrinit(int argc, char **argv) {
+  // called once per dispatch thread, before it takes requests
+  return 0;
+}
+
+void tpsvrthrdone() {
+  // called when a dispatch thread exits
+}
+
+int tpsvrinit(int argc, char **argv) {
+  // called once at boot, before the server takes requests: advertise
+  // the services this server implements. Functions must be declared at
+  // buildserver time; runtime advertising binds names to them
+  if (tpadvertise((char *)&quot;GREETX&quot;, GREET) == -1) {
+    return -1;
+  }
+  // tpadvertisex (re)binds a name to a function with extended
+  // placement flags (0 = plain); here it takes over the buildserver
+  // -s advertisement of GREET
+  if (tpadvertisex((char *)&quot;GREET&quot;, GREET, 0) == -1) {
+    return -1;
+  }
+  return 0;
+}
+
+<span class="hl">void tpsvrdone() {
+  // called once at orderly shutdown; withdraw the extra advertisement
+  tpunadvertise((char *)&quot;GREETX&quot;);
+  userlog(&quot;advsvr done&quot;);
+}</span></code></pre>
+
+<p>See also: <a href="/api/tpsvrinit/">tpsvrinit</a>, <a href="/api/tpunadvertise/">tpunadvertise</a>.</p>
+
+<p class="compat-line">fuxedo: supported.
+Cross-checked against Oracle Tuxedo 12.2.2 and 22.1
+with the API hardening suite.</p>
+
+</div>
+</div>
+
+<footer>
+<p>Part of the <a href="/api/">Fuxedo API reference</a>.
+<a href="https://github.com/fuxedo/fuxedo">Fuxedo</a> is the open source
+alternative to Oracle Tuxedo: same API, same commands, same System V IPC
+mechanics.</p>
+</footer>
+</div>
+</body>
+</html>

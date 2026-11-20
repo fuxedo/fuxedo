@@ -30,8 +30,13 @@ static void process_file(const std::string &file,
   if (slash == std::string::npos) {
     slash = 0;
   }
+  std::string base = file.substr(slash);
+  auto dot = base.find_last_of('.');
+  if (dot != std::string::npos) {
+    base.erase(dot);
+  }
   fout.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-  fout.open(output_directory + "/" + file.substr(slash) + ".h");
+  fout.open(output_directory + "/" + base + ".h");
   for (auto &i : p.entries()) {
     if (i.c && !i.c->empty()) {
       fout << "// " << *(i.c) << std::endl;

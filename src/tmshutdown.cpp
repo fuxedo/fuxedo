@@ -131,8 +131,16 @@ int main(int argc, char *argv[]) {
       }
       server.suspend();
 
-      std::cout << "\tServer Id = " << server.srvid
-                << " Group Id = " << server.grpno;
+      // resource manager servers (SRVID >= 30000) are reported on a
+      // Group Id row without the Server Id prefix; third-party
+      // tooling parses exactly this shape
+      const bool is_rm = server.srvid >= 30000;
+      if (is_rm) {
+        std::cout << "\tGroup Id = " << server.grpno;
+      } else {
+        std::cout << "\tServer Id = " << server.srvid
+                  << " Group Id = " << server.grpno;
+      }
 
       if (!ksig.empty()) {
         int signo = ksig == "KILL" ? SIGKILL

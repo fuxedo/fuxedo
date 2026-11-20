@@ -3,7 +3,7 @@
 
 // XML <-> FML32 conversion behind tpxmltofml32()/tpfml32toxml() and the
 // *SERVICES BUFTYPECONV=XML2FML32 boundary conversion. Semantics pinned
-// against Oracle Tuxedo 12.2 (probe session, private/compat/xml):
+// against Oracle Tuxedo 12.2 (probe session):
 // element names map through Fldid32(), repeated elements become field
 // occurrences, an element whose field is FLD_FML32 becomes a nested
 // buffer, unknown element names set Ferror32=FBADNAME and are skipped,

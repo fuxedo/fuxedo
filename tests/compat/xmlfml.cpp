@@ -2,7 +2,7 @@
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
 // tpxmltofml32()/tpfml32toxml() semantics, pinned against Oracle
-// Tuxedo 12.2 (probe session in private/compat/xml). Field names come
+// Tuxedo 12.2 (probe session). Field names come
 // from tests/fields (FLDTBLDIR32/FIELDTBLS32 set by the test harness).
 
 #include <catch.hpp>

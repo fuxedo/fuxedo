@@ -52,10 +52,10 @@ struct suspend_guard {
 
 }  // namespace fux
 
-client::client(mib &mibcon)
+client::client(mib &mibcon, const char *cltname, const char *usrname)
     : mibcon_(mibcon), repo_(mibcon), blocktime_next(0), blocktime_all(0) {
   auto lock = mibcon_.data_lock();
-  client_ = mibcon_.make_accesser(getpid());
+  client_ = mibcon_.make_accesser(getpid(), cltname, usrname);
   rpid = mibcon_.accessers().at(client_).rpid = fux::ipc::qcreate();
 }
 
@@ -64,6 +64,7 @@ client::~client() {
   // already be shut down and the bulletin board IPC gone; a throwing
   // destructor here would terminate the whole process.
   try {
+    disconnect_convs();
     auto lock = mibcon_.data_lock();
     fux::ipc::qdelete(mibcon_.accessers().at(client_).rpid);
     mibcon_.accessers().at(client_).invalidate();
@@ -75,6 +76,24 @@ int client::tpacall_group(int grpno, const char *svc, char *data, long len,
                           long flags) try {
   auto target = repo_.get_queue(grpno, svc);
   auto conv = repo_.buftypeconv(svc);
+
+  // the platform forbids no-reply calls inside a transaction
+  if ((flags & TPNOREPLY) && fux::tx::transactional()) {
+    TPERROR(TPEPROTO, "TPNOREPLY in transaction mode");
+    return -1;
+  }
+  // a group without a transaction manager cannot join a transaction:
+  // reject with TPETRAN unless the caller opts out with TPNOTRAN
+  if (!(flags & TPNOTRAN) && fux::tx::transactional() && target.grpno > 0) {
+    auto gidx = mibcon_.find_group(static_cast<uint16_t>(target.grpno));
+    if (gidx != mib::badoff &&
+        mibcon_.groups().at(gidx).tmsname[0] == '\0') {
+      TPERROR(TPETRAN,
+              "service %s is in a group without a transaction manager",
+              svc);
+      return -1;
+    }
+  }
 
   if (data != nullptr && conv == "XML2FML32") {
     // *SERVICES BUFTYPECONV=XML2FML32: the service sees FML32; the
@@ -189,14 +208,20 @@ int client::tpgetrply(int *cd, char **data, long *len, long flags) {
     }
 
     if (!has_res) {
-      mibcon_.accessers().at(client_).rpid_timeout =
-          std::chrono::steady_clock::now() +
-          std::chrono::milliseconds(next_blocktime());
+      // TPNOTIME waits without a deadline: leave the accesser without
+      // a reply-wait timeout so the reaper never fires
+      if (flags & TPNOTIME) {
+        mibcon_.accessers().at(client_).rpid_timeout = INVALID_TIME;
+      } else {
+        mibcon_.accessers().at(client_).rpid_timeout =
+            std::chrono::steady_clock::now() +
+            std::chrono::milliseconds(next_blocktime());
+      }
       try {
         if (flags & TPNOBLOCK) {
-          fux::ipc::qrecv(rpid, res, 0, IPC_NOWAIT);
+          fux::ipc::qrecv(rpid, res, -fux::ipc::reply_limit, IPC_NOWAIT);
         } else {
-          fux::ipc::qrecv(rpid, res, 0, 0);
+          fux::ipc::qrecv(rpid, res, -fux::ipc::reply_limit, 0);
         }
       } catch (const std::system_error &) {
         mibcon_.accessers().at(client_).rpid_timeout = INVALID_TIME;
@@ -328,7 +353,7 @@ int client::chkunsol() {
   while (true) {
     fux::ipc::msg res;
     try {
-      fux::ipc::qrecv(rpid, res, 0, IPC_NOWAIT);
+      fux::ipc::qrecv(rpid, res, -fux::ipc::reply_limit, IPC_NOWAIT);
     } catch (const std::system_error &) {
       break;  // nothing queued right now
     }
@@ -348,11 +373,195 @@ int client::chkunsol() {
   return delivered;
 }
 
+int client::tpconnect(const char *svc, char *data, long len, long flags) {
+  if (svc == nullptr || svc[0] == '\0') {
+    TPERROR(TPEINVAL, "svc is null or empty");
+    return -1;
+  }
+  constexpr long valid = TPSIGRSTRT | TPNOBLOCK | TPNOTIME | TPRECVONLY;
+  if (flags & ~valid) {
+    TPERROR(TPEINVAL, "Invalid flags passed to tpconnect");
+    return -1;
+  }
+  try {
+    auto target = repo_.get_queue(-1, svc);
+
+    // descriptor ids come from the bulletin board counter so a stale
+    // message from a dead conversation can never alias a new one
+    int cd = fux::ipc::conv_base +
+             static_cast<int>(mibcon_.genuid() % (1 << 20));
+    conv_state st{target.msqid, true, !(flags & TPRECVONLY)};
+    convs_.emplace(cd, st);
+
+    fux::ipc::msg m;
+    m->mtype = target.mtype;
+    m->cat = fux::ipc::application;
+    m->caller = getpid();
+    m->flags = TPCONV;
+    if (flags & TPRECVONLY) {
+      m->flags |= TPRECVONLY;
+    }
+    m->cd = cd;
+    m->replyq = rpid;
+    checked_copy(svc, m->servicename);
+    m.set_data(data, len);
+    if (!fux::ipc::qsend(target.msqid, m, next_blocktime(), to_flags(flags))) {
+      convs_.erase(cd);
+      if (flags & TPNOBLOCK) {
+        TPERROR(TPEBLOCK, "Request queue is full");
+      } else {
+        TPERROR(TPETIME, "Failed to send within timeout");
+      }
+      return -1;
+    }
+    fux::atmi::reset_tperrno();
+    return cd;
+  } catch (const std::out_of_range &) {
+    TPERROR(TPENOENT, "Service %s does not exist", svc);
+    return -1;
+  }
+}
+
+int client::tpsend(int cd, char *data, long len, long flags, long *revent) {
+  constexpr long valid = TPSIGRSTRT | TPNOBLOCK | TPNOTIME | TPRECVONLY;
+  if (flags & ~valid) {
+    TPERROR(TPEINVAL, "Invalid flags passed to tpsend");
+    return -1;
+  }
+  if (revent != nullptr) {
+    *revent = 0;
+  }
+  auto it = convs_.find(cd);
+  if (it == convs_.end() || !it->second.open) {
+    TPERROR(TPEBADDESC, "Unknown or closed conversation %d", cd);
+    return -1;
+  }
+  if (!it->second.send_mine) {
+    TPERROR(TPEPROTO, "No send permission on conversation %d", cd);
+    return -1;
+  }
+
+  fux::ipc::msg m;
+  m->mtype = fux::ipc::conv_mtype(cd);
+  m->cat = fux::ipc::application;
+  m->flags = 0;
+  m->cd = cd;
+  m->revent = (flags & TPRECVONLY) ? TPEV_SENDONLY : 0;
+  m.set_data(data, len);
+  if (!fux::ipc::qsend(it->second.msqid, m, next_blocktime(), to_flags(flags))) {
+    if (flags & TPNOBLOCK) {
+      TPERROR(TPEBLOCK, "Request queue is full");
+    } else {
+      TPERROR(TPETIME, "Failed to send within timeout");
+    }
+    return -1;
+  }
+  if (flags & TPRECVONLY) {
+    it->second.send_mine = false;
+  }
+  fux::atmi::reset_tperrno();
+  return 0;
+}
+
+int client::tprecv(int cd, char **data, long *len, long flags, long *revent) {
+  if (revent == nullptr) {
+    TPERROR(TPEINVAL, "revent is null");
+    return -1;
+  }
+  *revent = 0;
+  constexpr long valid = TPSIGRSTRT | TPNOBLOCK | TPNOTIME;
+  if (flags & ~valid) {
+    TPERROR(TPEINVAL, "Invalid flags passed to tprecv");
+    return -1;
+  }
+  auto it = convs_.find(cd);
+  if (it == convs_.end() || !it->second.open) {
+    TPERROR(TPEBADDESC, "Unknown or closed conversation %d", cd);
+    return -1;
+  }
+
+  fux::ipc::msg res;
+  try {
+    fux::ipc::qrecv(rpid, res, cd, (flags & TPNOBLOCK) ? IPC_NOWAIT : 0);
+  } catch (const std::system_error &) {
+    TPERROR(TPEBLOCK, "No message available");
+    return -1;
+  }
+
+  tpurcode = res->rcode;
+  if (res->revent != 0) {
+    *revent = res->revent;
+    if (res->revent & TPEV_SENDONLY) {
+      it->second.send_mine = true;
+    }
+    if (res->revent &
+        (TPEV_SVCSUCC | TPEV_SVCFAIL | TPEV_SVCERR | TPEV_DISCONIMM)) {
+      it->second.open = false;
+    }
+  }
+  if (static_cast<long>(res.size_data()) > fux::mem::headersize()) {
+    if (data == nullptr || *data == nullptr) {
+      TPERROR(TPEINVAL, "data must point to a buffer allocated with tpalloc");
+      return -1;
+    }
+    long olen = 0;
+    if (tpimport(res->data, res.size_data(), data, &olen, 0) == -1) {
+      return -1;
+    }
+    if (len != nullptr) {
+      *len = std::max(0L, static_cast<long>(res.size_data()) -
+                              fux::mem::headersize());
+    }
+  } else if (len != nullptr) {
+    *len = 0;
+  }
+  fux::atmi::reset_tperrno();
+  return 0;
+}
+
+int client::tpdiscon(int cd) {
+  auto it = convs_.find(cd);
+  if (it == convs_.end() || !it->second.open) {
+    TPERROR(TPEBADDESC, "Unknown or closed conversation %d", cd);
+    return -1;
+  }
+  fux::ipc::msg m;
+  m->mtype = fux::ipc::conv_mtype(cd);
+  m->cat = fux::ipc::application;
+  m->cd = cd;
+  m->revent = TPEV_DISCONIMM;
+  m.set_data(nullptr, 0);
+  if (!fux::ipc::qsend(it->second.msqid, m, 0, fux::ipc::flags::notime)) {
+    TPERROR(TPEOS, "Cannot disconnect conversation %d: %s", cd,
+            strerror(errno));
+    return -1;
+  }
+  it->second.open = false;
+  fux::atmi::reset_tperrno();
+  return 0;
+}
+
+void client::disconnect_convs() {
+  for (auto &kv : convs_) {
+    if (!kv.second.open) {
+      continue;
+    }
+    fux::ipc::msg m;
+    m->mtype = fux::ipc::conv_mtype(kv.first);
+    m->cat = fux::ipc::application;
+    m->cd = kv.first;
+    m->revent = TPEV_DISCONIMM;
+    m.set_data(nullptr, 0);
+    fux::ipc::qsend(kv.second.msqid, m, 0, fux::ipc::flags::notime);
+    kv.second.open = false;
+  }
+}
+
 void client::drain_late_replies() {
   while (true) {
     fux::ipc::msg res;
     try {
-      fux::ipc::qrecv(rpid, res, 0, IPC_NOWAIT);
+      fux::ipc::qrecv(rpid, res, -fux::ipc::reply_limit, IPC_NOWAIT);
     } catch (const std::system_error &) {
       break;  // nothing queued right now
     }
@@ -459,19 +668,22 @@ long client::next_blocktime() {
 }
 
 fux::ipc::flags client::to_flags(long flags) {
+  // send disposition is orthogonal to TPNOTIME (which governs the
+  // reply wait, honored in tpgetrply): TPNOBLOCK always wins here
+  if (flags & TPNOBLOCK) {
+    return fux::ipc::flags::noblock;
+  }
   if (flags & TPNOTIME) {
     return fux::ipc::flags::notime;
-  } else if (flags & TPNOBLOCK) {
-    return fux::ipc::flags::noblock;
-  } else {
-    return fux::ipc::flags::noflags;
   }
+  return fux::ipc::flags::noflags;
 }
 
 static thread_local std::shared_ptr<client> current_client;
-static client &getclient() {
+static client &getclient(const char *cltname = nullptr,
+                         const char *usrname = nullptr) {
   if (!current_client.get()) {
-    current_client = std::make_shared<client>(getmib());
+    current_client = std::make_shared<client>(getmib(), cltname, usrname);
   }
   return *current_client;
 }
@@ -497,7 +709,8 @@ int tpinit(TPINIT *tpinfo) {
   fux::trace::event("{ tpinit(0)");
   int rc = fux::atmi::exception_boundary(
       [&] {
-        getclient();
+        getclient(tpinfo != nullptr ? tpinfo->cltname : nullptr,
+                  tpinfo != nullptr ? tpinfo->usrname : nullptr);
         return 0;
       },
       0);
@@ -694,9 +907,52 @@ void (*tpsetunsol(void (*func)(char *data, long len, long flags)))(char *,
 
 int tpchkunsol() {
   if (fux::ws::ws_naddr() != nullptr) {
-    TPERROR(TPESYSTEM, "tpchkunsol is not available in workstation mode");
-    return -1;
+    // no unsolicited channel over a workstation link yet
+    fux::atmi::reset_tperrno();
+    return 0;
   }
   return fux::atmi::exception_boundary([&] { return getclient().chkunsol(); },
                                        -1);
+}
+
+namespace fux::clnt {
+int tpconnect(char *svc, char *data, long len, long flags) {
+  if (fux::ws::ws_naddr() != nullptr) {
+    TPERROR(TPESYSTEM, "tpconnect is not available in workstation mode");
+    return -1;
+  }
+  return fux::atmi::exception_boundary(
+      [&] { return getclient().tpconnect(svc, data, len, flags); }, -1);
+}
+
+int tpsend(int cd, char *data, long len, long flags, long *revent) {
+  if (fux::ws::ws_naddr() != nullptr) {
+    TPERROR(TPESYSTEM, "tpsend is not available in workstation mode");
+    return -1;
+  }
+  return fux::atmi::exception_boundary(
+      [&] { return getclient().tpsend(cd, data, len, flags, revent); }, -1);
+}
+
+int tprecv(int cd, char **data, long *len, long flags, long *revent) {
+  if (fux::ws::ws_naddr() != nullptr) {
+    TPERROR(TPESYSTEM, "tprecv is not available in workstation mode");
+    return -1;
+  }
+  return fux::atmi::exception_boundary(
+      [&] { return getclient().tprecv(cd, data, len, flags, revent); }, -1);
+}
+
+int tpdiscon(int cd) {
+  if (fux::ws::ws_naddr() != nullptr) {
+    TPERROR(TPESYSTEM, "tpdiscon is not available in workstation mode");
+    return -1;
+  }
+  return fux::atmi::exception_boundary(
+      [&] { return getclient().tpdiscon(cd); }, -1);
+}
+}  // namespace fux::clnt
+
+int tpconnect(char *svc, char *data, long len, long flags) {
+  return fux::clnt::tpconnect(svc, data, len, flags);
 }

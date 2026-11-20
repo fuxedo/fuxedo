@@ -100,6 +100,7 @@ Currently implemented:
   - tpsubscribe/tpunsubscribe
   - tppost
   - tpnotify
+  - tpbroadcast
   - tpsetunsol/tpchkunsol
 - /Q functions
   - tpenqueue/tpdequeue

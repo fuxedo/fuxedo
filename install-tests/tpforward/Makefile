@@ -19,7 +19,7 @@ TLOGDEV =
 GROUPLINE = GROUP1 LMID=tuxapp GRPNO=1
 endif
 
-check: servera serverb client txprop TMSNULL tuxconfig
+check: servera serverb serverc client txprop TMSNULL tuxconfig
 	-rm -f ULOG.*
 	-tmipcrm -y
 ifdef FUXEDO
@@ -57,10 +57,13 @@ tuxconfig: ubbconfig
 	tmloadcf -y $<
 
 servera: servera.c
-	buildserver -o $@ -f $< -s SERVICEA -s FAILSERVICE -s LOCALSERVICE -s TXFWDFAIL -s FWDTX -s FWDNOTRAN -s FWDNOREPLY -v -f "-Wl,--no-as-needed"
+	buildserver -o $@ -f $< -s SERVICEA -s FAILSERVICE -s LOCALSERVICE -s TXFWDFAIL -s FWDTX -s FWDNOTRAN -s FWDNOREPLY -s FWDNOSLOW -v -f "-Wl,--no-as-needed"
 
 serverb: serverb.c
-	buildserver -o $@ -f $< -s SERVICEB -s TXSVC -v -f "-Wl,--no-as-needed"
+	buildserver -o $@ -f $< -s SERVICEB -s TXSVC -s SLOWSVC -v -f "-Wl,--no-as-needed"
+
+serverc: serverc.c
+	buildserver -o $@ -f $< -s NOTXSSVC -v -f "-Wl,--no-as-needed"
 
 # fuxedo: null RM ships in the box (a group needs a TMS for services to
 # join transactions). Oracle runs this fixture without a TMS.
@@ -81,5 +84,5 @@ probe: probe.c
 	buildclient -o $@ -f $< -v -f "-Wl,--no-as-needed"
 
 clean:
-	-rm -f *.o ubbconfig tuxconfig client txprop probe servera serverb TMSNULL ULOG.* stdout stderr access.*
+	-rm -f *.o ubbconfig tuxconfig client txprop probe servera serverb serverc TMSNULL ULOG.* stdout stderr access.*
 	-rm -rf tlog

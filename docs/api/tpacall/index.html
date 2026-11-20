@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tpacall() - asynchronous service call (send half) | Fuxedo API reference</title>
+<meta name="description" content="tpacall() - asynchronous service call (send half). Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="keywords" content="tpacall, tpacall example, Oracle Tuxedo tpacall, Tuxedo C API, Fuxedo, XATMI,tpcall,tpgetrply,tpcancel">
+<link rel="canonical" href="https://fuxedo.io/api/tpacall/">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://fuxedo.io/api/tpacall/">
+<meta property="og:title" content="tpacall() - asynchronous service call (send half)">
+<meta property="og:description" content="tpacall() - asynchronous service call (send half). Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="tpacall() - asynchronous service call (send half)">
+<meta name="twitter:description" content="tpacall() - asynchronous service call (send half). Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "tpacall() - asynchronous service call (send half)",
+      "description": "tpacall() - asynchronous service call (send half). Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.",
+      "url": "https://fuxedo.io/api/tpacall/",
+      "isPartOf": {"@type": "WebSite", "name": "Fuxedo API reference", "url": "https://fuxedo.io/api/"},
+      "programmingLanguage": "C",
+      "license": "https://opensource.org/licenses/MIT"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Fuxedo", "item": "https://fuxedo.io/"},
+        {"@type": "ListItem", "position": 2, "name": "API reference", "item": "https://fuxedo.io/api/"},
+        {"@type": "ListItem", "position": 3, "name": "tpacall"}
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/api/api.css">
+</head>
+<body>
+<div class="page">
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">tpacall()</h1>
+<p class="tagline">asynchronous service call (send half)</p>
+
+<div class="api-layout">
+<nav class="api-nav">
+<h2>XATMI: session</h2>
+<ul>
+<li><a href="/api/tpinit/">tpinit</a></li>
+<li><a href="/api/tpterm/">tpterm</a></li>
+</ul>
+<h2>XATMI: calls</h2>
+<ul>
+<li><a href="/api/tpcall/">tpcall</a></li>
+<li><a class="here" href="/api/tpacall/">tpacall</a></li>
+<li><a href="/api/tpgetrply/">tpgetrply</a></li>
+<li><a href="/api/tpcancel/">tpcancel</a></li>
+<li><a href="/api/tpforward/">tpforward</a></li>
+</ul>
+<h2>XATMI: buffers</h2>
+<ul>
+<li><a href="/api/tpalloc/">tpalloc</a></li>
+<li><a href="/api/tpfree/">tpfree</a></li>
+<li><a href="/api/tptypes/">tptypes</a></li>
+</ul>
+<h2>XATMI: server</h2>
+<ul>
+<li><a href="/api/tpsvrinit/">tpsvrinit</a></li>
+<li><a href="/api/tpsvrdone/">tpsvrdone</a></li>
+<li><a href="/api/tpsvrthrinit/">tpsvrthrinit</a></li>
+<li><a href="/api/tpsvrthrdone/">tpsvrthrdone</a></li>
+<li><a href="/api/tpreturn/">tpreturn</a></li>
+<li><a href="/api/tpadvertise/">tpadvertise</a></li>
+<li><a href="/api/tpadvertisex/">tpadvertisex</a></li>
+<li><a href="/api/tpunadvertise/">tpunadvertise</a></li>
+</ul>
+<h2>FML32</h2>
+<ul>
+<li><a href="/api/fml32/">fml32</a></li>
+<li><a href="/api/Fadd32/">Fadd32</a></li>
+<li><a href="/api/Fchg32/">Fchg32</a></li>
+<li><a href="/api/Fget32/">Fget32</a></li>
+<li><a href="/api/Fdel32/">Fdel32</a></li>
+<li><a href="/api/Fnext32/">Fnext32</a></li>
+<li><a href="/api/Fprint32/">Fprint32</a></li>
+<li><a href="/api/Ffprint32/">Ffprint32</a></li>
+<li><a href="/api/Fwrite32/">Fwrite32</a></li>
+<li><a href="/api/Fread32/">Fread32</a></li>
+<li><a href="/api/Fboolev32/">Fboolev32</a></li>
+<li><a href="/api/Fboolpr32/">Fboolpr32</a></li>
+<li><a href="/api/Fmkfldid32/">Fmkfldid32</a></li>
+<li><a href="/api/Fneeded32/">Fneeded32</a></li>
+<li><a href="/api/Fsizeof32/">Fsizeof32</a></li>
+<li><a href="/api/Flen32/">Flen32</a></li>
+</ul>
+</nav>
+
+<div class="api-main">
+
+<h2>Synopsis</h2>
+<pre><code>#include &lt;atmi.h&gt;
+
+int tpacall(char *svc, char *data, long len, long flags);</code></pre>
+
+<h2>Description</h2>
+
+<p>tpacall() sends a request to a service without waiting for the reply.
+It returns a call descriptor; the reply is picked up later with
+<code>tpgetrply()</code> (or abandoned with <code>tpcancel()</code>).
+With TPNOREPLY no descriptor is returned and no reply is expected.</p>
+<p>Argument handling matches tpcall(): self-describing buffers pass
+len 0, CARRAY passes the byte count, and the buffer may not be touched
+until the reply has been received (the library reads it at send time;
+it is copied into the message).</p>
+
+<h2>Arguments</h2>
+<table>
+<tr><th>Argument</th><th>Description</th></tr>
+<tr><td>svc</td><td>Advertised service name; same validation as tpcall().</td></tr>
+<tr><td>data, len</td><td>Request buffer and length, as for tpcall().</td></tr>
+<tr><td>flags</td><td>See below.</td></tr>
+</table>
+
+<h2>Flags</h2>
+<table>
+<tr><th>Flag</th><th>Description</th></tr>
+<tr><td>TPNOREPLY</td><td>No reply is expected; tpacall() returns 0 on success. Forbidden inside a transaction (TPEPROTO).</td></tr>
+<tr><td>TPNOTRAN</td><td>The call does not join the current transaction.</td></tr>
+<tr><td>TPNOBLOCK</td><td>Fail the send with TPEBLOCK immediately if the service queue is full, instead of waiting for space.</td></tr>
+<tr><td>TPNOTIME</td><td>No timeout while waiting for the queue; the reply wait is governed by the flags handed to tpgetrply().</td></tr>
+<tr><td>TPSIGRSTRT</td><td>Restart interrupted waits instead of failing with TPGOTSIG.</td></tr>
+</table>
+
+<h2>Errors (tperrno)</h2>
+<table>
+<tr><th>Code</th><th>Description</th></tr>
+<tr><td>TPEINVAL</td><td>Bad service name, flags, or arguments.</td></tr>
+<tr><td>TPENOENT</td><td>The service is not advertised.</td></tr>
+<tr><td>TPEPROTO</td><td>TPNOREPLY was requested in transaction mode.</td></tr>
+<tr><td>TPEBLOCK</td><td>TPNOBLOCK was set and the request queue is full.</td></tr>
+<tr><td>TPELIMIT</td><td>No free call descriptors; replies must be collected to release them.</td></tr>
+<tr><td>TPESYSTEM, TPEOS</td><td>Platform or operating system failure.</td></tr>
+</table>
+
+<h2>Notes</h2>
+
+<p><strong>Send behavior on a full queue.</strong> Without TPNOBLOCK the
+send waits for queue space at a one-second retry cadence; payloads that
+would exceed the kernel per-message limit, and blocking payloads above
+500 bytes, spill to a /tmp file while only a small control message
+waits for space. With TPNOBLOCK the send fails with TPEBLOCK instead,
+without spilling.</p>
+
+<h2>12.2 vs 22.1</h2>
+<p>No differences observed between Oracle Tuxedo 12.2 and 22.1 in our cross-checks.</p>
+
+<h2>Example</h2>
+<p class="example-file">Full source: <code>docs/api/examples/acall.c</code>
+(build and run with <code>make -C docs/api/examples check
+TUXDIR=&lt;install&gt;</code>); the lines documenting tpacall() are highlighted.</p>
+<pre><code>// tpacall()/tpgetrply() example: the two halves of an asynchronous
+// call against the TOUPPER service from apisvr.c.
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;atmi.h&gt;
+
+int main(int argc, char **argv) {
+  const char *input = argc &gt; 1 ? argv[1] : &quot;hello&quot;;
+  char *req = tpalloc(&quot;STRING&quot;, NULL, strlen(input) + 1);
+  char *rsp = tpalloc(&quot;STRING&quot;, NULL, strlen(input) + 1);
+  long rlen = 0;
+  if (req == NULL || rsp == NULL) {
+    fprintf(stderr, &quot;tpalloc failed: tperrno=%d\n&quot;, tperrno);
+    tpfree(req);
+    tpfree(rsp);
+    return 1;
+  }
+  strcpy(req, input);
+
+<span class="hl">  int cd = tpacall(&quot;TOUPPER&quot;, req, 0, 0);
+  if (cd == -1) {
+    fprintf(stderr, &quot;tpacall failed: tperrno=%d\n&quot;, tperrno);
+    tpfree(req);
+    tpfree(rsp);
+    return 1;
+  }</span>
+
+  if (tpgetrply(&amp;cd, &amp;rsp, &amp;rlen, 0) == -1) {
+    fprintf(stderr, &quot;tpgetrply failed: tperrno=%d\n&quot;, tperrno);
+    tpfree(req);
+    tpfree(rsp);
+    return 1;
+  }
+
+  printf(&quot;%s -&gt; %s\n&quot;, req, rsp);
+  tpfree(req);
+  tpfree(rsp);
+  return 0;
+}</code></pre>
+
+<p>See also: <a href="/api/tpcall/">tpcall</a>, <a href="/api/tpgetrply/">tpgetrply</a>, <a href="/api/tpcancel/">tpcancel</a>.</p>
+
+<p class="compat-line">fuxedo: supported.
+Cross-checked against Oracle Tuxedo 12.2.2 and 22.1
+with the API hardening suite.</p>
+
+</div>
+</div>
+
+<footer>
+<p>Part of the <a href="/api/">Fuxedo API reference</a>.
+<a href="https://github.com/fuxedo/fuxedo">Fuxedo</a> is the open source
+alternative to Oracle Tuxedo: same API, same commands, same System V IPC
+mechanics.</p>
+</footer>
+</div>
+</body>
+</html>

@@ -49,6 +49,11 @@ def prepare(dir):
     sock.close()
     api = (dir / "api.py").read_text().replace("PORT = 8000", f"PORT = {port}")
     (dir / "api.py").write_text(api)
+    # the demo ubb names ENVFILE=<dir>/envfile; generate one pointing at
+    # this TUXDIR instead of copying the demo clone's machine-specific file
+    (dir / "envfile").write_text(
+        "PATH={0}/bin:/usr/bin:/bin\n"
+        "LD_LIBRARY_PATH={0}/lib\n".format(os.environ["TUXDIR"]))
     return tuxconfig, port
 
 

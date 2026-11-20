@@ -8,6 +8,7 @@ directory).
 
 import os
 import socket
+import subprocess
 import sys
 
 import tuxedo as t
@@ -26,7 +27,7 @@ MODEL SHM
 IPCKEY {ipckey}
 
 *MACHINES
-"{host}" LMID=tuxapp APPDIR="{dir}" TUXCONFIG="{dir}/tuxconfig" TUXDIR="{tuxdir}"
+"{host}" LMID=tuxapp APPDIR="{dir}" TUXCONFIG="{dir}/tuxconfig" TUXDIR="{tuxdir}" MAXWSCLIENTS=1
 
 *GROUPS
 APP LMID=tuxapp GRPNO=1 TMSNAME=TMS TMSCOUNT=2
@@ -34,6 +35,7 @@ WS  LMID=tuxapp GRPNO=3
 
 *SERVERS
 "onlinesvr.py" SRVGRP=APP SRVID=1 MIN=1 MAX=1
+TMUSREVT SRVGRP=APP SRVID=2 CLOPT="-A"
 WSL SRVGRP=WS SRVID=1 CLOPT="-n //localhost:{port} -- "
 
 *SERVICES
@@ -106,6 +108,21 @@ try:
     raise AssertionError("tpcommit without begin must fail")
 except t.XatmiException as e:
     assert e.code == t.TPEPROTO, e.code
+
+# events over the workstation link: tppost routes through the WSL to
+# the event server, which matches subscribers and delivers
+t.tppost("WS_EVENT", b"from-ws")
+
+# begin timeout is enforced domain-side: the WSL reaps the transaction,
+# so the late commit has nothing to commit
+import time
+t.tpbegin(2, 0)
+time.sleep(5)
+try:
+    t.tpcommit(0)
+    raise AssertionError("timed-out transaction must not commit")
+except t.XatmiException as e:
+    assert e.code in (t.TPEABORT, t.TPEPROTO), e.code
 t.tpterm()
 """
 
@@ -147,6 +164,28 @@ def test_workstation_client():
             wsenv = {"WSNADDR": f"//localhost:{port}",
                      "HOME": dir / "home"}
             run([sys.executable, "-c", CLIENT], env=wsenv, cwd=dir / "home")
+
+            # MAXWSCLIENTS 1 on the machine entry: a second concurrent
+            # client is refused while the first holds the slot
+            sleeper = subprocess.Popen(
+                [sys.executable, "-c",
+                 "import tuxedo as t\nt.tpinit(None)\nimport time\n"
+                 "time.sleep(15)\n"],
+                env={**os.environ, **{k: str(v) for k, v in wsenv.items()}},
+                cwd=dir / "home")
+            try:
+                time.sleep(2)
+                refused = subprocess.run(
+                    [sys.executable, "-c",
+                     "import tuxedo as t\nt.tpinit(None)\n"],
+                    env={**os.environ, **{k: str(v) for k, v in
+                                          wsenv.items()}},
+                    cwd=dir / "home", capture_output=True, text=True)
+                assert refused.returncode != 0, (
+                    "second client must be refused at the MAXWSCLIENTS limit")
+            finally:
+                sleeper.kill()
+                sleeper.wait()
             # the client pinned the server identity, the server kept its
             # own keys under the application directory
             pins = (dir / "home" / ".fuxkeys" / "pins")

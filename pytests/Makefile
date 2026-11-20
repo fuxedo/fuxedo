@@ -3,7 +3,7 @@
 # Requires:
 #   TUXDIR           - fuxedo (or Oracle Tuxedo) installation
 #   TUXEDO_PYTHON    - path to the tuxedo-python bindings source
-#                      (default: ../private/reference/tuxedo-python)
+#                      (default: ../../tuxedo-python, the bindings clone)
 #
 # Usage:
 #   make -C pytests check
@@ -12,9 +12,10 @@ ifndef TUXDIR
 $(error TUXDIR is not set)
 endif
 
-TUXEDO_PYTHON ?= ../private/reference/tuxedo-python
+TUXEDO_PYTHON ?= ../../tuxedo-python
 export TUXEDO_PYTHON
-PYBUILD := $(shell ls -d $(abspath $(TUXEDO_PYTHON))/build/lib.* 2>/dev/null | head -1)
+PYV := $(shell python3 -c 'import sys; print(f"{sys.version_info.major}{sys.version_info.minor}")')
+PYBUILD := $(shell ls -d $(abspath $(TUXEDO_PYTHON))/build/lib.*cpython-$(PYV) 2>/dev/null | head -1)
 
 export PATH := $(TUXDIR)/bin:$(PATH)
 export LD_LIBRARY_PATH := $(TUXDIR)/lib:$(LD_LIBRARY_PATH)
@@ -44,7 +45,7 @@ module:
 	fi
 
 $(TESTS): module
-	python3 $@
+	PYTHONPATH=$$(ls -d $(abspath $(TUXEDO_PYTHON))/build/lib.*cpython-$(PYV) 2>/dev/null | head -1):$(CURDIR) python3 $@
 
 clean:
 	rm -rf scratch __pycache__

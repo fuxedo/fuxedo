@@ -285,6 +285,99 @@ struct server_thread {
   bool reply_to_shutdown;
   jmp_buf tpreturn_env;
 
+  // conversational context for the service this thread is currently
+  // executing; set up by execute() when the request arrived with TPCONV
+  bool conv = false;
+  bool conv_open = false;
+  bool conv_send_mine = false;
+
+  void tprecv(int cd, char **data, long *len, long flags, long *revent) {
+    if (!conv || !conv_open || cd != req->cd) {
+      TPERROR(TPEBADDESC, "Unknown or closed conversation %d", cd);
+      throw fux::xatmi_error();
+    }
+    fux::ipc::msg m;
+    try {
+      fux::ipc::qrecv(main_ptr->request_queue, m, fux::ipc::conv_mtype(cd),
+                      (flags & TPNOBLOCK) ? IPC_NOWAIT : 0);
+    } catch (const std::system_error &) {
+      TPERROR(TPEBLOCK, "No message available");
+      throw fux::xatmi_error();
+    }
+    if (m->revent != 0) {
+      *revent = m->revent;
+      if (m->revent & TPEV_SENDONLY) {
+        conv_send_mine = true;
+      }
+      if (m->revent &
+          (TPEV_SVCSUCC | TPEV_SVCFAIL | TPEV_SVCERR | TPEV_DISCONIMM)) {
+        conv_open = false;
+      }
+    }
+    if (static_cast<long>(m.size_data()) > fux::mem::headersize()) {
+      long olen = 0;
+      if (tpimport(m->data, m.size_data(), data, &olen, 0) == -1) {
+        throw fux::xatmi_error();
+      }
+      if (len != nullptr) {
+        // tpimport reports its own bookkeeping length; the caller gets
+        // the logical data length, like tpgetrply does
+        *len = std::max(0L, static_cast<long>(m.size_data()) -
+                                fux::mem::headersize());
+      }
+    } else if (len != nullptr) {
+      *len = 0;
+    }
+    fux::atmi::reset_tperrno();
+  }
+
+  void tpsend(int cd, char *data, long len, long flags, long *revent) {
+    if (!conv || !conv_open || cd != req->cd) {
+      TPERROR(TPEBADDESC, "Unknown or closed conversation %d", cd);
+      throw fux::xatmi_error();
+    }
+    if (!conv_send_mine) {
+      TPERROR(TPEPROTO, "No send permission on conversation %d", cd);
+      throw fux::xatmi_error();
+    }
+    // the service keeps ownership of its buffer; unlike tpreturn the
+    // conversation continues after a send
+    res.set_data(data, len);
+    res->mtype = cd;
+    res->cat = fux::ipc::application;
+    res->cd = cd;
+    res->revent = (flags & TPRECVONLY) ? TPEV_SENDONLY : 0;
+    res->replyq = -1;
+    if (!fux::ipc::qsend(req->replyq, res, 0, fux::ipc::flags::notime)) {
+      TPERROR(TPEOS, "Cannot send on conversation %d: %s", cd,
+              strerror(errno));
+      throw fux::xatmi_error();
+    }
+    if (flags & TPRECVONLY) {
+      conv_send_mine = false;
+    }
+    if (revent != nullptr) {
+      *revent = 0;
+    }
+    fux::atmi::reset_tperrno();
+  }
+
+  void tpdiscon(int cd) {
+    if (!conv || !conv_open || cd != req->cd) {
+      TPERROR(TPEBADDESC, "Unknown or closed conversation %d", cd);
+      throw fux::xatmi_error();
+    }
+    res.resize_data(0);
+    res->mtype = cd;
+    res->cat = fux::ipc::application;
+    res->cd = cd;
+    res->revent = TPEV_DISCONIMM;
+    res->replyq = -1;
+    fux::ipc::qsend(req->replyq, res, 0, fux::ipc::flags::notime);
+    conv_open = false;
+    fux::atmi::reset_tperrno();
+  }
+
   void tpforward(char *svc, char *data, long len, long flags) {
     auto gttid = fux::tx::gttid();
     // TPNOTRAN: the target must not join the caller's transaction
@@ -328,6 +421,33 @@ struct server_thread {
   }
 
   void reply(int rval, long rcode, char *data, long len, long flags) {
+    if (conv) {
+      // a conversational return ends the conversation: the terminal
+      // event rides to the caller with the return data, if any
+      conv_open = false;
+      if (req->replyq != -1) {
+        res.set_data(data, len);
+        if (data != nullptr && data != atmibuf) {
+          tpfree(data);
+        }
+        // tpreturn already remapped the raw service return: TPMINVAL
+        // is success, TPESVCFAIL is failure, anything else an error
+        long ev = TPEV_SVCERR;
+        if (rval == TPMINVAL) {
+          ev = TPEV_SVCSUCC;
+        } else if (rval == TPESVCFAIL) {
+          ev = TPEV_SVCFAIL;
+        }
+        res->revent = ev;
+        res->rcode = rcode;
+        res->flags = 0;
+        res->mtype = req->cd;
+        res->cd = req->cd;
+        res->replyq = -1;
+        fux::ipc::qsend(req->replyq, res, 0, fux::ipc::flags::notime);
+      }
+      return;
+    }
     if (req->replyq != -1) {
       res.set_data(data, len);
 
@@ -388,6 +508,14 @@ static void execute(server_thread *tp) {
 
   if (tp->req->flags & TPTRAN) {
     fux::tx_join(tp->req->gttid);
+  }
+
+  // conversational requests set up the half-duplex context: the caller
+  // holds send permission unless it connected with TPRECVONLY
+  tp->conv = (tp->req->flags & TPCONV) != 0;
+  if (tp->conv) {
+    tp->conv_open = true;
+    tp->conv_send_mine = (tp->req->flags & TPRECVONLY) != 0;
   }
 
   if (setjmp(tp->tpreturn_env) == 0) {
@@ -637,6 +765,38 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
     }
   }
 
+  // CLOPT "-s NAME" (without -A): advertise exactly the named services,
+  // looked up in the dispatch table the way the platform's generated
+  // main does; names already advertised via -A are skipped
+  for (auto &name : services) {
+    struct tmdsptchtbl_t *rec = tmsvrargs->tmdsptchtbl;
+    bool found = false;
+    while (rec->svcname != nullptr && strlen(rec->svcname) > 0) {
+      if (name == rec->svcname) {
+        if (main_ptr->advertisements.find(rec->svcname) ==
+            main_ptr->advertisements.end()) {
+          if (tpadvertise(const_cast<char *>(rec->svcname), rec->svcfunc) ==
+              -1) {
+            userlog("Failed to advertise service %s / function %s : %s",
+                    rec->svcname, rec->funcname, tpstrerror(tperrno));
+            return -1;
+          }
+        }
+        found = true;
+        break;
+      }
+      rec++;
+    }
+    if (!found) {
+      // not every -s name comes from the buildserver table: servers
+      // like TMQUEUE parse their own -s in tpsvrinit. The generated
+      // main only advertises what the table knows.
+      userlog("CLOPT service %s not in the dispatch table, leaving it to "
+              "tpsvrinit",
+              name.c_str());
+    }
+  }
+
   if (_tmbuilt_with_thread_option && thread_count > 1) {
     std::vector<std::thread> threads;
     for (int i = 0; i < thread_count; i++) {
@@ -711,6 +871,51 @@ void tpreturn(int rval, long rcode, char *data, long len, long flags) try {
 } catch (...) {
   userlog("tpreturn failed");
   longjmp(thread_ptr->tpreturn_env, -1);
+}
+
+int tpdiscon(int cd) try {
+  if (main_ptr && thread_ptr && thread_ptr->conv) {
+    thread_ptr->tpdiscon(cd);
+    return 0;
+  }
+  return fux::clnt::tpdiscon(cd);
+} catch (...) {
+  // tperrno carries the failure; the service decides how to wind down
+  return -1;
+}
+
+int tpsend(int cd, char *data, long len, long flags, long *revent) try {
+  if (main_ptr && thread_ptr && thread_ptr->conv) {
+    constexpr long valid = TPSIGRSTRT | TPNOBLOCK | TPNOTIME | TPRECVONLY;
+    if (flags & ~valid) {
+      TPERROR(TPEINVAL, "Invalid flags passed to tpsend");
+      return -1;
+    }
+    thread_ptr->tpsend(cd, data, len, flags, revent);
+    return 0;
+  }
+  return fux::clnt::tpsend(cd, data, len, flags, revent);
+} catch (...) {
+  return -1;
+}
+
+int tprecv(int cd, char **data, long *len, long flags, long *revent) try {
+  if (main_ptr && thread_ptr && thread_ptr->conv) {
+    if (revent == nullptr) {
+      TPERROR(TPEINVAL, "revent is null");
+      return -1;
+    }
+    constexpr long valid = TPSIGRSTRT | TPNOBLOCK | TPNOTIME;
+    if (flags & ~valid) {
+      TPERROR(TPEINVAL, "Invalid flags passed to tprecv");
+      return -1;
+    }
+    thread_ptr->tprecv(cd, data, len, flags, revent);
+    return 0;
+  }
+  return fux::clnt::tprecv(cd, data, len, flags, revent);
+} catch (...) {
+  return -1;
 }
 
 void tpforward(char *svc, char *data, long len, long flags) try {

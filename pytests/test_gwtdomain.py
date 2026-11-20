@@ -40,7 +40,7 @@ IPCKEY {ipckey}
 "{host}" LMID=tuxapp APPDIR="{dir}" TUXCONFIG="{dir}/tuxconfig" TUXDIR="{tuxdir}" {tlogdev}
 
 *GROUPS
-GW1 LMID=tuxapp GRPNO=1
+GW1 LMID=tuxapp GRPNO=1 TMSNAME=TMS TMSCOUNT=2
 APP LMID=tuxapp GRPNO=2 TMSNAME=TMS TMSCOUNT=2
 {qm_group}
 *SERVERS
@@ -68,8 +68,14 @@ DMCONFIG = """*DM_LOCAL_DOMAINS
 {export} LACCESSPOINT={name}
 
 *DM_IMPORT
-{imp} LACCESSPOINT={name} RACCESSPOINT={remote} RNAME={imp}
+{imports}
 """
+
+# one DM_IMPORT line per name; RNAME defaults to the service name
+def import_lines(name, remote, imp):
+    return "\n".join(
+        f"{n} LACCESSPOINT={name} RACCESSPOINT={remote} RNAME={n}"
+        for n in imp.split())
 
 SERVER = """#!/usr/bin/env python3
 import sys
@@ -99,6 +105,17 @@ import tuxedo as t
 out = t.tpcall(sys.argv[1], sys.argv[2].encode())
 assert out.data == sys.argv[3].encode(), (out.data, sys.argv[3])
 assert out.rcode == 7, out.rcode
+"""
+
+QCLIENT = """
+import tuxedo as t
+
+t.tpinit(None)
+t.tpenqueue("QSPACE", "Q1", t.TPQCTL(), "cross-payload")
+_, msg = t.tpdequeue("QSPACE", "Q1", t.TPQCTL())
+assert msg == "cross-payload", msg
+print("cross ok")
+t.tpterm()
 """
 
 TXCLIENT = """
@@ -150,7 +167,8 @@ def domain(dir, ipckey, port, name, apid, remote, rapid, rport, export,
                      qm_server=QM_SERVER if qm else "")
     dm = DMCONFIG.format(name=name, apid=apid, remote=remote, rapid=rapid,
                          port=port, rport=rport, export=export,
-                         imp=imp, dmtlog=dir / "DMTLOG")
+                         imports=import_lines(name, remote, imp),
+                         dmtlog=dir / "DMTLOG")
     (dir / "ubbconfig").write_text(ubb)
     (dir / "DMCONFIG").write_text(dm)
     (dir / "appserver.py").write_text(
@@ -226,6 +244,36 @@ def test_two_domains_roundtrip():
                       "TOLOWER", "TOUPPER", "lower")
         try:
             wait_for_link(env1, env2)
+        finally:
+            run(["tmshutdown", "-y"], env=env1, cwd=dir1, expect=None)
+            run(["tmshutdown", "-y"], env=env2, cwd=dir2, expect=None)
+
+
+def test_two_domains_queue():
+    """Enqueue into a queue space served by the remote domain.
+
+    Domain two hosts QSPACE (real TMQUEUE on a /Q device); domain one
+    imports QSPACE:TMQUEUE. A client in domain one enqueues and
+    dequeues through the gateway; the message physically lives in
+    domain two's queue directory.
+    """
+    base = 29101 + os.getpid() % 500
+    with scratch("dom1") as dir1, scratch("dom2") as dir2:
+        env1 = domain(dir1, 54111 + os.getpid() % 500, base,
+                      "DOM1", "AA.DOM1", "DOM2", "BB.DOM2", base + 1,
+                      "TOUPPER", "TOLOWER QSPACE:TMQUEUE", "upper")
+        env2 = domain(dir2, 54611 + os.getpid() % 500, base + 1,
+                      "DOM2", "BB.DOM2", "DOM1", "AA.DOM1", base,
+                      "TOLOWER", "TOUPPER", "lower", qm=True)
+        try:
+            wait_for_link(env1, env2)
+            cwd = env1["TUXCONFIG"].parent
+            out = run([sys.executable, "-c", QCLIENT], env=env1, cwd=cwd)
+            assert "cross ok" in out.stdout, out
+            # nothing landed in domain one's storage; the roundtrip
+            # itself is proven by "cross ok" (dequeue returned the
+            # payload and dequeue deletes the message)
+            assert not (dir1 / "QS").exists(), list((dir1 / "QS").rglob("*"))
         finally:
             run(["tmshutdown", "-y"], env=env1, cwd=dir1, expect=None)
             run(["tmshutdown", "-y"], env=env2, cwd=dir2, expect=None)

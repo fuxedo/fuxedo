@@ -15,6 +15,7 @@
 #include "trace.h"
 #include "probes.h"
 #include "trx.h"
+#include "ws.h"
 
 namespace fux::glob {
 extern xa_switch_t *xasw;
@@ -77,6 +78,12 @@ std::string gtrid() {
 // Oracle model). Otherwise the caller talks to the queue files directly
 // (standalone mode, no domain booted).
 bool routed(const char *qspace, std::string *svc) {
+  if (fux::ws::ws_naddr() != nullptr) {
+    // workstation clients have no local bulletin board: queue requests
+    // always travel to the domain's TMQUEUE through the WSL
+    *svc = std::string(qspace) + ":TMQUEUE";
+    return true;
+  }
   static const uint32_t ipckey = [] {
     try {
       fux::cfg::tables t;

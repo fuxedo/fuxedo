@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
 static char *sndbuf;
 static char *rcvbuf;
@@ -48,6 +49,17 @@ int main() {
   alarm(20);
   call("FWDNOREPLY");
   alarm(0);
+
+  // timing: released at forward time (fast) or at target return (slow)?
+  struct timespec t0, t1;
+  clock_gettime(CLOCK_MONOTONIC, &t0);
+  alarm(20);
+  call("FWDNOSLOW");
+  alarm(0);
+  clock_gettime(CLOCK_MONOTONIC, &t1);
+  printf("PROBE FWDNOSLOW elapsed: %.1fs\n",
+         (double)(t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9);
+  fflush(stdout);
 
   tpfree(sndbuf);
   tpfree(rcvbuf);

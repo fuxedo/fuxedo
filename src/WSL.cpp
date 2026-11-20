@@ -56,6 +56,8 @@ struct wslink {
   // the connection's current transaction (dotted xid, empty when none);
   // this process is the transaction's agent inside the domain
   std::string tx;
+  uint32_t tx_timeout = 0;       // seconds, from the begin request
+  steady::time_point tx_started;  // when the begin arrived
 };
 
 fux::link::engine eng;
@@ -77,20 +79,30 @@ void on_accept(int fd) {
   links[fd].cltname.clear();
 }
 
+void rollback_tx(wslink &l);
+
 void on_close(int fd) {
   auto it = links.find(fd);
   if (it != links.end() && !it->second.tx.empty()) {
     // the client went away mid-transaction: roll the branch back
-    try {
-      XID xid = fux::to_xid(it->second.tx);
-      fux::tm::coordinate(&xid, fux::tm::rollback);
-      auto &tbl = getmib().transactions();
-      tbl.end(tbl.find(xid));
-    } catch (const std::exception &e) {
-      userlog("WSL: client disconnect rollback failed: %s", e.what());
-    }
+    rollback_tx(it->second);
   }
   links.erase(fd);
+}
+
+// Aborts the connection's transaction and forgets it. Shared by the
+// disconnect path and the begin-timeout reaper.
+void rollback_tx(wslink &l) {
+  try {
+    XID xid = fux::to_xid(l.tx);
+    fux::tm::coordinate(&xid, fux::tm::rollback);
+    auto &tbl = getmib().transactions();
+    tbl.end(tbl.find(xid));
+  } catch (const std::exception &e) {
+    userlog("WSL: transaction rollback failed: %s", e.what());
+  }
+  l.tx.clear();
+  l.tx_timeout = 0;
 }
 
 bool on_verify_bridge(int fd, const std::string &fp, bool dialed) {
@@ -323,6 +335,8 @@ void handle_txctl(int fd, fux::link::frame &f) {
       return;
     }
     l.tx = fux::to_string(&xid);
+    l.tx_timeout = timeout;
+    l.tx_started = steady::now();
     ack(0, l.tx);
     return;
   }
@@ -353,10 +367,12 @@ void handle_txctl(int fd, fux::link::frame &f) {
     } catch (const std::exception &) {
     }
     l.tx.clear();
+    l.tx_timeout = 0;
     ack(committed ? 0 : TPEABORT, "");
     return;
   }
   if (op == kTxAbort) {
+    l.tx_timeout = 0;
     try {
       fux::tm::coordinate(&xid, fux::tm::rollback);
     } catch (const std::exception &e) {
@@ -429,8 +445,24 @@ void drain_replies() {
   }
 }
 
+void reap_expired_tx() {
+  for (auto &kv : links) {
+    auto &l = kv.second;
+    if (l.tx.empty() || l.tx_timeout == 0) {
+      continue;
+    }
+    if (now - l.tx_started < std::chrono::seconds(l.tx_timeout)) {
+      continue;
+    }
+    userlog("WSL: transaction %s timed out after %us, rolling back",
+            l.tx.c_str(), l.tx_timeout);
+    rollback_tx(l);
+  }
+}
+
 void idle_hook() {
   now = steady::now();
+  reap_expired_tx();
   drain_replies();
   timeval tv{0, 0};
   eng.poll(&tv);
@@ -470,6 +502,10 @@ int tpsvrinit(int argc, char *argv[]) {
   if (naddr.empty()) {
     userlog("WSL: no listener address, use CLOPT=\"-n //host:port --\"");
     return -1;
+  }
+  if (max_clients == 0) {
+    // fall back to the machine entry limit
+    max_clients = static_cast<size_t>(getmib().mach().maxwsclients);
   }
   std::string host;
   uint16_t port = 0;

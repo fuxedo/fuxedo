@@ -408,6 +408,8 @@ struct Fbfr32 {
       }
       return 1;
     }
+    // end of buffer: the platform answers 0 (and leaves Ferror32
+    // clear); -1 is reserved for errors, so walks terminate on != 1
     return 0;
   }
 

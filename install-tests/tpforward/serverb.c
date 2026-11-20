@@ -1,6 +1,8 @@
 #include <atmi.h>
 #include <userlog.h>
 
+#include <unistd.h>
+
 void SERVICEB(TPSVCINFO *svcinfo) {
   userlog(":TEST: %s called", __func__);
   tpreturn(TPSUCCESS, 0, svcinfo->data, 0, 0);
@@ -10,5 +12,12 @@ void SERVICEB(TPSVCINFO *svcinfo) {
 // asserts the propagation semantics off this line
 void TXSVC(TPSVCINFO *svcinfo) {
   userlog(":TEST: %s called lev=%d", __func__, tpgetlev());
+  tpreturn(TPSUCCESS, 0, svcinfo->data, 0, 0);
+}
+
+// takes a few seconds, to time when a TPNOREPLY caller is released
+void SLOWSVC(TPSVCINFO *svcinfo) {
+  userlog(":TEST: %s called", __func__);
+  sleep(5);
   tpreturn(TPSUCCESS, 0, svcinfo->data, 0, 0);
 }

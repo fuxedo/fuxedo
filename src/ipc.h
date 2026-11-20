@@ -68,6 +68,7 @@ struct msgmem : msgbase {
   int replyq;
   int rval;
   long rcode;
+  long revent;  // conversational events (TPEV_*), 0 for plain traffic
   pid_t caller;  // originating client, surfaced as svcinfo->cltid
   char data[0];
 };
@@ -94,6 +95,17 @@ class msg {
  private:
   std::vector<char> bytes_;
 };
+
+// Conversational descriptors start above the reply descriptor range, so
+// server->client conversation messages (mtype = cd) on the reply queue
+// are distinguishable from call replies (mtype = reply cd) and the
+// reply-path drains can leave them alone. Client->server conversation
+// messages use 2^30 + cd, above the dispatch window, so only the
+// service's own tprecv ever sees them.
+constexpr int conv_base = 100000;
+inline long conv_mtype(int cd) { return (1L << 30) + cd; }
+// reply-path receives take everything at or below this magnitude
+constexpr long reply_limit = conv_base - 1;
 
 int qcreate();
 bool qsend(int msqid, msg &data, long timeout, enum flags flags);

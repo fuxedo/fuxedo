@@ -401,7 +401,8 @@ size_t mib::find_singleton(const std::string &servicename, size_t queue,
   return badoff;
 }
 
-size_t mib::make_accesser(pid_t pid) {
+size_t mib::make_accesser(pid_t pid, const char *cltname,
+                          const char *usrname) {
   ssize_t at = -1;
   for (size_t i = 0; i < accessers()->len; i++) {
     if (accessers().at(i).pid == 0) {
@@ -415,6 +416,8 @@ size_t mib::make_accesser(pid_t pid) {
   auto &accesser = accessers().at(at);
   accesser.rpid_timeout = INVALID_TIME;
   accesser.pid = pid;
+  checked_copy(cltname != nullptr ? cltname : "", accesser.cltname);
+  checked_copy(usrname != nullptr ? usrname : "", accesser.usrname);
   return at;
 }
 

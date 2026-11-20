@@ -176,16 +176,20 @@ MODEL=SHM
 )"),
                     basic_parser_error);
 
-  // bare KEY VALUE in continuation lines is an Oracle syntax error too
-  REQUIRE_THROWS_AS(parse(R"(*RESOURCES
+  // bare KEY VALUE in continuation lines parses, like the platform
+  auto t3 = parse(R"(*RESOURCES
 IPCKEY 32769
 MASTER tuxapp
 MODEL SHM
 
 *MACHINES
 "localhost" LMID tuxapp APPDIR="/app" TUXCONFIG="/app/tuxconfig" TUXDIR="/fux"
-)"),
-                    basic_parser_error);
+
+*GROUPS
+GROUP1 LMID=tuxapp GRPNO=1
+)");
+  REQUIRE(t3.mach.lmid == "tuxapp");
+  REQUIRE(t3.mach.tuxdir == "/fux");
 }
 
 TEST_CASE("dmconfig text parses and emits back", "[cfg]") {

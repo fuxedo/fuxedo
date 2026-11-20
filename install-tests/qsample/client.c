@@ -32,7 +32,7 @@ int main(void) {
             rctl.diagnostic);
     return 1;
   }
-  printf("reply: %s\n", buf);
+  printf("reply: [%s]\n", buf);
   assert(strncmp(buf, "replied:hello queue", 19) == 0);
 
   // direct dequeue of an empty queue must fail with TPETIME

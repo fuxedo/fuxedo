@@ -30,19 +30,34 @@ IPCKEY {ipckey}
 *GROUPS
 QUE LMID=tuxapp GRPNO=2 OPENINFO="TUXEDO/QM:{dir}/QUE:QSPACE" \
 	TMSNAME=TMSQM TMSCOUNT=2
+WS  LMID=tuxapp GRPNO=3
 
 *SERVERS
 TMQUEUE SRVGRP=QUE SRVID=1 CLOPT="-s QSPACE:TMQUEUE -- "
+WSL SRVGRP=WS SRVID=1 CLOPT="-n //localhost:{port} -- "
 
 *SERVICES
 """
 
+WSQ_CLIENT = """
+import tuxedo as t
+
+t.tpinit(None)
+t.tpenqueue("QSPACE", "Q1", t.TPQCTL(), "ws-payload")
+_, msg = t.tpdequeue("QSPACE", "Q1", t.TPQCTL())
+assert msg == "ws-payload", msg
+t.tpterm()
+"""
+
 
 def test_client_transactional_enqueue_commit():
+    import socket
+    import sys
+    port = 28101 + os.getpid() % 500
     with tou.scratch("ctxq") as dir:
         ubb = UBB.format(ipckey=48311 + os.getpid() % 500,
-                         host=__import__("socket").gethostname(), dir=dir,
-                         tuxdir=os.environ["TUXDIR"])
+                         host=socket.gethostname(), dir=dir,
+                         tuxdir=os.environ["TUXDIR"], port=port)
         (dir / "TLOG").mkdir()
         # qmxa xa_open validates the qspace directory at tpopen
         (dir / "QUE" / "QSPACE").mkdir(parents=True)
@@ -91,6 +106,12 @@ def test_client_transactional_enqueue_commit():
                 assert e.code == t.TPETIME, e.code
             txroot = dir / "QUE" / "QSPACE" / ".tx"
             assert not txroot.exists() or not any(txroot.iterdir())
+
+            # a workstation client enqueues and dequeues through the WSL:
+            # no local bulletin board, the request routes via the domain
+            (dir / "home").mkdir()
+            wsenv = {"WSNADDR": f"//localhost:{port}", "HOME": dir / "home"}
+            run([sys.executable, "-c", WSQ_CLIENT], env=wsenv, cwd=dir / "home")
         finally:
             run(["tmshutdown", "-y"], env=env, cwd=dir)
 

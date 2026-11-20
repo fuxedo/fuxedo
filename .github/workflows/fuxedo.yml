@@ -26,6 +26,10 @@ jobs:
       run: make check
     - name: make installcheck
       run: make install && make installcheck
+    - name: API reference examples
+      run: make -C docs/api/examples check TUXDIR=/home/runner/fuxbin
+    - name: API reference pages are current
+      run: python3 docs/api/gen.py && git diff --exit-code docs/
 
   oracle:
     # Runs the C-API compatibility suites and the behavioral tests

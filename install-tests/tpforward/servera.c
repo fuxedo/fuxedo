@@ -47,3 +47,10 @@ void FWDNOREPLY(TPSVCINFO *svcinfo) {
   tpforward("SERVICEB", svcinfo->data, 0, TPNOREPLY);
   userlog(":TEST: %s returned from tpforward?!", __func__);
 }
+
+// TPNOREPLY to a slow target: when is the caller released?
+void FWDNOSLOW(TPSVCINFO *svcinfo) {
+  userlog(":TEST: %s called lev=%d", __func__, tpgetlev());
+  tpforward("SLOWSVC", svcinfo->data, 0, TPNOREPLY);
+  userlog(":TEST: %s returned from tpforward?!", __func__);
+}

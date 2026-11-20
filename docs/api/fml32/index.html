@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fml32() - fielded buffers: the model | Fuxedo API reference</title>
+<meta name="description" content="fml32() - fielded buffers: the model. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="keywords" content="fml32, fml32 example, Oracle Tuxedo fml32, Tuxedo C API, Fuxedo, XATMI,Fadd32,Fchg32,Fboolev32,Fnext32">
+<link rel="canonical" href="https://fuxedo.io/api/fml32/">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://fuxedo.io/api/fml32/">
+<meta property="og:title" content="fml32() - fielded buffers: the model">
+<meta property="og:description" content="fml32() - fielded buffers: the model. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="fml32() - fielded buffers: the model">
+<meta name="twitter:description" content="fml32() - fielded buffers: the model. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "fml32() - fielded buffers: the model",
+      "description": "fml32() - fielded buffers: the model. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.",
+      "url": "https://fuxedo.io/api/fml32/",
+      "isPartOf": {"@type": "WebSite", "name": "Fuxedo API reference", "url": "https://fuxedo.io/api/"},
+      "programmingLanguage": "C",
+      "license": "https://opensource.org/licenses/MIT"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Fuxedo", "item": "https://fuxedo.io/"},
+        {"@type": "ListItem", "position": 2, "name": "API reference", "item": "https://fuxedo.io/api/"},
+        {"@type": "ListItem", "position": 3, "name": "fml32"}
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/api/api.css">
+</head>
+<body>
+<div class="page">
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">fml32()</h1>
+<p class="tagline">fielded buffers: the model</p>
+
+<div class="api-layout">
+<nav class="api-nav">
+<h2>XATMI: session</h2>
+<ul>
+<li><a href="/api/tpinit/">tpinit</a></li>
+<li><a href="/api/tpterm/">tpterm</a></li>
+</ul>
+<h2>XATMI: calls</h2>
+<ul>
+<li><a href="/api/tpcall/">tpcall</a></li>
+<li><a href="/api/tpacall/">tpacall</a></li>
+<li><a href="/api/tpgetrply/">tpgetrply</a></li>
+<li><a href="/api/tpcancel/">tpcancel</a></li>
+<li><a href="/api/tpforward/">tpforward</a></li>
+</ul>
+<h2>XATMI: buffers</h2>
+<ul>
+<li><a href="/api/tpalloc/">tpalloc</a></li>
+<li><a href="/api/tpfree/">tpfree</a></li>
+<li><a href="/api/tptypes/">tptypes</a></li>
+</ul>
+<h2>XATMI: server</h2>
+<ul>
+<li><a href="/api/tpsvrinit/">tpsvrinit</a></li>
+<li><a href="/api/tpsvrdone/">tpsvrdone</a></li>
+<li><a href="/api/tpsvrthrinit/">tpsvrthrinit</a></li>
+<li><a href="/api/tpsvrthrdone/">tpsvrthrdone</a></li>
+<li><a href="/api/tpreturn/">tpreturn</a></li>
+<li><a href="/api/tpadvertise/">tpadvertise</a></li>
+<li><a href="/api/tpadvertisex/">tpadvertisex</a></li>
+<li><a href="/api/tpunadvertise/">tpunadvertise</a></li>
+</ul>
+<h2>FML32</h2>
+<ul>
+<li><a class="here" href="/api/fml32/">fml32</a></li>
+<li><a href="/api/Fadd32/">Fadd32</a></li>
+<li><a href="/api/Fchg32/">Fchg32</a></li>
+<li><a href="/api/Fget32/">Fget32</a></li>
+<li><a href="/api/Fdel32/">Fdel32</a></li>
+<li><a href="/api/Fnext32/">Fnext32</a></li>
+<li><a href="/api/Fprint32/">Fprint32</a></li>
+<li><a href="/api/Ffprint32/">Ffprint32</a></li>
+<li><a href="/api/Fwrite32/">Fwrite32</a></li>
+<li><a href="/api/Fread32/">Fread32</a></li>
+<li><a href="/api/Fboolev32/">Fboolev32</a></li>
+<li><a href="/api/Fboolpr32/">Fboolpr32</a></li>
+<li><a href="/api/Fmkfldid32/">Fmkfldid32</a></li>
+<li><a href="/api/Fneeded32/">Fneeded32</a></li>
+<li><a href="/api/Fsizeof32/">Fsizeof32</a></li>
+<li><a href="/api/Flen32/">Flen32</a></li>
+</ul>
+</nav>
+
+<div class="api-main">
+
+<h2>Synopsis</h2>
+<pre><code>#include &lt;fml32.h&gt;
+
+// the FML32 buffer type and its calls
+#include &lt;fml32.h&gt;</code></pre>
+
+<h2>Description</h2>
+
+<p>FML32 is the self-describing buffer type of the API: a buffer is a
+collection of typed fields, each identified by a 32-bit field id and
+able to occur multiple times. A field id packs a type and a number;
+<code>Fldtype32()</code> and <code>Fldno32()</code> decode it and
+<code>Fmkfldid32()</code> builds one. Field names come from field
+tables compiled with <code>mkfldhdr32</code>.</p>
+<p>Every call in this group takes a <code>FBFR32 *</code>, returns 0 or
+a count on success and -1 on error, and reports the failure in
+<code>Ferror32</code> (render it with <code>Fstrerror32()</code>).
+Occurrence counts (<code>FLDOCC32</code>) are zero-based; -1 means all
+occurrences where a call accepts it.</p>
+<p>In ATMI programs the buffers come from <code>tpalloc("FML32", ...)</code>
+and are released with <code>tpfree()</code>. Outside ATMI, libfml32
+allocates with <code>Falloc32()</code>/<code>Ffree32()</code> and
+resizes with <code>Fresize32()</code>.</p>
+
+
+
+<h2>Errors (tperrno)</h2>
+<table>
+<tr><th>Code</th><th>Description</th></tr>
+<tr><td>FEINVAL</td><td>Invalid field id, occurrence, or argument.</td></tr>
+<tr><td>FNOSPACE</td><td>The buffer has no room; size the addition with Fneeded32() and resize.</td></tr>
+<tr><td>FNOTFLD</td><td>The pointer is not an FML32 buffer.</td></tr>
+</table>
+
+
+<h2>12.2 vs 22.1</h2>
+<p>Buffer internals such as field indexes may differ between implementations; the API semantics and the Ferror32 contract are identical. Projection and join calls are documented separately.</p>
+
+<h2>Example</h2>
+<p class="example-file">Full source: <code>docs/api/examples/fmldemo.c</code>
+(build and run with <code>make -C docs/api/examples check
+TUXDIR=&lt;install&gt;</code>); the whole program demonstrates fml32().</p>
+<pre><code>// FML32 API examples: one doc:region per documented function. The
+// field identifiers come from the &quot;demo&quot; field table via mkfldhdr32 (see the
+// Makefile). Run inside the sample domain: FLDTBLDIR32=. FIELDTBLS32=demo
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;atmi.h&gt;
+#include &lt;fml32.h&gt;
+#include &quot;demo.h&quot;
+
+static int fmlfail(const char *what) {
+  fprintf(stderr, &quot;%s failed: Ferror32=%d\n&quot;, what, Ferror32);
+  return 1;
+}
+
+int main(void) {
+  FBFR32 *fb = (FBFR32 *)tpalloc((char *)&quot;FML32&quot;, NULL, 1024);
+  if (fb == NULL) {
+    fprintf(stderr, &quot;tpalloc failed: tperrno=%d\n&quot;, tperrno);
+    return 1;
+  }
+
+  // doc:region Fadd32
+  // Fadd32 appends a new occurrence; len 0 lets a string field measure
+  // itself
+  if (Fadd32(fb, FIRSTNAME, (char *)&quot;Ada&quot;, 0) == -1) {
+    return fmlfail(&quot;Fadd32 FIRSTNAME&quot;);
+  }
+  if (Fadd32(fb, LASTNAME, (char *)&quot;Lovelace&quot;, 0) == -1) {
+    return fmlfail(&quot;Fadd32 LASTNAME&quot;);
+  }
+  long amount = 100;
+  if (Fadd32(fb, AMOUNT, (char *)&amp;amount, 0) == -1) {
+    return fmlfail(&quot;Fadd32 AMOUNT&quot;);
+  }
+  // the same append can be written with Fchg32 and oc -1
+  if (Fadd32(fb, FIRSTNAME, (char *)&quot;Grace&quot;, 0) == -1) {
+    return fmlfail(&quot;Fadd32 FIRSTNAME #2&quot;);
+  }
+  // doc:end
+
+  // doc:region Fchg32
+  // Fchg32 replaces the value at one occurrence...
+  long big = 500;
+  if (Fchg32(fb, AMOUNT, 0, (char *)&amp;big, 0) == -1) {
+    return fmlfail(&quot;Fchg32 AMOUNT&quot;);
+  }
+  // ...appends a new occurrence with oc -1 (like Fadd32)...
+  if (Fchg32(fb, AMOUNT, -1, (char *)&amp;big, 0) == -1) {
+    return fmlfail(&quot;Fchg32 AMOUNT append&quot;);
+  }
+  // ...pads skipped occurrences with default values, and deletes the
+  // occurrence when value is NULL
+  if (Fchg32(fb, AMOUNT, 0, NULL, 0) == -1) {
+    return fmlfail(&quot;Fchg32 AMOUNT delete&quot;);
+  }
+  // doc:end
+
+  // doc:region Fget32
+  long got = 0;
+  if (Fget32(fb, AMOUNT, 0, (char *)&amp;got, 0) == -1) {
+    return fmlfail(&quot;Fget32 AMOUNT&quot;);
+  }
+  // doc:end
+  printf(&quot;AMOUNT[0]=%ld\n&quot;, got);
+
+  // doc:region Fnext32
+  // Fnext32 walks the buffer in field order; start from BADFLDID
+  FLDID32 id = BADFLDID;
+  FLDOCC32 oc = 0;
+  char value[128];
+  FLDLEN32 vlen = sizeof(value);
+  printf(&quot;fields:\n&quot;);
+  while (true) {
+    vlen = sizeof(value);  // len is in/out: Fnext32 reports the copy
+    if (Fnext32(fb, &amp;id, &amp;oc, value, &amp;vlen) != 1) {
+      break;  // 0 = no more fields, -1 = error (Ferror32)
+    }
+    printf(&quot;  field=%u oc=%d\n&quot;, id, oc);
+  }
+  // doc:end
+
+  // doc:region Fboolev32
+  // Fboolco32 compiles the expression into a tree (field names are
+  // resolved through the loaded field tables); Fboolev32 evaluates the
+  // tree against the buffer
+  char *tree = Fboolco32((char *)&quot;AMOUNT &gt; 200&quot;);
+  if (tree == NULL) {
+    return fmlfail(&quot;Fboolco32&quot;);
+  }
+  int match = Fboolev32(fb, tree);
+  if (match == -1) {
+    return fmlfail(&quot;Fboolev32&quot;);
+  }
+  printf(&quot;AMOUNT &gt; 200: %s\n&quot;, match ? &quot;true&quot; : &quot;false&quot;);
+
+  // doc:region Fboolpr32
+  // Fboolpr32 prints the parsed expression tree
+  Fboolpr32(tree, stdout);
+  // doc:end
+
+  free(tree);
+  // doc:end
+
+  // doc:region Flen32
+  // Flen32 is the stored length of one occurrence
+  long len0 = Flen32(fb, FIRSTNAME, 0);
+  if (len0 == -1) {
+    return fmlfail(&quot;Flen32&quot;);
+  }
+  // doc:end
+  printf(&quot;FIRSTNAME[0] len=%ld\n&quot;, len0);
+
+  // doc:region Fsizeof32
+  // Fsizeof32 is the whole buffer size; Fneeded32 sizes an addition
+  long used = Fsizeof32(fb);
+  long need = Fneeded32(3, 32);
+  // doc:end
+  printf(&quot;sizeof=%ld needed=%ld\n&quot;, used, need);
+
+  // doc:region Fwrite32
+  // Fwrite32/Fread32 move a buffer to and from a FILE
+  FILE *out = fopen(&quot;demo.fml&quot;, &quot;w&quot;);
+  if (out == NULL || Fwrite32(fb, out) == -1) {
+    return fmlfail(&quot;Fwrite32&quot;);
+  }
+  fclose(out);
+  // doc:end
+
+  // doc:region Fread32
+  FBFR32 *copy = (FBFR32 *)tpalloc((char *)&quot;FML32&quot;, NULL, 1024);
+  FILE *in = fopen(&quot;demo.fml&quot;, &quot;r&quot;);
+  if (copy == NULL || in == NULL || Fread32(copy, in) == -1) {
+    return fmlfail(&quot;Fread32&quot;);
+  }
+  fclose(in);
+  // doc:end
+
+  // doc:region Fprint32
+  // Fprint32 prints the buffer to stdout; Ffprint32 takes a FILE
+  if (Fprint32(copy) == -1) {
+    return fmlfail(&quot;Fprint32&quot;);
+  }
+  // doc:end
+
+  // doc:region Fdel32
+  // Fdel32 removes one occurrence; oc -1 removes them all
+  if (Fdel32(fb, FIRSTNAME, 1) == -1) {
+    return fmlfail(&quot;Fdel32&quot;);
+  }
+  // doc:end
+
+  tpfree((char *)fb);
+  tpfree((char *)copy);
+  return 0;
+}</code></pre>
+
+<p>See also: <a href="/api/Fadd32/">Fadd32</a>, <a href="/api/Fchg32/">Fchg32</a>, <a href="/api/Fboolev32/">Fboolev32</a>, <a href="/api/Fnext32/">Fnext32</a>.</p>
+
+<p class="compat-line">fuxedo: supported.
+Cross-checked against Oracle Tuxedo 12.2.2 and 22.1
+with the API hardening suite.</p>
+
+</div>
+</div>
+
+<footer>
+<p>Part of the <a href="/api/">Fuxedo API reference</a>.
+<a href="https://github.com/fuxedo/fuxedo">Fuxedo</a> is the open source
+alternative to Oracle Tuxedo: same API, same commands, same System V IPC
+mechanics.</p>
+</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,10 @@
+tuxconfig
+ubbconfig
+apisvr
+apiclient
+ULOG.*
+stdout
+stderr
+.adm/
+access.*
+.tmp/

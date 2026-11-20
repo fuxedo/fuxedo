@@ -1,0 +1,42 @@
+/* Fuxedo API reference layout: fixed side navigation + content column.
+   Shares the retro palette with styles.css. */
+
+.api-layout { display: flex; gap: 1.6em; align-items: flex-start; }
+.api-nav { flex: 0 0 15em; max-height: calc(100vh - 4em); overflow-y: auto;
+           position: sticky; top: 1em; font-family: 'Courier New', monospace;
+           font-size: 0.82em; line-height: 1.4; background: #efe9d6;
+           border: 1px solid #8f8871; padding: 0.7em 0.9em;
+           box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #b3ab90; }
+.api-nav h2 { font-size: 0.95em; margin: 0.8em 0 0.2em; padding: 2px 6px;
+              font-family: 'Courier New', monospace; color: #9fe8b0;
+              background: #10312a; border: 1px solid #0a201b; }
+.api-nav h2:first-child { margin-top: 0; }
+.api-nav ul { list-style: none; margin: 0.2em 0 0.6em; padding: 0; }
+.api-nav li { margin: 0; }
+.api-nav a { display: block; padding: 1px 6px; text-decoration: none;
+             color: #8f1d14; }
+.api-nav a:hover { background: #e2dcc6; color: #c0392b; }
+.api-nav a.here { background: #8f1d14; color: #fbf7ea; }
+.api-main { flex: 1 1 auto; min-width: 0; }
+
+.api-main table { border-collapse: collapse; width: 100%; margin: 1em 0;
+                  font-size: 0.92em; }
+.api-main th { font-family: 'Courier New', monospace; text-align: left;
+               background: #ded8c2; border: 1px solid #8f8871; padding: 4px 8px; }
+.api-main td { border: 1px solid #b3ab90; padding: 4px 8px; vertical-align: top; }
+.api-main td:first-child { font-family: 'Courier New', monospace;
+                           white-space: nowrap; }
+
+.compat-line { font-family: 'Courier New', monospace; font-size: 0.85em;
+               background: #efe9d6; border: 1px solid #8f8871;
+               padding: 0.5em 0.9em; margin-top: 2em; }
+
+/* highlighted documented-call region inside embedded examples */
+pre .hl { display: inline-block; width: 100%; background: #3d2a1a;
+         outline: 1px solid #8f1d14; }
+.example-file { font-size: 0.85em; color: #5c5540; }
+
+@media (max-width: 50em) {
+  .api-layout { flex-direction: column; }
+  .api-nav { flex: none; width: auto; max-height: none; position: static; }
+}
