@@ -66,6 +66,13 @@
 <li><a href="/api/tpcancel/">tpcancel</a></li>
 <li><a href="/api/tpforward/">tpforward</a></li>
 </ul>
+<h2>XATMI: conversational</h2>
+<ul>
+<li><a href="/api/tpconnect/">tpconnect</a></li>
+<li><a href="/api/tpsend/">tpsend</a></li>
+<li><a href="/api/tprecv/">tprecv</a></li>
+<li><a href="/api/tpdiscon/">tpdiscon</a></li>
+</ul>
 <h2>XATMI: buffers</h2>
 <ul>
 <li><a href="/api/tpalloc/">tpalloc</a></li>
@@ -164,8 +171,9 @@ reply data is delivered in <code>*odata</code> as usual, and
 <tr><td>TPBLOCK</td><td>Default. If the service request queue is full, wait for space.</td></tr>
 <tr><td>TPNOTIME</td><td>Ignore the call timeout while waiting for the reply; wait indefinitely.</td></tr>
 <tr><td>TPSIGRSTRT</td><td>Restart an interrupted wait instead of returning TPGOTSIG when a caught signal arrives mid-call.</td></tr>
+<tr><td>TPNOCOPY</td><td>Accepted for compatibility; only meaningful on shared-memory transports, a no-op here.</td></tr>
 </table>
-<p>Any other flag, including TPNOREPLY, fails with TPEINVAL; use tpacall() for those.</p>
+<p>Any other flag fails with TPEINVAL. In particular TPNOREPLY belongs to tpacall(), not tpcall() - tpcall always waits for the reply.</p>
 
 <h2>Errors (tperrno)</h2>
 <table>

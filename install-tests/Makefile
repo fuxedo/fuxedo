@@ -23,15 +23,20 @@ check:
 	make -C restart
 	make -C qsample
 	make -C bbl
+	make -C flags
 
 # The subset that also passes against real Oracle Tuxedo installations
 # (run by CI with TUXDIR pointing at an Oracle home). build and qmtx
 # build a TMS via buildtms, which fails to link Oracle's prebuilt TMS.o
 # on modern toolchains; txnull links against fuxedo's own library;
 # restart and qsample exercise fuxedo-specific pieces (/Q layout,
-# restart bookkeeping). Verified against Oracle 12.2.2.
+# restart bookkeeping). conv runs fuxedo-only for now: Oracle 12.2.2
+# answers tpconnect to an advertised conversational service with
+# TPENOENT on this home (pristine boot, static or dynamic advertise),
+# an open platform question - see notes/flags-investigation.md.
+# Verified against Oracle 12.2.2.
 ORACLE_DIRS = unit view server tmshutdown tpinit tpcall tpacall \
-              tpadvertise tpforward blocktime bbl eventbr
+              tpadvertise tpforward blocktime bbl eventbr flags
 
 # 22.1 narrows to the compile-and-API suites: its tmipcrm refuses to
 # run without an attached bulletin board, which wedges the boot-oriented

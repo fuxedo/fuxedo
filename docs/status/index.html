@@ -80,8 +80,8 @@ included.</td></tr>
 <tr><td>ATMI client/server</td>
 <td>tpinit/tpterm, tpcall, tpacall/tpgetrply/tpcancel with flag
 semantics, tpforward, tpreturn, tpadvertise/tpadvertisex incl.
-TPSINGLETON and TPSECONDARYRQ, conversational tpconnect/tpsend/tprecv,
-automatic transactions and AUTOTRAN, late-reply draining.</td></tr>
+TPSINGLETON and TPSECONDARYRQ, automatic transactions and AUTOTRAN,
+late-reply draining.</td></tr>
 <tr><td>Typed buffers</td>
 <td>FML32 with Oracle-compatible field ids and boolean expressions,
 VIEW32 with viewc32/viewdis32 and the Fv* family, XML buffers with
@@ -115,6 +115,9 @@ WSNADDR.</td></tr>
 <td>ULOG, changetrace, printtrans, USDT probes (provider "fuxedo") at
 the ATMI, transaction, XA, /Q, and domain-wire boundaries, plus
 uprobe-friendly builds for bpftrace.</td></tr>
+<tr><td>Conversational</td>
+<td>tpconnect/tpsend/tprecv/tpdiscon with TPEV_* events, per the
+documented half-duplex protocol.</td></tr>
 <tr><td>Verification</td>
 <td>C and Python compatibility suites run against Oracle Tuxedo 12.2.2
 and 22.1 in CI, an invalid-argument hardening suite guards the API

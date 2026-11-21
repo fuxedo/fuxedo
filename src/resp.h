@@ -97,6 +97,8 @@ class responses {
     return -1;
   }
 
+  bool empty() const { return calls_.empty(); }
+
   void buffer(fux::ipc::msg &&res) {
     calls_[res->cd].res = res;
     calls_[res->cd].status = flags::buffered;

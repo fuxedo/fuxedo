@@ -18,9 +18,9 @@ export FIELDTBLS32 := demo
 export TMPDIR := $(CURDIR)/.tmp
 
 CLIENTS := tpcall acall cancel buffers session fmldemo txdemo \
-           enqueue dequeue
+           enqueue dequeue conv
 
-check: tuxconfig apisvr advsvr $(CLIENTS)
+check: tuxconfig apisvr advsvr convsvr $(CLIENTS)
 	mkdir -p $(TMPDIR)
 	sh ./run.sh
 
@@ -43,6 +43,9 @@ apisvr: apisvr.c
 advsvr: advsvr.c
 	buildserver -o $@ -f $< -s GREET -v -f "-Wl,--no-as-needed"
 
+convsvr: convsvr.c
+	buildserver -o $@ -f $< -s CHAT -v -f "-Wl,--no-as-needed"
+
 fmldemo: fmldemo.c demo.h
 	buildclient -o $@ -f $< -v -f "-I. -Wl,--no-as-needed"
 
@@ -52,7 +55,7 @@ $(filter-out fmldemo,$(CLIENTS)): %: %.c
 clean:
 	-tmshutdown -y 2>/dev/null
 	-tmipcrm -y 2>/dev/null
-	-rm -f ubbconfig tuxconfig apisvr advsvr $(CLIENTS) demo.h \
+	-rm -f ubbconfig tuxconfig apisvr advsvr convsvr $(CLIENTS) demo.h \
 	  demo.fml ULOG.* stdout stderr
 	-rm -rf QUE TLOG
 

@@ -13,7 +13,7 @@ static int basic() {
   long revent = 0;
 
   strcpy(buf, "hello1");
-  int cd = tpconnect("ECHO", buf, 0, 0);
+  int cd = tpconnect("ECHO", buf, 0, TPSENDONLY);
   userlog(":TEST: connect cd=%d tperrno=%d", cd, tperrno);
   assert(cd != -1);
 
@@ -55,7 +55,7 @@ static int fail() {
   long revent = 0;
 
   strcpy(buf, "ping");
-  int cd = tpconnect("FAILSVC", buf, 0, 0);
+  int cd = tpconnect("FAILSVC", buf, 0, TPSENDONLY);
   assert(cd != -1);
   userlog(":TEST: connect cd=%d tperrno=%d", cd, tperrno);
   assert(tprecv(cd, &buf, &len, 0, &revent) != -1);
@@ -73,7 +73,7 @@ static int cdiscon() {
   long len = 0;
   long revent = 0;
 
-  int cd = tpconnect("SLEEP", buf, 0, 0);
+  int cd = tpconnect("SLEEP", buf, 0, TPSENDONLY);
   assert(cd != -1);
   userlog(":TEST: connect cd=%d tperrno=%d", cd, tperrno);
   assert(tpdiscon(cd) != -1);
@@ -116,12 +116,12 @@ static int negative() {
   char *buf = tpalloc("STRING", NULL, 64);
   long revent = 0;
   strcpy(buf, "hi");
-  assert(tpconnect("NOSUCHSVC", NULL, 0, 0) == -1);
+  assert(tpconnect("NOSUCHSVC", NULL, 0, TPSENDONLY) == -1);
   assert(tperrno == TPENOENT);
   assert(tpconnect("ECHO", NULL, 0, 0x1000000) == -1);
   assert(tperrno == TPEINVAL);
 
-  int cd = tpconnect("ECHO", buf, 0, 0);
+  int cd = tpconnect("ECHO", buf, 0, TPSENDONLY);
   userlog(":TEST: connect cd=%d tperrno=%d", cd, tperrno);
   assert(cd != -1);
   assert(tpsend(cd + 500000, buf, 0, 0, &revent) == -1);

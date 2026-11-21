@@ -177,6 +177,61 @@ static int esub() {
   return 0;
 }
 
+// flag-validation probes against the live event/transaction machinery;
+// the Makefile greps the pinned answers (both platforms must agree)
+static int flagprobes() {
+  char *buf = tpalloc("STRING", NULL, 16);
+  strcpy(buf, "hi");
+  CLIENTID cid;
+  memset(&cid, 0, sizeof(cid));
+
+  tperrno = 0;
+  int rc = tppost("FLAGS_EVENT", buf, 0, TPNOBLOCK);
+  userlog(":TEST: tppost_flags rc=%d tperrno=%d", rc, tperrno);
+
+  tperrno = 0;
+  rc = tpnotify(&cid, buf, 0, TPNOBLOCK);
+  userlog(":TEST: tpnotify_flags rc=%d tperrno=%d", rc, tperrno);
+
+  tperrno = 0;
+  rc = tpbroadcast(NULL, NULL, NULL, buf, 0, TPNOBLOCK);
+  userlog(":TEST: tpbroadcast_flags rc=%d tperrno=%d", rc, tperrno);
+
+  long h;
+  tperrno = 0;
+  h = tpsubscribe("FLAGS_EVENT", NULL, NULL, TPTRAN);
+  userlog(":TEST: subscribe_badbit rc=%ld tperrno=%d", h, tperrno);
+  tperrno = 0;
+  h = tpsubscribe("FLAGS_EVENT", NULL, NULL, TPEVSERVICE | TPEVQUEUE);
+  userlog(":TEST: subscribe_both rc=%ld tperrno=%d", h, tperrno);
+  tperrno = 0;
+  h = tpsubscribe("FLAGS_EVENT", NULL, NULL, TPEVPERSIST);
+  userlog(":TEST: subscribe_persist rc=%ld tperrno=%d", h, tperrno);
+  if (h != -1) {
+    tpunsubscribe(h, 0);
+  }
+
+  tperrno = 0;
+  rc = tpbegin(30, 0);
+  userlog(":TEST: tpbegin_ok rc=%d tperrno=%d", rc, tperrno);
+  if (rc != -1) {
+    tpabort(0);
+  }
+  tperrno = 0;
+  rc = tpbegin(30, TPNOBLOCK);
+  userlog(":TEST: tpbegin_flags rc=%d tperrno=%d", rc, tperrno);
+  tperrno = 0;
+  rc = tpcommit(TPNOBLOCK);
+  userlog(":TEST: tpcommit_flags rc=%d tperrno=%d", rc, tperrno);
+  tperrno = 0;
+  rc = tpabort(TPSIGRSTRT);
+  userlog(":TEST: tpabort_flags rc=%d tperrno=%d", rc, tperrno);
+
+  tpfree(buf);
+  userlog(":TEST: FLAGPROBES DONE");
+  return 0;
+}
+
 int main(int argc, char *argv[]) {
   if (argc > 3 && strcmp(argv[1], "blisten") == 0) {
     return blisten(argv[2], argv[3]);
@@ -191,6 +246,8 @@ int main(int argc, char *argv[]) {
   int rc = 0;
   if (argc > 1 && strcmp(argv[1], "esub") == 0) {
     rc = esub();
+  } else if (argc > 1 && strcmp(argv[1], "flags") == 0) {
+    rc = flagprobes();
   } else {
     rc = selftest();
   }

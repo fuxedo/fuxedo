@@ -66,6 +66,13 @@
 <li><a href="/api/tpcancel/">tpcancel</a></li>
 <li><a href="/api/tpforward/">tpforward</a></li>
 </ul>
+<h2>XATMI: conversational</h2>
+<ul>
+<li><a href="/api/tpconnect/">tpconnect</a></li>
+<li><a href="/api/tpsend/">tpsend</a></li>
+<li><a href="/api/tprecv/">tprecv</a></li>
+<li><a href="/api/tpdiscon/">tpdiscon</a></li>
+</ul>
 <h2>XATMI: buffers</h2>
 <ul>
 <li><a href="/api/tpalloc/">tpalloc</a></li>
@@ -155,12 +162,15 @@ receives the reply length.</p>
 <tr><td>TPNOBLOCK</td><td>Return TPEBLOCK immediately when no reply is ready instead of waiting.</td></tr>
 <tr><td>TPNOTIME</td><td>Wait without a deadline; the reaper never fires for this wait.</td></tr>
 <tr><td>TPSIGRSTRT</td><td>Restart interrupted waits.</td></tr>
+<tr><td>TPNOCHANGE</td><td>Force the reply buffer type and subtype to match the buffer passed in.</td></tr>
 </table>
+<p>Reply-side flags only: TPNOREPLY, TPNOTRAN, and the rest of the call-side word fail with TPEINVAL.</p>
 
 <h2>Errors (tperrno)</h2>
 <table>
 <tr><th>Code</th><th>Description</th></tr>
 <tr><td>TPEBADDESC</td><td>*cd is not an outstanding call descriptor.</td></tr>
+<tr><td>TPEPROTO</td><td>TPGETANY was requested with no outstanding calls at all.</td></tr>
 <tr><td>TPETIME</td><td>The reply did not arrive within the call timeout. The descriptor stays outstanding and can be waited on again; a reply arriving after the timeout is discarded on a later call.</td></tr>
 <tr><td>TPEBLOCK</td><td>TPNOBLOCK was set and no reply is ready.</td></tr>
 <tr><td>TPEINVAL</td><td>data is NULL or *data is not a typed buffer.</td></tr>

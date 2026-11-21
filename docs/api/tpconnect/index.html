@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tpconnect() - open a conversation with a service | Fuxedo API reference</title>
+<meta name="description" content="tpconnect() - open a conversation with a service. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="keywords" content="tpconnect, tpconnect example, Oracle Tuxedo tpconnect, Tuxedo C API, Fuxedo, XATMI,tpsend,tprecv,tpdiscon">
+<link rel="canonical" href="https://fuxedo.io/api/tpconnect/">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://fuxedo.io/api/tpconnect/">
+<meta property="og:title" content="tpconnect() - open a conversation with a service">
+<meta property="og:description" content="tpconnect() - open a conversation with a service. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="tpconnect() - open a conversation with a service">
+<meta name="twitter:description" content="tpconnect() - open a conversation with a service. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "tpconnect() - open a conversation with a service",
+      "description": "tpconnect() - open a conversation with a service. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.",
+      "url": "https://fuxedo.io/api/tpconnect/",
+      "isPartOf": {"@type": "WebSite", "name": "Fuxedo API reference", "url": "https://fuxedo.io/api/"},
+      "programmingLanguage": "C",
+      "license": "https://opensource.org/licenses/MIT"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Fuxedo", "item": "https://fuxedo.io/"},
+        {"@type": "ListItem", "position": 2, "name": "API reference", "item": "https://fuxedo.io/api/"},
+        {"@type": "ListItem", "position": 3, "name": "tpconnect"}
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/api/api.css">
+</head>
+<body>
+<div class="page">
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">tpconnect()</h1>
+<p class="tagline">open a conversation with a service</p>
+
+<div class="api-layout">
+<nav class="api-nav">
+<h2>XATMI: session</h2>
+<ul>
+<li><a href="/api/tpinit/">tpinit</a></li>
+<li><a href="/api/tpterm/">tpterm</a></li>
+</ul>
+<h2>XATMI: errors</h2>
+<ul>
+<li><a href="/api/tperrno/">tperrno</a></li>
+<li><a href="/api/tpstrerror/">tpstrerror</a></li>
+</ul>
+<h2>XATMI: calls</h2>
+<ul>
+<li><a href="/api/tpcall/">tpcall</a></li>
+<li><a href="/api/tpacall/">tpacall</a></li>
+<li><a href="/api/tpgetrply/">tpgetrply</a></li>
+<li><a href="/api/tpcancel/">tpcancel</a></li>
+<li><a href="/api/tpforward/">tpforward</a></li>
+</ul>
+<h2>XATMI: conversational</h2>
+<ul>
+<li><a class="here" href="/api/tpconnect/">tpconnect</a></li>
+<li><a href="/api/tpsend/">tpsend</a></li>
+<li><a href="/api/tprecv/">tprecv</a></li>
+<li><a href="/api/tpdiscon/">tpdiscon</a></li>
+</ul>
+<h2>XATMI: buffers</h2>
+<ul>
+<li><a href="/api/tpalloc/">tpalloc</a></li>
+<li><a href="/api/tpfree/">tpfree</a></li>
+<li><a href="/api/tptypes/">tptypes</a></li>
+<li><a href="/api/tpexport/">tpexport</a></li>
+<li><a href="/api/tpimport/">tpimport</a></li>
+</ul>
+<h2>XATMI: transactions</h2>
+<ul>
+<li><a href="/api/tpbegin/">tpbegin</a></li>
+<li><a href="/api/tpgetlev/">tpgetlev</a></li>
+<li><a href="/api/tpsuspend/">tpsuspend</a></li>
+<li><a href="/api/tpresume/">tpresume</a></li>
+<li><a href="/api/tpcommit/">tpcommit</a></li>
+<li><a href="/api/tpabort/">tpabort</a></li>
+</ul>
+<h2>XATMI: queues</h2>
+<ul>
+<li><a href="/api/tpenqueue/">tpenqueue</a></li>
+<li><a href="/api/tpdequeue/">tpdequeue</a></li>
+</ul>
+<h2>XATMI: server</h2>
+<ul>
+<li><a href="/api/tpsvrinit/">tpsvrinit</a></li>
+<li><a href="/api/tpsvrdone/">tpsvrdone</a></li>
+<li><a href="/api/tpsvrthrinit/">tpsvrthrinit</a></li>
+<li><a href="/api/tpsvrthrdone/">tpsvrthrdone</a></li>
+<li><a href="/api/tpreturn/">tpreturn</a></li>
+<li><a href="/api/tpadvertise/">tpadvertise</a></li>
+<li><a href="/api/tpadvertisex/">tpadvertisex</a></li>
+<li><a href="/api/tpunadvertise/">tpunadvertise</a></li>
+</ul>
+<h2>FML32</h2>
+<ul>
+<li><a href="/api/fml32/">fml32</a></li>
+<li><a href="/api/Ferror32/">Ferror32</a></li>
+<li><a href="/api/Fstrerror32/">Fstrerror32</a></li>
+<li><a href="/api/Fadd32/">Fadd32</a></li>
+<li><a href="/api/Fchg32/">Fchg32</a></li>
+<li><a href="/api/Fget32/">Fget32</a></li>
+<li><a href="/api/Fdel32/">Fdel32</a></li>
+<li><a href="/api/Fnext32/">Fnext32</a></li>
+<li><a href="/api/Fprint32/">Fprint32</a></li>
+<li><a href="/api/Ffprint32/">Ffprint32</a></li>
+<li><a href="/api/Fwrite32/">Fwrite32</a></li>
+<li><a href="/api/Fread32/">Fread32</a></li>
+<li><a href="/api/Fboolco32/">Fboolco32</a></li>
+<li><a href="/api/Fboolev32/">Fboolev32</a></li>
+<li><a href="/api/Fboolpr32/">Fboolpr32</a></li>
+<li><a href="/api/Fmkfldid32/">Fmkfldid32</a></li>
+<li><a href="/api/Fneeded32/">Fneeded32</a></li>
+<li><a href="/api/Fsizeof32/">Fsizeof32</a></li>
+<li><a href="/api/Flen32/">Flen32</a></li>
+</ul>
+</nav>
+
+<div class="api-main">
+
+<h2>Synopsis</h2>
+<pre><code>#include &lt;atmi.h&gt;
+
+int tpconnect(char *svc, char *data, long len, long flags);</code></pre>
+
+<h2>Description</h2>
+
+<p>tpconnect() opens a conversation: a bidirectional, sequenced
+exchange with one service invocation, carried without the requester
+blocking in a service call. The service runs with TPCONV set in
+svcinfo-&gt;flags and reads the connect buffer from
+<code>svcinfo-&gt;data</code>; the two sides then trade messages with
+tpsend() and tprecv() until one of them ends it.</p>
+<p>The conversation is half-duplex at any moment: exactly one side
+holds send permission, and handing it over is part of the protocol
+(TPRECVONLY on tpsend(), TPEV_SENDONLY events on tprecv()).</p>
+
+<h2>Arguments</h2>
+<table>
+<tr><th>Argument</th><th>Description</th></tr>
+<tr><td>svc</td><td>Advertised service name; validated like tpcall().</td></tr>
+<tr><td>data, len</td><td>Optional connect data, delivered to the service as svcinfo-&gt;data.</td></tr>
+<tr><td>flags</td><td>An explicit direction is mandatory, see below.</td></tr>
+</table>
+
+<h2>Flags</h2>
+<table>
+<tr><th>Flag</th><th>Description</th></tr>
+<tr><td>TPSENDONLY</td><td>The caller sends first.</td></tr>
+<tr><td>TPRECVONLY</td><td>The caller waits first.</td></tr>
+</table>
+<p>Exactly one of the two mode bits must be set. Passing 0, both bits together, or any timing or call flag (TPNOBLOCK, TPNOTRAN, ...) fails with TPEINVAL - a direction is always spelled out.</p>
+
+<h2>Errors (tperrno)</h2>
+<table>
+<tr><th>Code</th><th>Description</th></tr>
+<tr><td>TPEINVAL</td><td>Invalid flag word or arguments.</td></tr>
+<tr><td>TPENOENT</td><td>No server advertises svc.</td></tr>
+<tr><td>TPETIME</td><td>No server accepted the connect within the timeout.</td></tr>
+<tr><td>TPESYSTEM, TPEOS</td><td>Platform or operating system failure.</td></tr>
+</table>
+
+<h2>Notes</h2>
+
+<p><strong>Ending it.</strong> Either side may end the conversation:
+tpreturn() from the service, or tpdiscon() from the caller. The peer
+learns of the end through TPEV_DISCONIMM, TPEV_SVCSUCC, or TPEV_SVCFAIL
+in revent, or a failed tpsend()/tprecv().</p>
+
+
+<h2>Example</h2>
+<p class="example-file">Full source: <code>docs/api/examples/conv.c</code>
+(build and run with <code>make -C docs/api/examples check
+TUXDIR=&lt;install&gt;</code>); the lines documenting tpconnect() are highlighted.</p>
+<pre><code>// tpconnect()/tpsend()/tprecv()/tpdiscon() example: a scripted
+// conversation with the CHAT service. Connect data (&quot;hello&quot;) is the
+// first thing the service sees; the client ends with tpdiscon().
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;atmi.h&gt;
+
+int main() {
+  if (tpinit((TPINIT *)NULL) == -1) {
+    perror(&quot;tpinit&quot;);
+    return 1;
+  }
+
+  char *buf = tpalloc(&quot;STRING&quot;, NULL, 1024);
+  strcpy(buf, &quot;hello&quot;);
+  long len = 0;
+  long revent = 0;
+
+<span class="hl">  // a conversation is opened with an explicit direction: TPSENDONLY
+  // (caller sends first) or TPRECVONLY (caller waits first); any
+  // other flag word, including 0, fails with TPEINVAL
+  int cd = tpconnect((char *)&quot;CHAT&quot;, buf, 0, TPSENDONLY);</span>
+  if (cd == -1) {
+    fprintf(stderr, &quot;tpconnect failed: %s (%d)\n&quot;, tpstrerror(tperrno),
+            tperrno);
+    return 1;
+  }
+
+  // tpsend delivers one message; TPRECVONLY hands send permission to
+  // the peer, which learns of it through TPEV_SENDONLY from tprecv
+  strcpy(buf, &quot;how are you?&quot;);
+  if (tpsend(cd, buf, 0, TPRECVONLY, &amp;revent) == -1) {
+    fprintf(stderr, &quot;tpsend failed: %s (%d)\n&quot;, tpstrerror(tperrno),
+            tperrno);
+    return 1;
+  }
+
+  // tprecv waits for one message or event; revent tells events from
+  // data (TPEV_SENDONLY: the peer handed send permission over)
+  if (tprecv(cd, &amp;buf, &amp;len, 0, &amp;revent) == -1) {
+    fprintf(stderr, &quot;tprecv failed: %s (%d)\n&quot;, tpstrerror(tperrno),
+            tperrno);
+    return 1;
+  }
+  printf(&quot;service says: %s\n&quot;, buf);
+
+  // tpdiscon tears the conversation down immediately; the service
+  // sees TPEV_DISCONIMM from tprecv (a graceful end is an empty
+  // message, which maps to the service&#x27;s tpreturn)
+  if (tpdiscon(cd) == -1) {
+    fprintf(stderr, &quot;tpdiscon failed: %s (%d)\n&quot;, tpstrerror(tperrno),
+            tperrno);
+    return 1;
+  }
+
+  tpfree(buf);
+  tpterm();
+  return 0;
+}</code></pre>
+
+<p>See also: <a href="/api/tpsend/">tpsend</a>, <a href="/api/tprecv/">tprecv</a>, <a href="/api/tpdiscon/">tpdiscon</a>.</p>
+
+<p class="compat-line">fuxedo: supported.
+Cross-checked against Oracle Tuxedo 12.2.2 and 22.1
+with the API hardening suite.</p>
+
+</div>
+</div>
+
+<footer>
+<p>Part of the <a href="/api/">Fuxedo API reference</a>.
+<a href="https://github.com/fuxedo/fuxedo">Fuxedo</a> is the open source
+alternative to Oracle Tuxedo: same API, same commands, same System V IPC
+mechanics.</p>
+</footer>
+</div>
+</body>
+</html>

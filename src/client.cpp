@@ -321,6 +321,12 @@ int client::tpgetrply(int *cd, char **data, long *len, long flags) {
     }
 
     if (!has_res) {
+      // TPGETANY with nothing outstanding is a protocol error on the
+      // platform (pinned against Oracle 12.2.2), never a wait
+      if ((flags & TPGETANY) && cds.empty()) {
+        TPERROR(TPEPROTO, "No outstanding calls for TPGETANY");
+        return -1;
+      }
       // TPNOTIME waits without a deadline: leave the accesser without
       // a reply-wait timeout so the reaper never fires
       if (flags & TPNOTIME) {
@@ -490,8 +496,11 @@ int client::tpconnect(const char *svc, char *data, long len, long flags) {
     TPERROR(TPEINVAL, "svc is null or empty");
     return -1;
   }
-  constexpr long valid = TPSIGRSTRT | TPNOBLOCK | TPNOTIME | TPRECVONLY;
-  if (flags & ~valid) {
+  // pinned against Oracle 12.2.2 (install-tests/flags + conv): ONLY an
+  // explicit single direction is accepted - one of the mode bits;
+  // flags=0 is rejected outright, both bits together are rejected, as
+  // are the timing/call flags
+  if (flags != TPSENDONLY && flags != TPRECVONLY) {
     TPERROR(TPEINVAL, "Invalid flags passed to tpconnect");
     return -1;
   }
@@ -535,6 +544,9 @@ int client::tpconnect(const char *svc, char *data, long len, long flags) {
 }
 
 int client::tpsend(int cd, char *data, long len, long flags, long *revent) {
+  // pinned against Oracle 12.2.2: send flags plus the mode flip to
+  // receive-only; TPSENDONLY is not honored here (it describes the
+  // state the peer put the conversation into)
   constexpr long valid = TPSIGRSTRT | TPNOBLOCK | TPNOTIME | TPRECVONLY;
   if (flags & ~valid) {
     TPERROR(TPEINVAL, "Invalid flags passed to tpsend");
@@ -581,7 +593,11 @@ int client::tprecv(int cd, char **data, long *len, long flags, long *revent) {
     return -1;
   }
   *revent = 0;
-  constexpr long valid = TPSIGRSTRT | TPNOBLOCK | TPNOTIME;
+  // pinned against Oracle 12.2.2: TPNOCHANGE is honored on receive in
+  // addition to the timing flags; TPACK is rejected (isolated probe -
+  // an earlier sequence-dependent run showed it accepted, see the
+  // flags investigation note)
+  constexpr long valid = TPSIGRSTRT | TPNOBLOCK | TPNOTIME | TPNOCHANGE;
   if (flags & ~valid) {
     TPERROR(TPEINVAL, "Invalid flags passed to tprecv");
     return -1;
@@ -901,11 +917,11 @@ int tpacall_queue(int msqid, const char *svc, char *data, long len,
 int tpacall(char *svc, char *data, long len, long flags) {
   fux::trace::event("{ tpacall(\"%s\", %ld)", svc, len);
   FUX_PROBE3(tpacall__entry, svc, len, flags);
-  // the platform validates the flag word before anything else: the
-  // call flags plus TPNOREPLY, nothing more
+  // pinned against Oracle 12.2.2 on a booted domain (probe
+  // tmp/flagprobe/mask3): the call flags plus TPNOREPLY only - notably
+  // NOT TPNOCHANGE/TPNOCOPY, which tpcall alone accepts
   constexpr long valid =
-      TPNOBLOCK | TPSIGRSTRT | TPNOREPLY | TPNOTRAN | TPTRAN | TPNOTIME |
-      TPNOCHANGE;
+      TPNOBLOCK | TPSIGRSTRT | TPNOREPLY | TPNOTRAN | TPNOTIME;
   if (flags & ~valid) {
     TPERROR(TPEINVAL, "Invalid flags passed to tpacall");
     return -1;
@@ -926,6 +942,12 @@ int tpacall(char *svc, char *data, long len, long flags) {
 
 int tpgetrply(int *cd, char **data, long *len, long flags) {
   fux::trace::event("{ tpgetrply(%d)", cd != nullptr ? *cd : -1);
+  constexpr long valid =
+      TPNOBLOCK | TPGETANY | TPNOTIME | TPSIGRSTRT | TPNOCHANGE;
+  if (flags & ~valid) {
+    TPERROR(TPEINVAL, "Invalid flags passed to tpgetrply");
+    return -1;
+  }
   int rc = 0;
   if (fux::ws::ws_naddr() != nullptr) {
     rc = fux::atmi::exception_boundary(
@@ -948,9 +970,10 @@ int tpcall(char *svc, char *idata, long ilen, char **odata, long *olen,
            long flags) {
   fux::trace::event("{ tpcall(\"%s\", %ld)", svc, ilen);
   FUX_PROBE2(tpcall__entry, svc, ilen);
-  // same flag word as tpacall minus TPNOREPLY: a reply is implicit
-  constexpr long valid =
-      TPNOBLOCK | TPSIGRSTRT | TPNOTRAN | TPTRAN | TPNOTIME | TPNOCHANGE;
+  // pinned against Oracle 12.2.2 (probe tmp/flagprobe/mask): the
+  // documented tpcall flags plus TPNOCOPY; TPNOREPLY is tpacall-only
+  constexpr long valid = TPNOBLOCK | TPSIGRSTRT | TPNOTRAN | TPNOTIME |
+                         TPNOCHANGE | TPNOCOPY;
   if (flags & ~valid) {
     TPERROR(TPEINVAL, "Invalid flags passed to tpcall");
     return -1;
@@ -974,7 +997,16 @@ int tpcall(char *svc, char *idata, long ilen, char **odata, long *olen,
           if (cd == -1) {
             return -1;
           }
-          return getclient().tpgetrply(&cd, odata, olen, flags);
+          if (flags & TPNOREPLY) {
+            return 0;
+          }
+          // only the reply-side bits are meaningful to the internal
+          // wait - the platform's tpcall validates one wide flag word
+          // then waits with the getrply subset (TPNOTRAN et al. would
+          // be rejected by a plain tpgetrply, pinned 12.2.2)
+          return getclient().tpgetrply(
+              &cd, odata, olen,
+              flags & (TPNOBLOCK | TPNOTIME | TPSIGRSTRT | TPNOCHANGE));
         },
         -1);
   }
@@ -1028,9 +1060,15 @@ void (*tpsetunsol(void (*func)(char *data, long len, long flags)))(char *,
     TPERROR(TPESYSTEM, "tpsetunsol is not available in workstation mode");
     return nullptr;
   }
-  auto prev = getclient().setunsol(func);
-  fux::atmi::reset_tperrno();
-  return prev;
+  // the API never throws: without a bulletin board the handler cannot
+  // be registered and the platform-style answer is nullptr + TPESYSTEM
+  return fux::atmi::exception_boundary(
+      [&]() -> void (*)(char *, long, long) {
+        auto prev = getclient().setunsol(func);
+        fux::atmi::reset_tperrno();
+        return prev;
+      },
+      static_cast<void (*)(char *, long, long)>(nullptr));
 }
 
 int tpchkunsol() {

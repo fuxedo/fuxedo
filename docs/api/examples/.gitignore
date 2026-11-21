@@ -2,6 +2,7 @@ tuxconfig
 ubbconfig
 apisvr
 advsvr
+convsvr
 apiclient
 tpcall
 acall
@@ -23,6 +24,7 @@ demo.flds.h
 dequeue
 enqueue
 txdemo
+conv
 tpcall
 acall
 cancel

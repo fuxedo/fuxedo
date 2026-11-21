@@ -27,6 +27,8 @@ GROUPS = [
     ("XATMI: errors", ["tperrno", "tpstrerror"]),
     ("XATMI: calls", ["tpcall", "tpacall", "tpgetrply", "tpcancel",
                       "tpforward"]),
+    ("XATMI: conversational", ["tpconnect", "tpsend", "tprecv",
+                               "tpdiscon"]),
     ("XATMI: buffers", ["tpalloc", "tpfree", "tptypes", "tpexport",
                         "tpimport"]),
     ("XATMI: transactions", ["tpbegin", "tpgetlev", "tpsuspend",
@@ -92,9 +94,12 @@ reply data is delivered in <code>*odata</code> as usual, and
             ("TPSIGRSTRT", "Restart an interrupted wait instead of "
                            "returning TPGOTSIG when a caught signal "
                            "arrives mid-call."),
+            ("TPNOCOPY", "Accepted for compatibility; only meaningful "
+                         "on shared-memory transports, a no-op here."),
         ],
-        "flags_note": "Any other flag, including TPNOREPLY, fails with "
-                      "TPEINVAL; use tpacall() for those.",
+        "flags_note": "Any other flag fails with TPEINVAL. In "
+                      "particular TPNOREPLY belongs to tpacall(), not "
+                      "tpcall() - tpcall always waits for the reply.",
         "errors": [
             ("TPEINVAL", "svc is NULL or empty, flags are invalid, or the "
                          "arguments are inconsistent (for example a NULL "
@@ -167,6 +172,10 @@ it is copied into the message).</p>""",
             ("TPSIGRSTRT", "Restart interrupted waits instead of failing "
                            "with TPGOTSIG."),
         ],
+        "flags_note": "The tpacall flag word is its own: TPNOCHANGE and "
+                      "TPNOCOPY are rejected here even though tpcall() "
+                      "accepts them, and TPNOREPLY is accepted here even "
+                      "though tpcall() rejects it.",
         "errors": [
             ("TPEINVAL", "Bad service name, flags, or arguments."),
             ("TPENOENT", "The service is not advertised."),
@@ -215,9 +224,16 @@ receives the reply length.</p>""",
             ("TPNOTIME", "Wait without a deadline; the reaper never "
                          "fires for this wait."),
             ("TPSIGRSTRT", "Restart interrupted waits."),
+            ("TPNOCHANGE", "Force the reply buffer type and subtype to "
+                           "match the buffer passed in."),
         ],
+        "flags_note": "Reply-side flags only: TPNOREPLY, TPNOTRAN, and "
+                      "the rest of the call-side word fail with "
+                      "TPEINVAL.",
         "errors": [
             ("TPEBADDESC", "*cd is not an outstanding call descriptor."),
+            ("TPEPROTO", "TPGETANY was requested with no outstanding "
+                         "calls at all."),
             ("TPETIME", "The reply did not arrive within the call "
                         "timeout. The descriptor stays outstanding and "
                         "can be waited on again; a reply arriving after "
@@ -303,6 +319,160 @@ C-style cleanup.</p>""",
         "versions": None,
         "example": ("apisvr.c", "tpforward"),
         "see_also": ["tpcall", "tpreturn"],
+    },
+    "tpconnect": {
+        "title": "open a conversation with a service",
+        "group": "XATMI: conversational",
+        "synopsis": "int tpconnect(char *svc, char *data, long len, "
+                    "long flags);",
+        "description": """
+<p>tpconnect() opens a conversation: a bidirectional, sequenced
+exchange with one service invocation, carried without the requester
+blocking in a service call. The service runs with TPCONV set in
+svcinfo-&gt;flags and reads the connect buffer from
+<code>svcinfo-&gt;data</code>; the two sides then trade messages with
+tpsend() and tprecv() until one of them ends it.</p>
+<p>The conversation is half-duplex at any moment: exactly one side
+holds send permission, and handing it over is part of the protocol
+(TPRECVONLY on tpsend(), TPEV_SENDONLY events on tprecv()).</p>""",
+        "args": [
+            ("svc", "Advertised service name; validated like tpcall()."),
+            ("data, len", "Optional connect data, delivered to the "
+                          "service as svcinfo-&gt;data."),
+            ("flags", "An explicit direction is mandatory, see below."),
+        ],
+        "flags": [
+            ("TPSENDONLY", "The caller sends first."),
+            ("TPRECVONLY", "The caller waits first."),
+        ],
+        "flags_note": "Exactly one of the two mode bits must be set. "
+                      "Passing 0, both bits together, or any timing or "
+                      "call flag (TPNOBLOCK, TPNOTRAN, ...) fails with "
+                      "TPEINVAL - a direction is always spelled out.",
+        "errors": [
+            ("TPEINVAL", "Invalid flag word or arguments."),
+            ("TPENOENT", "No server advertises svc."),
+            ("TPETIME", "No server accepted the connect within the "
+                        "timeout."),
+            ("TPESYSTEM, TPEOS", "Platform or operating system "
+                                 "failure."),
+        ],
+        "notes": """
+<p><strong>Ending it.</strong> Either side may end the conversation:
+tpreturn() from the service, or tpdiscon() from the caller. The peer
+learns of the end through TPEV_DISCONIMM, TPEV_SVCSUCC, or TPEV_SVCFAIL
+in revent, or a failed tpsend()/tprecv().</p>""",
+        "versions": None,
+        "example": ("conv.c", "tpconnect"),
+        "see_also": ["tpsend", "tprecv", "tpdiscon"],
+    },
+    "tpsend": {
+        "title": "send one message on a conversation",
+        "group": "XATMI: conversational",
+        "synopsis": "int tpsend(int cd, char *data, long len, long "
+                    "flags, long *revent);",
+        "description": """
+<p>tpsend() delivers one message on a conversation opened with
+tpconnect(). The caller must hold send permission; sending without it
+fails with TPEPROTO. Each call carries at most one direction change,
+expressed with TPRECVONLY, after which the peer's tprecv() reports
+TPEV_SENDONLY.</p>""",
+        "args": [
+            ("cd", "Conversation descriptor from tpconnect()."),
+            ("data, len", "Message buffer; len 0 uses the buffer length "
+                          "for self-describing types."),
+            ("flags", "See below."),
+            ("revent", "Receives event bits when the call fails with "
+                       "TPEEVENT."),
+        ],
+        "flags": [
+            ("TPRECVONLY", "Send this message and hand send permission "
+                           "to the peer."),
+            ("TPNOBLOCK", "Fail with TPEBLOCK instead of waiting if the "
+                          "peer's queue is full."),
+            ("TPNOTIME", "Wait without a deadline for queue space."),
+            ("TPSIGRSTRT", "Restart interrupted waits."),
+        ],
+        "flags_note": "Only the receive-side mode flip is accepted; "
+                      "TPSENDONLY makes no sense on a send and fails "
+                      "with TPEINVAL.",
+        "errors": [
+            ("TPEBADDESC", "cd is not an open conversation."),
+            ("TPEPROTO", "The caller does not hold send permission."),
+            ("TPEEVENT", "A protocol event arrived; check *revent "
+                         "(TPEV_DISCONIMM, TPEV_SVCFAIL, ...)."),
+            ("TPEBLOCK", "TPNOBLOCK was set and the peer's queue is "
+                         "full."),
+            ("TPESYSTEM, TPEOS", "Platform or operating system "
+                                 "failure."),
+        ],
+        "notes": None,
+        "versions": None,
+        "example": ("conv.c", "tpsend"),
+        "see_also": ["tpconnect", "tprecv", "tpdiscon"],
+    },
+    "tprecv": {
+        "title": "receive one message or event on a conversation",
+        "group": "XATMI: conversational",
+        "synopsis": "int tprecv(int cd, char **data, long *len, long "
+                    "flags, long *event);",
+        "description": """
+<p>tprecv() waits for the next message on a conversation and stores it
+in <code>*data</code> (a tpalloc() buffer, resized as needed). When
+what arrives is not data but a protocol event, the call fails with
+TPEEVENT and <code>*event</code> says which: TPEV_SENDONLY (the peer
+handed send permission over), TPEV_DISCONIMM (the peer disconnected),
+TPEV_SVCSUCC / TPEV_SVCFAIL (the service returned).</p>""",
+        "args": [
+            ("cd", "Conversation descriptor from tpconnect()."),
+            ("data, len", "Buffer pointer and returned message "
+                          "length."),
+            ("flags", "See below."),
+            ("event", "Receives event bits when the call fails with "
+                      "TPEEVENT."),
+        ],
+        "flags": [
+            ("TPNOBLOCK", "Fail with TPEBLOCK immediately when no "
+                          "message is ready."),
+            ("TPNOTIME", "Wait without a deadline."),
+            ("TPSIGRSTRT", "Restart interrupted waits."),
+            ("TPNOCHANGE", "Force the incoming buffer type to match the "
+                           "buffer passed in."),
+        ],
+        "errors": [
+            ("TPEBADDESC", "cd is not an open conversation."),
+            ("TPEEVENT", "An event arrived; check *event."),
+            ("TPEBLOCK", "TPNOBLOCK was set and nothing is ready."),
+            ("TPETIME", "The wait exceeded the conversation timeout."),
+            ("TPESYSTEM, TPEOS", "Platform or operating system "
+                                 "failure."),
+        ],
+        "notes": None,
+        "versions": None,
+        "example": ("conv.c", "tprecv"),
+        "see_also": ["tpconnect", "tpsend", "tpdiscon"],
+    },
+    "tpdiscon": {
+        "title": "tear a conversation down immediately",
+        "group": "XATMI: conversational",
+        "synopsis": "int tpdiscon(int cd);",
+        "description": """
+<p>tpdiscon() ends a conversation from the caller side, abruptly: the
+service's next (or in-flight) tprecv() or tpsend() fails with
+TPEV_DISCONIMM and no return data is delivered. Use it when the caller
+loses interest; a graceful end is an empty final message or the
+service's tpreturn(), which map to TPEV_SVCSUCC.</p>""",
+        "args": [("cd", "An open conversation descriptor from "
+                        "tpconnect().")],
+        "flags": None,
+        "errors": [
+            ("TPEBADDESC", "cd is not an open conversation."),
+            ("TPESYSTEM", "Platform failure."),
+        ],
+        "notes": None,
+        "versions": None,
+        "example": ("conv.c", "tpdiscon"),
+        "see_also": ["tpconnect", "tpsend", "tprecv"],
     },
     "tperrno": {
         "title": "the ATMI error indicator",

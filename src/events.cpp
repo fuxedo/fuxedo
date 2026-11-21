@@ -46,11 +46,14 @@ int tpsubscribe_impl(char *eventexpr, char *filter, TPEVCTL *ctl, long flags) {
     TPERROR(TPEINVAL, "eventexpr is null or empty");
     return -1;
   }
-  // exactly one delivery class, optionally ORed with TPEVPERSIST
+  // delivery-class bits plus TPEVPERSIST; 0 defaults to service
+  // delivery and both class bits together are accepted (pinned against
+  // Oracle 12.2.2: TPEVQUEUE wins). TPEVPERSIST alone is rejected: an
+  // explicit class must accompany it. unknown bits are rejected.
   constexpr long valid = TPEVSERVICE | TPEVQUEUE | TPEVPERSIST;
   if ((flags & ~valid) != 0 ||
-      ((flags & (TPEVSERVICE | TPEVQUEUE)) == (TPEVSERVICE | TPEVQUEUE)) ||
-      (flags & (TPEVSERVICE | TPEVQUEUE)) == 0) {
+      ((flags & TPEVPERSIST) != 0 &&
+       (flags & (TPEVSERVICE | TPEVQUEUE)) == 0)) {
     TPERROR(TPEINVAL, "Invalid flags passed to tpsubscribe");
     return -1;
   }
@@ -189,7 +192,8 @@ int tpunsubscribe(long subscription, long flags) {
 }
 
 int tppost(char *eventname, char *data, long len, long flags) {
-  (void)flags;  // no flag values are defined; the platform ignores them
+  (void)flags;  // no flag values are defined; the platform ignores the
+                // whole word (pinned against Oracle 12.2.2)
   fux::trace::event("{ tppost(\"%s\", %ld)", eventname, len);
   FUX_PROBE2(tppost__entry, eventname, len);
   int rc = -1;
@@ -231,6 +235,7 @@ int tppost(char *eventname, char *data, long len, long flags) {
 }
 
 int tpnotify(CLIENTID *cltid, char *data, long len, long flags) {
+  (void)flags;  // ignored, like the platform (pinned 12.2.2)
   fux::trace::event("{ tpnotify(%ld)", cltid ? cltid->clientdata[0] : -1L);
   int rc = -1;
   if (ws_mode()) {
@@ -242,10 +247,7 @@ int tpnotify(CLIENTID *cltid, char *data, long len, long flags) {
             TPERROR(TPEINVAL, "cltid is null");
             return -1;
           }
-          if (flags != 0) {
-            TPERROR(TPEINVAL, "Invalid flags passed to tpnotify");
-            return -1;
-          }
+          // flags are ignored, like the platform (pinned 12.2.2)
           pid_t pid = static_cast<pid_t>(cltid->clientdata[0]);
 
           auto &m = getmib();
@@ -259,8 +261,11 @@ int tpnotify(CLIENTID *cltid, char *data, long len, long flags) {
             }
           }
           if (rpid == -1) {
-            TPERROR(TPENOENT, "No such client %d", pid);
-            return -1;
+            // the platform drops notifications to unknown clients
+            // silently (pinned 12.2.2: tpnotify to a zeroed CLIENTID
+            // returns 0); a full queue is the same - best effort
+            fux::atmi::reset_tperrno();
+            return 0;
           }
 
           fux::ipc::msg note;
@@ -269,9 +274,10 @@ int tpnotify(CLIENTID *cltid, char *data, long len, long flags) {
           note->servicename[0] = '\0';
           note.set_data(data, len);
           if (!fux::ipc::qsend(rpid, note, 0, fux::ipc::flags::noblock)) {
-            TPERROR(TPEOS, "Cannot notify client %d: %s", pid,
+            userlog("tpnotify: dropping notification for client %d: %s", pid,
                     strerror(errno));
-            return -1;
+            fux::atmi::reset_tperrno();
+            return 0;
           }
           fux::atmi::reset_tperrno();
           return 0;
@@ -284,7 +290,7 @@ int tpnotify(CLIENTID *cltid, char *data, long len, long flags) {
 
 int tpbroadcast(char * /*lmid*/, char *usrname, char *cltname, char *data,
                 long len, long flags) {
-  (void)flags;  // no flag values are defined; the platform ignores them
+  (void)flags;  // ignored, like the platform (pinned 12.2.2)
   fux::trace::event("{ tpbroadcast(\"%s\")",
                     cltname != nullptr ? cltname : "");
   int rc = -1;

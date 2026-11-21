@@ -7,9 +7,9 @@ set -e
 # queue IPC so the space ipckey is free
 rm -rf QUE TLOG
 export QMCONFIG="$(pwd)/QUE"
-for id in $(ipcs -q | awk 'NR>3{print $2}'); do ipcrm -q "$id" 2>/dev/null; done
-for id in $(ipcs -s | awk 'NR>3{print $2}'); do ipcrm -s "$id" 2>/dev/null; done
-for id in $(ipcs -m | awk 'NR>3{print $2}'); do ipcrm -m "$id" 2>/dev/null; done
+for id in $(ipcs -q | awk 'NR>3{print $2}'); do ipcrm -q "$id" 2>/dev/null || true; done
+for id in $(ipcs -s | awk 'NR>3{print $2}'); do ipcrm -s "$id" 2>/dev/null || true; done
+for id in $(ipcs -m | awk 'NR>3{print $2}'); do ipcrm -m "$id" 2>/dev/null || true; done
 qipc=$((($$ % 30000) + 20001))
 printf 'crdl %s 0 200000\nqspacecreate -n 100B\nDOCS\n%d\n100\n6\n4\n9\n3\nERRQ\nn\n16\nqopen DOCS\nqcreate TASKS fifo none 2 30 100%% 0%% -\nqcreate PINGRPLY fifo none 2 30 100%% 0%% -\n' "$QMCONFIG" "$qipc" | \
 	qmadmin "$QMCONFIG"
@@ -33,6 +33,7 @@ trap 'tmshutdown -y 2>/dev/null; exit 1' EXIT HUP INT TERM
 ./tpcall GREET "hello there"
 ./tpcall GREETX "hello there"
 ./fmldemo
+./conv
 
 # /Q examples: the queues were created before the boot above
 ./enqueue

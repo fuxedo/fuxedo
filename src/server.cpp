@@ -928,7 +928,9 @@ int tprecv(int cd, char **data, long *len, long flags, long *revent) try {
       TPERROR(TPEINVAL, "revent is null");
       return -1;
     }
-    constexpr long valid = TPSIGRSTRT | TPNOBLOCK | TPNOTIME;
+    // client-mask parity: TPNOCHANGE is honored on receive; TPACK is
+    // rejected by the platform (pinned 12.2.2)
+    constexpr long valid = TPSIGRSTRT | TPNOBLOCK | TPNOTIME | TPNOCHANGE;
     if (flags & ~valid) {
       TPERROR(TPEINVAL, "Invalid flags passed to tprecv");
       return -1;

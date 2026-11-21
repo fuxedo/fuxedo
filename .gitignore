@@ -88,6 +88,8 @@ tmp/
 /tests/compat/base64
 /tests/compat/view32
 /tests/compat/xmlfml
+/tests/compat/flags
+/tests/compat/hardening
 /tests/impl/mib
 /tests/impl/ipcq
 /tests/impl/tlog

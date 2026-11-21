@@ -21,6 +21,7 @@ check: client tuxconfig
 	-tmboot -y
 	sleep 3
 	./client self
+	./client flags
 	( ./client blisten - bcast.D & ld=$$!; ./client blisten - bcast.E & le=$$!; sleep 2; ./client btrigger all; wait $$ld; wait $$le )
 	grep -q '^GOT toall$$' bcast.D
 	grep -q '^GOT toall$$' bcast.E
@@ -39,6 +40,19 @@ endif
 	grep -q ':TEST: SELFTEST OK' ULOG.*
 	test `grep -c ':TEST: SELFTEST OK' ULOG.*` -eq 2
 	grep -q 'TA_SUBSCRIPTION_HANDLE' tmusrevt.dat
+	# flag-validation pins (values pinned against Oracle 12.2.2):
+	# posting/notify/broadcast ignore the flag word; subscribe rejects
+	# unknown bits and bare TPEVPERSIST, accepts both classes
+	grep -q ':TEST: tppost_flags rc=0' ULOG.*
+	grep -q ':TEST: tpnotify_flags rc=0' ULOG.*
+	grep -q ':TEST: tpbroadcast_flags rc=0' ULOG.*
+	grep -q ':TEST: subscribe_badbit rc=-1 tperrno=4' ULOG.*
+	grep -q ':TEST: subscribe_both rc=1000000' ULOG.*
+	grep -q ':TEST: subscribe_persist rc=-1 tperrno=4' ULOG.*
+	grep -q ':TEST: tpbegin_ok rc=1 tperrno=0' ULOG.*
+	grep -q ':TEST: tpbegin_flags rc=-1 tperrno=4' ULOG.*
+	grep -q ':TEST: tpcommit_flags rc=-1 tperrno=4' ULOG.*
+	grep -q ':TEST: tpabort_flags rc=-1 tperrno=4' ULOG.*
 
 ubbconfig: ubbconfig.in
 	cat $< \

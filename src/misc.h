@@ -77,7 +77,10 @@ void exception_boundary(F &&f) noexcept {
     // explicitly on their success paths
     f();
   } catch (const std::exception &e) {
-    TPERROR(-1, "Unhandled exception [%s]", e.what());
+    // an internal failure surfaces as TPESYSTEM, the platform's answer
+    // for calls made without a usable context (probed: Oracle 12.2.2
+    // returns TPESYSTEM for tp* calls issued before tpinit)
+    TPERROR(TPESYSTEM, "Unhandled exception [%s]", e.what());
   }
 }
 
@@ -86,7 +89,7 @@ auto exception_boundary(F &&f, R &&r) noexcept -> decltype(f()) {
   try {
     return f();
   } catch (const std::exception &e) {
-    TPERROR(-1, "Unhandled exception [%s]", e.what());
+    TPERROR(TPESYSTEM, "Unhandled exception [%s]", e.what());
     return r;
   }
 }

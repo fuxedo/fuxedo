@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
     long len = 0;
     long revent = 0;
     strcpy(buf, "hello1");
-    int cd = tpconnect("ECHO", buf, 0, 0);
+    int cd = tpconnect("ECHO", buf, 0, TPSENDONLY);
     assert(cd != -1);
     strcpy(buf, "hello2");
     assert(tpsend(cd, buf, 0, TPRECVONLY, &revent) != -1);
