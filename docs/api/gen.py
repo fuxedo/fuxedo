@@ -13,7 +13,9 @@ check TUXDIR=<install>).
 """
 
 import html
+import json
 import pathlib
+import re
 
 ROOT = pathlib.Path(__file__).resolve().parent
 REPO = ROOT.parent.parent
@@ -1781,7 +1783,7 @@ def write_index():
   "url": "https://fuxedo.io/api/",
   "isPartOf": {{"@type": "WebSite", "name": "Fuxedo", "url": "https://fuxedo.io/"}},
   "hasPart": [
-    {", ".join('{{"@type": "TechArticle", "headline": "%s() - %s", "url": "https://fuxedo.io/api/%s/"}}' % (n, FUNCTIONS[n]["title"].replace('"', "'"), n) for names in [g[1] for g in GROUPS] for n in names)}
+    {", ".join('{"@type": "TechArticle", "headline": "%s() - %s", "url": "https://fuxedo.io/api/%s/"}' % (n, FUNCTIONS[n]["title"].replace('"', "'"), n) for names in [g[1] for g in GROUPS] for n in names)}
   ]
 }}
 </script>
@@ -1866,6 +1868,19 @@ def write_sitemap():
         f"{body}\n</urlset>\n")
 
 
+def validate_jsonld():
+    # every embedded JSON-LD block must parse; a broken one means Google
+    # drops the page's structured data silently
+    for p in sorted(ROOT.parent.rglob("*.html")):
+        for m in re.finditer(
+                r'<script type="application/ld\+json">(.*?)</script>',
+                p.read_text(), re.S):
+            try:
+                json.loads(m.group(1))
+            except Exception as e:
+                raise SystemExit(f"invalid JSON-LD in {p}: {e}")
+
+
 def main():
     for name, entry in FUNCTIONS.items():
         d = ROOT / name
@@ -1874,6 +1889,7 @@ def main():
         print(f"api/{name}/")
     write_index()
     write_sitemap()
+    validate_jsonld()
     print("api/index.html, sitemap.xml")
 
 
