@@ -1,0 +1,3 @@
+*base 8800
+FLD_ID 1 long
+FLD_TAG 2 string

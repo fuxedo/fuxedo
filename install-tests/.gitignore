@@ -65,3 +65,12 @@ core
 /ws/client
 /ws/server
 ubbconfig.fast
+
+/orarm/orasvr
+/orarm/client
+/orarm/TMS_ORACLE
+/orarm/orarm.flds.h
+/orarm/orarm.fml
+/orarm/TLOG
+/orarm/server.lis
+/orarm/xa_*.trc

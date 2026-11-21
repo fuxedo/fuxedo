@@ -37,9 +37,12 @@ long *_tls_tpurcode() { return &fux::atmi::tpurcode_; }
 
 // The same TLS accessors under the platform's link names, so binaries
 // built against Oracle headers (which define tperrno/tpurcode through
-// _tmget_*_addr) load against fuxedo unchanged.
+// _tmget_*_addr) load against fuxedo unchanged. C linkage matters:
+// Oracle headers declare these as C symbols.
+extern "C" {
 int *_tmget_tperrno_addr(void) { return &fux::atmi::tperrno_; }
 long *_tmget_tpurcode_addr(void) { return &fux::atmi::tpurcode_; }
+}
 
 static const char *tpstrerror_(int err) {
   switch (err) {

@@ -505,11 +505,15 @@ void tx_resume() { _tx_resume(nullptr); }
 void tx_suspend() { _tx_suspend(nullptr); }
 bool tx_end(bool ok) { return _tx_end(ok) == TX_OK; }
 void tx_join(fux::gttid gttid) {
-  auto &t = getmib().transactions().join(gttid, fux::tx::grpidx);
+  auto &tbl = getmib().transactions();
+  // first touch of this RM branch is a fresh start; later joins (other
+  // servers of the same group, or suspend/resume pairs) use TMJOIN
+  bool first = !tbl.has_joined(gttid, fux::tx::grpidx);
+  auto &t = tbl.join(gttid, fux::tx::grpidx);
   getctxt().gttid = gttid;
   TXINFO info;
   info.xid = t.xid;
-  _tx_start(&info, TMJOIN);
+  _tx_start(&info, first ? TMNOFLAGS : TMJOIN);
 }
 fux::gttid tx_adopt(const XID &xid) {
   auto &tbl = getmib().transactions();
