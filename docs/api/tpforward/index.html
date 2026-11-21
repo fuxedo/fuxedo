@@ -157,6 +157,13 @@ receives an error reply (TPENOENT) instead of a normal result.</p>
 
 <h2>Notes</h2>
 
+<p><strong>Buffers.</strong> The buffer handed to tpforward() follows
+the tpreturn() ownership rules: the system copies it out and frees it,
+so never tpfree() it after the call (it does not return anyway). The
+original request buffer (the TPSVCINFO <code>data</code>) is reclaimed
+by the system as with any service exit, so it needs no cleanup either;
+passing a different buffer here is exactly the case the platform
+handles without leaks.</p>
 <p><strong>Transactions.</strong> A forward keeps the request inside the
 caller's transaction; the target service joins it like any participant.
 tpforward, not tpcall, is the right way to chain services within one

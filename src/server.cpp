@@ -471,7 +471,15 @@ struct server_thread {
   }
 
   void tpreturn(int rval, long rcode, char *data, long len, long flags) {
-    if (fux::tx::transactional() && !fux::tx_end(rval == TPSUCCESS)) {
+    if (fux::tx::transactional() && fux::tx::own_begin()) {
+      // the service began its own transaction and left it open at
+      // return: the platform aborts it and tells the caller TPESVCERR
+      // (pinned against Oracle 12.2.2)
+      ::tx_rollback();
+      fux::tx::clear_own_begin();
+      rval = TPESVCERR;
+    } else if (fux::tx::transactional() &&
+               !fux::tx_end(rval == TPMINVAL)) {
       // the transaction outcome failed (commit aborted / rollback
       // error): the caller learns the transaction did not succeed
       rval = TPEABORT;
@@ -520,6 +528,8 @@ static void execute(server_thread *tp) {
     if (sidx != mib::badoff &&
         main_ptr->m_.services().at(sidx).autotran[0] == 'Y') {
       tx_begin();
+      // autotran transactions are platform-begun, not service-begun
+      fux::tx::clear_own_begin();
     }
   }
 

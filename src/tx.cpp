@@ -24,6 +24,10 @@ extern "C" {
 extern struct xa_switch_t tmnull_switch;
 }
 
+namespace fux {
+bool is_server();
+}
+
 namespace fux::tx {
 uint16_t grpno = 0;
 size_t grpidx = 0;
@@ -76,6 +80,10 @@ struct tx_context {
   group *grpcfg = nullptr;
   TXINFO info;
   fux::gttid gttid;
+  // set when the current transaction was begun by an explicit tpbegin
+  // inside a service; such a transaction must not outlive tpreturn
+  // (pinned: Oracle answers the caller with TPESVCERR and aborts it)
+  bool own_begin = false;
   mib &mibcon_;
 };
 
@@ -183,6 +191,11 @@ int tx_begin() {
   if (TMREGISTER) {
     // return TX_OK;
   }
+
+  // a begin issued while dispatching a service (rather than by the
+  // autotran machinery before it, or by a client) leaves the
+  // transaction open at tpreturn, which the platform rejects
+  getctxt().own_begin = fux::is_server();
 
   TXINFO info;
   info.xid = xid();
@@ -539,6 +552,8 @@ void tx_detach() {
 }
 namespace tx {
 fux::gttid gttid() { return getctxt().gttid; }
+bool own_begin() { return getctxt().own_begin; }
+void clear_own_begin() { getctxt().own_begin = false; }
 bool transactional() { return !(getctxt().info.xid.formatID == -1); }
 // Lazy variant: does not create a transaction context (and does not require
 // an attached domain) when the thread has not touched transactions at all.

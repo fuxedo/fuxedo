@@ -14,9 +14,13 @@ namespace fux {
 
 namespace tx {
 fux::gttid gttid();
+bool own_begin();
+void clear_own_begin();
 bool transactional();
 bool tx_active();
 XID current_xid();
+int tx_begin();
+int tx_rollback();
 }  // namespace tx
 void tx_resume();
 void tx_suspend();

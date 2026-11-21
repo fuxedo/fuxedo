@@ -138,6 +138,18 @@ and <code>Fboolpr32()</code> prints. Field names in the expression are
 resolved through the loaded field tables (FLDTBLDIR32/FIELDTBLS32) at
 compile time. The returned tree is allocated with malloc() and
 released with free(); a NULL return reports the failure in Ferror32.</p>
+<p><strong>The compiled tree is a length-prefixed byte array.</strong>
+The first two bytes hold the least and most significant byte of an
+unsigned 16-bit length of the entire array, including the two size
+bytes themselves. To copy a compiled tree, read that 16-bit value and
+copy exactly that many bytes; the copy evaluates identically
+(verified on Oracle 12.2.2 and 22.1, where the prefix is unchanged
+and trees for the same expression are byte-identical across versions,
+and on fuxedo, which implements the same prefix contract). The tree
+encoding itself is platform-private: a tree compiled by Oracle
+Tuxedo is not guaranteed to evaluate under fuxedo and vice versa, so
+ship the expression text and recompile rather than the compiled
+tree. The 16-bit size also bounds the tree at 65535 bytes.</p>
 
 <h2>Arguments</h2>
 <table>

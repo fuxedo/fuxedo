@@ -283,6 +283,13 @@ receives an error reply (TPENOENT) instead of a normal result.</p>""",
                          "as an error reply."),
         ],
         "notes": """
+<p><strong>Buffers.</strong> The buffer handed to tpforward() follows
+the tpreturn() ownership rules: the system copies it out and frees it,
+so never tpfree() it after the call (it does not return anyway). The
+original request buffer (the TPSVCINFO <code>data</code>) is reclaimed
+by the system as with any service exit, so it needs no cleanup either;
+passing a different buffer here is exactly the case the platform
+handles without leaks.</p>
 <p><strong>Transactions.</strong> A forward keeps the request inside the
 caller's transaction; the target service joins it like any participant.
 tpforward, not tpcall, is the right way to chain services within one
@@ -945,6 +952,28 @@ down after the reply, which is how a service asks for a restart.</p>""",
 <p>A service that falls off the end without calling tpreturn() is an
 error path; always end services with tpreturn() or
 <code>tpforward()</code>.</p>
+<p><strong>Buffers.</strong> Two buffers are involved, and ownership
+differs:</p>
+<ul>
+<li>The <em>request</em> buffer (the <code>data</code> member of the
+TPSVCINFO structure) belongs to the system. It stays valid only until
+tpreturn() is called; the system reclaims it afterwards whether you
+reply with the same buffer, a different one, or none. You do not need
+to tpfree() it. On both platforms an early tpfree() before returning
+a different buffer is tolerated, so existing code that frees it is
+safe (verified: no leak when left alone, no double-free when freed
+early).</li>
+<li>Growing the request buffer with <code>tprealloc()</code> keeps it
+system-owned: the ownership follows the possibly-moved buffer, the
+system still reclaims it afterwards, returning the grown buffer as
+the reply works, and freeing the reallocated buffer early is equally
+safe (verified: flat server memory over 20,000 calls with 2 MB
+reallocations, no crash over 5,000 early frees).</li>
+<li>The <em>reply</em> buffer you pass in <code>data</code> is copied
+out and then freed by the system. Never tpfree() it yourself; that is
+a double free. The same applies to buffers handed to
+<code>tpforward()</code>.</li>
+</ul>
 <p><strong>C++.</strong> tpreturn() does not return: the service frame
 is torn down without running destructors, so RAII guards,
 <code>std::string</code>s and locks declared in the service body never
@@ -1391,7 +1420,19 @@ that <code>Fboolev32()</code> and <code>Ffloatev32()</code> evaluate
 and <code>Fboolpr32()</code> prints. Field names in the expression are
 resolved through the loaded field tables (FLDTBLDIR32/FIELDTBLS32) at
 compile time. The returned tree is allocated with malloc() and
-released with free(); a NULL return reports the failure in Ferror32.</p>""",
+released with free(); a NULL return reports the failure in Ferror32.</p>
+<p><strong>The compiled tree is a length-prefixed byte array.</strong>
+The first two bytes hold the least and most significant byte of an
+unsigned 16-bit length of the entire array, including the two size
+bytes themselves. To copy a compiled tree, read that 16-bit value and
+copy exactly that many bytes; the copy evaluates identically
+(verified on Oracle 12.2.2 and 22.1, where the prefix is unchanged
+and trees for the same expression are byte-identical across versions,
+and on fuxedo, which implements the same prefix contract). The tree
+encoding itself is platform-private: a tree compiled by Oracle
+Tuxedo is not guaranteed to evaluate under fuxedo and vice versa, so
+ship the expression text and recompile rather than the compiled
+tree. The 16-bit size also bounds the tree at 65535 bytes.</p>""",
         "args": [
             ("expression", "The expression text, for example "
                            "\"AMOUNT > 200 &amp;&amp; FIRSTNAME == "

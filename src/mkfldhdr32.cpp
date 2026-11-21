@@ -31,10 +31,8 @@ static void process_file(const std::string &file,
     slash = 0;
   }
   std::string base = file.substr(slash);
-  auto dot = base.find_last_of('.');
-  if (dot != std::string::npos) {
-    base.erase(dot);
-  }
+  // the platform appends .h to the input name as given (t1.flds ->
+  // t1.flds.h); stripping the extension breaks cross-tool builds
   fout.exceptions(std::ifstream::failbit | std::ifstream::badbit);
   fout.open(output_directory + "/" + base + ".h");
   for (auto &i : p.entries()) {

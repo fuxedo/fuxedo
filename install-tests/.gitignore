@@ -75,3 +75,5 @@ ubbconfig.fast
 /orarm/server.lis
 /orarm/xa_*.trc
 /orarm/orarm.h
+/orarm/QUE
+/orarm/TMS_QM_ORARM
