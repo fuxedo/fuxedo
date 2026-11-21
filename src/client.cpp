@@ -136,14 +136,31 @@ int client::routed_group(const char *svc, char *data) {
       TPERROR(TPESYSTEM, "Routing field value %s not valid", e.field);
       return -2;
     }
+    int found = -1;
     for (auto g = hit->groups.rbegin(); g != hit->groups.rend(); ++g) {
       if (*g == "*") {
         return -1;  // any group
       }
       auto gidx = mibcon_.group_index(*g);
-      if (gidx != mib::badoff) {
-        return mibcon_.groups().at(gidx).grpno;
+      if (gidx == mib::badoff) {
+        continue;
       }
+      if (found == -1) {
+        found = gidx;
+      }
+      // prefer a listed group whose servers actually offer the service
+      // right now (a not-yet-booted rollout target must fall through)
+      auto adv = mibcon_.advertisements();
+      for (size_t i = 0; i < adv->len; i++) {
+        auto &a = adv.at(i);
+        if (a.service == sidx && a.state != state_t::INValid &&
+            mibcon_.servers().at(a.server).group_idx == gidx) {
+          return mibcon_.groups().at(gidx).grpno;
+        }
+      }
+    }
+    if (found != -1) {
+      return mibcon_.groups().at(found).grpno;
     }
     TPERROR(TPENOENT, "Routing group not found");
     return -2;
@@ -169,11 +186,15 @@ int client::tpacall_group(int grpno, const char *svc, char *data, long len,
     return -1;
   }
   // a group without a transaction manager cannot join a transaction:
-  // reject with TPETRAN unless the caller opts out with TPNOTRAN
+  // reject with TPETRAN unless the caller opts out with TPNOTRAN.
+  // Exception: a domain gateway group has no RM of its own - the
+  // transaction passes through to the peer's resource managers, so
+  // services imported through GWTDOMAIN stay callable in a transaction.
   if (!(flags & TPNOTRAN) && fux::tx::transactional() && target.grpno > 0) {
     auto gidx = mibcon_.find_group(static_cast<uint16_t>(target.grpno));
     if (gidx != mib::badoff &&
-        mibcon_.groups().at(gidx).tmsname[0] == '\0') {
+        mibcon_.groups().at(gidx).tmsname[0] == '\0' &&
+        !mibcon_.is_gateway_group(gidx)) {
       TPERROR(TPETRAN,
               "service %s is in a group without a transaction manager",
               svc);
@@ -265,6 +286,12 @@ int client::tpacall_queue(queue_entry target, const char *svc, char *data,
 }
 
 int client::tpgetrply(int *cd, char **data, long *len, long flags) {
+  constexpr long valid =
+      TPNOBLOCK | TPGETANY | TPNOTIME | TPSIGRSTRT | TPNOCHANGE;
+  if (flags & ~valid) {
+    TPERROR(TPEINVAL, "Invalid flags passed to tpgetrply");
+    return -1;
+  }
   if (data == nullptr) {
     TPERROR(TPEINVAL, "data is null");
   }
@@ -315,7 +342,6 @@ int client::tpgetrply(int *cd, char **data, long *len, long flags) {
         return -1;
       }
       mibcon_.accessers().at(client_).rpid_timeout = INVALID_TIME;
-      userlog("%s received on %0x", __func__, rpid);
     }
 
     if (res->cat == fux::ipc::unsol) {
@@ -875,6 +901,15 @@ int tpacall_queue(int msqid, const char *svc, char *data, long len,
 int tpacall(char *svc, char *data, long len, long flags) {
   fux::trace::event("{ tpacall(\"%s\", %ld)", svc, len);
   FUX_PROBE3(tpacall__entry, svc, len, flags);
+  // the platform validates the flag word before anything else: the
+  // call flags plus TPNOREPLY, nothing more
+  constexpr long valid =
+      TPNOBLOCK | TPSIGRSTRT | TPNOREPLY | TPNOTRAN | TPTRAN | TPNOTIME |
+      TPNOCHANGE;
+  if (flags & ~valid) {
+    TPERROR(TPEINVAL, "Invalid flags passed to tpacall");
+    return -1;
+  }
   int rc = 0;
   if (fux::ws::ws_naddr() != nullptr) {
     rc = fux::atmi::exception_boundary(
@@ -913,6 +948,13 @@ int tpcall(char *svc, char *idata, long ilen, char **odata, long *olen,
            long flags) {
   fux::trace::event("{ tpcall(\"%s\", %ld)", svc, ilen);
   FUX_PROBE2(tpcall__entry, svc, ilen);
+  // same flag word as tpacall minus TPNOREPLY: a reply is implicit
+  constexpr long valid =
+      TPNOBLOCK | TPSIGRSTRT | TPNOTRAN | TPTRAN | TPNOTIME | TPNOCHANGE;
+  if (flags & ~valid) {
+    TPERROR(TPEINVAL, "Invalid flags passed to tpcall");
+    return -1;
+  }
   int rc = 0;
   if (fux::ws::ws_naddr() != nullptr) {
     rc = fux::atmi::exception_boundary(

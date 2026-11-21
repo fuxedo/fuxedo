@@ -58,14 +58,14 @@ fux::gttid tx_adopt(const XID &xid);
 // table entry stays alive for the commit protocol.
 void tx_detach();
 
-inline std::string to_string(XID *xid) {
+inline std::string to_string(const XID *xid) {
   char buf[32];
 
   snprintf(buf, sizeof(buf), "%ld", xid->formatID);
   std::string out = buf;
   out += ".";
 
-  unsigned char *data = reinterpret_cast<unsigned char *>(xid->data);
+  const auto *data = reinterpret_cast<const unsigned char *>(xid->data);
   for (int i = 0; i < xid->gtrid_length; i++) {
     snprintf(buf, sizeof(buf), "%02x", data[i]);
     out += buf;

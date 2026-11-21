@@ -49,6 +49,7 @@
 #include "fux.h"
 #include "mib.h"
 #include "misc.h"
+#include "probes.h"
 #include "trx.h"
 
 extern "C" {
@@ -546,6 +547,7 @@ void apply_recovery(const std::string &xids, uint32_t op) {
 // recovery queries remember it in pending_queries).
 uint32_t queue_txnctrl(int fd, uint16_t op, const std::string &xids,
                        bool track) {
+  FUX_PROBE2(domain__txnctrl, op, xids.c_str());
   uint32_t corrid = next_corrid++;
   if (corrid == 0) {
     corrid = next_corrid++;
@@ -572,6 +574,7 @@ void gwtm_service(TPSVCINFO *svcinfo) {
     fux::fml32buf rq(svcinfo);
     auto func = rq.get<long>(TA_XAFUNC, 0);
     auto xids = rq.get<std::string>(TA_XID, 0);
+    FUX_PROBE2(domain__branch, func, xids.c_str());
     auto it = remote_branches.find(xids);
     if (it == remote_branches.end()) {
       ret = XAER_NOTA;
@@ -613,6 +616,7 @@ void gwtm_service(TPSVCINFO *svcinfo) {
   } catch (const std::exception &) {
     ret = XAER_RMERR;
   }
+  FUX_PROBE1(domain__branch_return, ret);
   rs.put(TA_XARET, 0, ret);
   fux::tpreturn(TPSUCCESS, 0, rs);
 }

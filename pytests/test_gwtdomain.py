@@ -40,7 +40,7 @@ IPCKEY {ipckey}
 "{host}" LMID=tuxapp APPDIR="{dir}" TUXCONFIG="{dir}/tuxconfig" TUXDIR="{tuxdir}" {tlogdev}
 
 *GROUPS
-GW1 LMID=tuxapp GRPNO=1 TMSNAME=TMS TMSCOUNT=2
+GW1 LMID=tuxapp GRPNO=1
 APP LMID=tuxapp GRPNO=2 TMSNAME=TMS TMSCOUNT=2
 {qm_group}
 *SERVERS
@@ -140,6 +140,34 @@ out = t.tpcall(sys.argv[1], sys.argv[2].encode())
 assert out.data == sys.argv[3].encode(), (out.data, sys.argv[3])
 t.tpcommit(0)
 print("commit ok")
+"""
+
+TXQ_REMOTE = """
+import sys
+import tuxedo as t
+t.tpbegin(30, 0)
+t.tpenqueue("QSPACE", "STRING", t.TPQCTL(), "tx-remote-payload")
+t.tpcommit(0)
+print("commit ok")
+"""
+
+TXQ_ABORT_REMOTE = """
+import tuxedo as t
+t.tpbegin(30, 0)
+t.tpenqueue("QSPACE", "STRING", t.TPQCTL(), "tx-doomed-payload")
+t.tpabort(0)
+print("abort ok")
+"""
+
+QPROBE = """
+import tuxedo as t
+t.tpinit(None)
+try:
+    _, msg = t.tpdequeue("QSPACE", "STRING", t.TPQCTL())
+    print("dequeued:", msg)
+except t.QmException:
+    print("queue empty")
+t.tpterm()
 """
 
 
@@ -392,6 +420,37 @@ def test_two_domains_crash_recovery():
                 time.sleep(1)
             assert tlog_has(dir2 / "DMTLOG", "DMTLOG_DOM", 1, gtrid), \
                 "in-doubt branch was not resolved with COMMIT"
+        finally:
+            run(["tmshutdown", "-y"], env=env1, cwd=dir1, expect=None)
+            run(["tmshutdown", "-y"], env=env2, cwd=dir2, expect=None)
+
+
+def test_two_domains_tx_remote_queue():
+    # the persistent branch lives on the REMOTE domain: the client
+    # enqueues across the link, so commit must land the message in the
+    # peer's queue files and abort must leave nothing behind
+    base = 28101 + os.getpid() % 500
+    with scratch("dom1") as dir1, scratch("dom2") as dir2:
+        env1 = domain(dir1, 53111 + os.getpid() % 500, base,
+                      "DOM1", "AA.DOM1", "DOM2", "BB.DOM2", base + 1,
+                      "TOUPPER", imp="TOLOWER QSPACE:TMQUEUE", fn="upper")
+        env2 = domain(dir2, 53611 + os.getpid() % 500, base + 1,
+                      "DOM2", "BB.DOM2", "DOM1", "AA.DOM1", base,
+                      "TOLOWER", "TOUPPER", "lower", qm=True, tlog=True)
+        try:
+            wait_for_link(env1, env2)
+            qenv = {**env2, "QMCONFIG": dir2 / "QS"}
+
+            out = run([sys.executable, "-c", TXQ_REMOTE], env=env1, cwd=dir1)
+            assert "commit ok" in out.stdout, out
+            out = run([sys.executable, "-c", QPROBE], env=qenv, cwd=dir2)
+            assert "dequeued: tx-remote-payload" in out.stdout, out
+
+            out = run([sys.executable, "-c", TXQ_ABORT_REMOTE],
+                      env=env1, cwd=dir1)
+            assert "abort ok" in out.stdout, out
+            out = run([sys.executable, "-c", QPROBE], env=qenv, cwd=dir2)
+            assert "queue empty" in out.stdout, out
         finally:
             run(["tmshutdown", "-y"], env=env1, cwd=dir1, expect=None)
             run(["tmshutdown", "-y"], env=env2, cwd=dir2, expect=None)

@@ -16,6 +16,7 @@ namespace fs = std::experimental::filesystem;
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "probes.h"
 #include "trx.h"
 
 // XA resource manager for the file-based /Q device. Operations performed
@@ -38,6 +39,7 @@ static int xa_open(char *xa_info, int, long) {
   if (xa_info == nullptr) {
     return TMER_INVAL;
   }
+  FUX_PROBE1(qm__open, xa_info);
   auto parts = fux::split(xa_info, ":");
   if (parts.size() != 2) {
     userlog("Require DEVICE:QSPACE in OPENINFO");
@@ -61,6 +63,8 @@ static int xa_start(XID *, int, long) { return XA_OK; }
 static int xa_end(XID *, int, long) { return XA_OK; }
 
 static int xa_prepare(XID *xid, int, long) {
+  auto gtrid = fux::to_string(xid);
+  FUX_PROBE1(qm__prepare, gtrid.c_str());
   auto dir = txdir(xid);
   if (!fs::is_directory(dir)) {
     return XA_RDONLY;
@@ -76,6 +80,7 @@ static int xa_prepare(XID *xid, int, long) {
       close(fd);
     }
   }
+  FUX_PROBE1(qm__prepare_return, XA_OK);
   return XA_OK;
 }
 
@@ -126,11 +131,13 @@ bool qm_branch_staged_empty(const XID *xid) {
 }  // namespace fux::qm
 
 static int xa_commit(XID *xid, int, long) {
+  FUX_PROBE1(qm__commit, fux::to_string(xid).c_str());
   apply(xid, true);
   return XA_OK;
 }
 
 static int xa_rollback(XID *xid, int, long) {
+  FUX_PROBE1(qm__rollback, fux::to_string(xid).c_str());
   apply(xid, false);
   return XA_OK;
 }
@@ -156,6 +163,7 @@ static int xa_recover(XID *xids, long count, int, long) {
               p.path().filename().string().c_str());
     }
   }
+  FUX_PROBE1(qm__recover, n);
   return n;
 }
 

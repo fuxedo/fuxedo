@@ -205,6 +205,9 @@ class mib {
   size_t make_queue(const std::string &rqaddr);
 
   size_t find_group(uint16_t grpno);
+  // true when a server of the given group index is a domain gateway
+  // (the group owns no resource manager; transactions pass through)
+  bool is_gateway_group(size_t group_idx);
   size_t make_group(uint16_t grpno, const std::string &srvgrp,
                     const std::string &openinfo, const std::string &closeinfo,
                     const std::string &tmsname);

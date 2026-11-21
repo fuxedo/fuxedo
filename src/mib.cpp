@@ -299,6 +299,18 @@ size_t mib::group_index(const std::string_view &srvgrp) {
   return badoff;
 }
 
+bool mib::is_gateway_group(size_t group_idx) {
+  auto srvs = servers();
+  for (size_t i = 0; i < srvs->len; i++) {
+    auto &s = srvs.at(i);
+    if (s.group_idx == group_idx &&
+        strcmp(s.servername, "GWTDOMAIN") == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 size_t mib::find_group(uint16_t grpno) {
   for (size_t i = 0; i < groups()->len; i++) {
     auto &group = groups().at(i);
@@ -357,6 +369,11 @@ size_t mib::make_server(uint16_t srvid, uint16_t grpno,
   auto &server = servers().at(servers()->len);
   server.srvid = srvid;
   server.grpno = grpno;
+  auto gidx = grpno != 0 ? find_group(grpno) : 0;
+  if (gidx == badoff) {
+    throw std::logic_error("Group not found");
+  }
+  server.group_idx = gidx;
   checked_copy(servername, server.servername);
   checked_copy(clopt, server.clopt);
 

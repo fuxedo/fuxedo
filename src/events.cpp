@@ -46,7 +46,11 @@ int tpsubscribe_impl(char *eventexpr, char *filter, TPEVCTL *ctl, long flags) {
     TPERROR(TPEINVAL, "eventexpr is null or empty");
     return -1;
   }
-  if (flags != 0) {
+  // exactly one delivery class, optionally ORed with TPEVPERSIST
+  constexpr long valid = TPEVSERVICE | TPEVQUEUE | TPEVPERSIST;
+  if ((flags & ~valid) != 0 ||
+      ((flags & (TPEVSERVICE | TPEVQUEUE)) == (TPEVSERVICE | TPEVQUEUE)) ||
+      (flags & (TPEVSERVICE | TPEVQUEUE)) == 0) {
     TPERROR(TPEINVAL, "Invalid flags passed to tpsubscribe");
     return -1;
   }

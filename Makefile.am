@@ -146,7 +146,7 @@ src_tmipcrm_LDADD = src/libfuxedo.la
 udataobjdir = @prefix@/udataobj
 udataobj_DATA = RM include/tpadm
 
-TESTS = tests/impl/routing tests/compat/xatmi tests/compat/fml32 tests/compat/expr tests/compat/view32 tests/compat/hardening tests/compat/xmlfml tests/impl/mib tests/impl/dmlink tests/impl/ipcq tests/compat/base64 tests/impl/userlog tests/impl/trx tests/impl/qm tests/impl/cfg tests/impl/tlog tests/impl/qmtx
+TESTS = tests/impl/routing tests/compat/xatmi tests/compat/fml32 tests/compat/expr tests/compat/view32 tests/compat/hardening tests/compat/flags tests/compat/xmlfml tests/impl/mib tests/impl/dmlink tests/impl/ipcq tests/compat/base64 tests/impl/userlog tests/impl/trx tests/impl/qm tests/impl/cfg tests/impl/tlog tests/impl/qmtx
 check_PROGRAMS = $(TESTS)
 
 AM_TESTS_ENVIRONMENT = FLDTBLDIR32=.:src:tests FIELDTBLS32=dummy,fields \
@@ -178,6 +178,9 @@ tests_compat_expr_LDADD = src/libfuxedo.la
 
 tests_compat_hardening_SOURCES = tests/compat/hardening.cpp tests/tests-main.cpp
 tests_compat_hardening_LDADD = src/libfuxedo.la
+
+tests_compat_flags_SOURCES = tests/compat/flags.cpp tests/tests-main.cpp
+tests_compat_flags_LDADD = src/libfuxedo.la
 
 tests_compat_view32_SOURCES = tests/compat/view32.cpp tests/tests-main.cpp
 

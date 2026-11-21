@@ -7,6 +7,7 @@
 
 #include "ipc.h"
 #include "misc.h"
+#include "probes.h"
 #include "trx.h"
 #include "ws.h"
 
@@ -49,6 +50,7 @@ int tpclose() {
 }
 
 int tpbegin(unsigned long timeout, long flags) {
+  FUX_PROBE1(tx__begin, timeout);
   if (fux::ws::ws_naddr() != nullptr) {
     return fux::ws::get_wsconn().tpbegin(timeout, flags);
   }
@@ -127,6 +129,7 @@ static int trx_err(int rc, const char *func) {
 }
 
 int tpabort(long flags) {
+  FUX_PROBE(tx__abort);
   if (fux::ws::ws_naddr() != nullptr) {
     return fux::ws::get_wsconn().tpabort(flags);
   }
@@ -155,6 +158,7 @@ int tpabort(long flags) {
 }
 
 int tpcommit(long flags) {
+  FUX_PROBE1(tx__commit, flags);
   if (fux::ws::ws_naddr() != nullptr) {
     return fux::ws::get_wsconn().tpcommit(flags);
   }

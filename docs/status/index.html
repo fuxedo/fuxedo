@@ -3,21 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fuxedo Status and Roadmap - what works, what is next, how to follow</title>
-<meta name="description" content="Current maturity of Fuxedo: verified Oracle Tuxedo 12.2/22.1 compatibility in CI, done features (MSSQ, /Q, transactions, domains, workstations, XML buffers), the honest gap list, and the roadmap.">
-<meta name="keywords" content="Fuxedo status, Fuxedo roadmap, Fuxedo release, open source Tuxedo maturity, Fuxedo vs Oracle Tuxedo features">
+<title>Fuxedo Status and Roadmap - what works, verified against Oracle Tuxedo</title>
+<meta name="description" content="Fuxedo maturity, proven by running: Oracle Tuxedo sample applications (simpapp, xmlfmlapp, qsample) recompiled and run, all book examples on fuxedo and Oracle 12.2.2/22.1, structured feature list (ATMI, FML32, VIEW32, transactions, /Q, domains, workstations), and what is not prioritized yet.">
+<meta name="keywords" content="Fuxedo status, Fuxedo roadmap, open source Tuxedo maturity, Fuxedo vs Oracle Tuxedo features, Tuxedo compatibility verified">
 <link rel="canonical" href="https://fuxedo.io/status/">
 <link rel="stylesheet" href="/styles.css">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://fuxedo.io/status/">
-<meta property="og:title" content="Fuxedo Status and Roadmap - what works, what is next, how to follow">
-<meta property="og:description" content="Current maturity of Fuxedo: verified Oracle Tuxedo 12.2/22.1 compatibility in CI, done features (MSSQ, /Q, transactions, domains, workstations, XML buffers), the honest gap list, and the roadmap.">
+<meta property="og:title" content="Fuxedo Status and Roadmap - what works, verified against Oracle Tuxedo">
+<meta property="og:description" content="Fuxedo maturity, proven by running: Oracle Tuxedo samples recompiled and run, all book examples on fuxedo and Oracle 12.2.2/22.1, structured feature list, and what is not prioritized yet.">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Fuxedo Status and Roadmap - what works, what is next, how to follow">
-<meta name="twitter:description" content="Current maturity of Fuxedo: verified Oracle Tuxedo 12.2/22.1 compatibility in CI, done features (MSSQ, /Q, transactions, domains, workstations, XML buffers), the honest gap list, and the roadmap.">
+<meta name="twitter:title" content="Fuxedo Status and Roadmap - what works, verified against Oracle Tuxedo">
+<meta name="twitter:description" content="Fuxedo maturity, proven by running: Oracle Tuxedo samples recompiled and run, all book examples on fuxedo and Oracle 12.2.2/22.1, structured feature list, and what is not prioritized yet.">
 <style>
   .site-nav { text-align: center; margin: 1.2em 0 0; font-family: 'Courier New', monospace; font-size: 0.95em; }
   .site-nav a { display: inline-block; margin: 0 0.5em; text-decoration: none; }
+  table.status { border-collapse: collapse; width: 100%; margin: 0.8em 0 1.4em; }
+  table.status td, table.status th { border: 1px solid #c8c4b8; padding: 0.35em 0.6em; text-align: left; vertical-align: top; }
+  table.status th { background: #f0ede4; }
+  table.status td:first-child { white-space: nowrap; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -41,53 +45,112 @@
 <h2>Status</h2>
 
 <p>Fuxedo is under active development and usable today for development
-and testing; the compatibility suite runs unmodified against Oracle
-Tuxedo 12.2.2 and 22.1 on every commit, which is the project's
+and testing. The compatibility suite runs unmodified against Oracle
+Tuxedo 12.2.2 and 22.1 on every commit; that is the project's
 definition of "matches".</p>
+
+<h2>Proven by running, not by claims</h2>
+
+<p>Three bodies of existing code run against fuxedo today, each with
+the same claim: no source edits, rebuild and go.</p>
+
+<table class="status">
+<tr><th>Estate</th><th>Result</th></tr>
+<tr><td>Oracle's C samples</td>
+<td>simpapp, xmlfmlapp, and qsample from the Oracle Tuxedo 12.2.2
+samples build with fuxedo buildclient/buildserver and boot from their
+own UBBCONFIG; simpapp and xmlfmlapp also run against Oracle 12.2.2
+itself with identical output.</td></tr>
+<tr><td>Book examples</td>
+<td>Every runnable example from <a
+href="https://aivarsk.com/tuxedo-python/">Oracle Tuxedo for
+Developers</a> executes on fuxedo, including the Oracle Database
+chapter against a live 21c XE; the same test code runs on Oracle
+12.2.2 to catch drift.</td></tr>
+<tr><td>Python bindings</td>
+<td><a href="https://aivarsk.com/tuxedo-python/">tuxedo-python</a>
+builds and runs unmodified against fuxedo, demo application
+included.</td></tr>
+</table>
 
 <h2>Done and verified</h2>
 
-<p>The ATMI client and server API (tpinit, tpcall, tpacall, tpgetrply,
-tpforward with flag and transaction semantics, tpreturn,
-tpadvertise/x with TPSINGLETON and TPSECONDARYRQ), FML32 with
-Oracle-compatible field ids and boolean expressions, VIEW32,
-XML buffers with tpxmltofml32 and BUFTYPECONV, STRING and CARRAY,
-tpimport/tpexport. Administration: tmloadcf, tmunloadcf, tmboot,
-tmshutdown, tmadmin, qmadmin, ud32, tmipcrm, crdl/crlog, the MIB
-classes, runtime updates (adv, unadv, suspend, resume, chgserver,
-changetrace), and printtrans with the offline log utilities. Operations:
-MSSQ sets with secondary queues, REPLYQ, automatic restart with
-MAXGEN/RESTART/GRACE. Transactions: multi-group two-phase commit with
-per-group TMS servers, a folder-based TLOG with heuristic detection,
-transactions across domain gateways and over workstation links.
-EventBroker: tpsubscribe, tppost, tpnotify, unsolicited messages with
-tpsetunsol/tpchkunsol, the TMUSREVT/TMSYSEVT servers, and the same
-on-disk subscription database format. /Q queues as folders and files
-with TMQUEUE and TMQFORWARD. Networking: GWTDOMAIN gateways with
-dmadmin, encrypted links with trust-on-first-use pins, and workstation
-clients via WSL and WSNADDR. Tracing: USDT probes (provider "fuxedo")
-plus uprobe-friendly builds, so bpftrace attaches without any fuxedo
-configuration. An invalid-argument hardening suite guards the API
-surface on both implementations. Python throughout via <a
-href="https://aivarsk.com/tuxedo-python/">tuxedo-python</a>, whose demo
-runs against all three homes.</p>
+<table class="status">
+<tr><th>Area</th><th>Coverage</th></tr>
+<tr><td>ATMI client/server</td>
+<td>tpinit/tpterm, tpcall, tpacall/tpgetrply/tpcancel with flag
+semantics, tpforward, tpreturn, tpadvertise/tpadvertisex incl.
+TPSINGLETON and TPSECONDARYRQ, conversational tpconnect/tpsend/tprecv,
+automatic transactions and AUTOTRAN, late-reply draining.</td></tr>
+<tr><td>Typed buffers</td>
+<td>FML32 with Oracle-compatible field ids and boolean expressions,
+VIEW32 with viewc32/viewdis32 and the Fv* family, XML buffers with
+tpxmltofml32 and BUFTYPECONV, STRING, CARRAY, tpimport/tpexport.</td></tr>
+<tr><td>Administration</td>
+<td>tmloadcf, tmunloadcf, tmboot, tmshutdown, tmadmin, qmadmin, ud32,
+tmipcrm, crdl/crlog, the TM_MIB classes, runtime updates (advertise,
+unadvertise, suspend, resume, chgserver, changetrace), printtrans and
+offline log utilities.</td></tr>
+<tr><td>Operations</td>
+<td>MSSQ sets with secondary queues and REPLYQ, server restart with
+MAXGEN/RESTART/GRACE sliding window, data-dependent routing across
+groups incl. boot-order fallthrough for staged rollouts.</td></tr>
+<tr><td>Transactions</td>
+<td>Multi-group two-phase commit with per-group TMS servers, folder
+TLOG with heuristic records and crash recovery, transactions over
+workstation links, cross-domain 2PC through GWTDOMAIN with persistent
+remote branches, Oracle Database XA via buildtms, transactional /Q.</td></tr>
+<tr><td>Eventing</td>
+<td>tpsubscribe/tpunsubscribe with FML filters, tppost, tpnotify,
+tpbroadcast, unsolicited messages, TMUSREVT/TMSYSEVT, Oracle-compatible
+on-disk subscription database.</td></tr>
+<tr><td>/Q</td>
+<td>Queue spaces as folders, messages as files, tpenqueue/tpdequeue
+with TPQCTL, TMQUEUE, TMQFORWARD, future-dated messages, qmadmin.</td></tr>
+<tr><td>Networking</td>
+<td>GWTDOMAIN domain gateways with dmadmin, DMTLOG, links encrypted by
+default with trust-on-first-use pins, workstation clients via WSL and
+WSNADDR.</td></tr>
+<tr><td>Observability</td>
+<td>ULOG, changetrace, printtrans, USDT probes (provider "fuxedo") at
+the ATMI, transaction, XA, /Q, and domain-wire boundaries, plus
+uprobe-friendly builds for bpftrace.</td></tr>
+<tr><td>Verification</td>
+<td>C and Python compatibility suites run against Oracle Tuxedo 12.2.2
+and 22.1 in CI, an invalid-argument hardening suite guards the API
+surface, and the API reference documents each call with tested
+examples.</td></tr>
+</table>
 
-<h2>Known gaps</h2>
+<h2>Not prioritized yet</h2>
 
-<p>Honest list, no asterisks: data-dependent routing (*ROUTING section)
-is parsed but not enforced; tpbroadcast is the one EventBroker call
-still missing; conversational tpconnect/tpsend/tprecv is untested end
-to end; event delivery to workstation clients is not routed yet;
-tmadmin's diagnostic surface (bbparms, dump, shmstats) is thin; FML32
-indexes are not stored (a flat layout by design, at a small lookup
-cost). Multi-machine MP clustering is deliberately out of scope.</p>
+<p>Nothing on this list is refused work; it is work ordered by demand.
+Fuxedo develops in the open, and the defaults below reflect what
+migrating estates ask for first. Anything here can move up on request,
+and larger items can be commissioned as consultancy. Two examples of
+the difference: Java access defaults to a library over fuxedo's
+encrypted workstation protocol; a wire-compatible JOLT listener with
+repository servers is buildable, just not the default path. The same
+applies to multi-machine MP clustering and COBOL support.</p>
+
+<table class="status">
+<tr><th>Item</th><th>State</th></tr>
+<tr><td>tmadmin diagnostics</td>
+<td>Core commands covered; the deeper diagnostic surface (bbparms,
+dump-style shared memory inspection, extended statistics) is thin.</td></tr>
+<tr><td>FML32 indexes</td>
+<td>Not stored; flat layout by design, at a small lookup cost.</td></tr>
+<tr><td>WSH process model</td>
+<td>Workstation listener serves clients in one process today.</td></tr>
+</table>
 
 <h2>Roadmap</h2>
 
-<p>In rough order: domain-level /Q (enqueue into a queue space served
-by a remote domain), the remaining tmadmin surface, tpbroadcast, and
-deeper workstation coverage. The gap list and the API coverage matrix
-live in the repository, updated as items land.</p>
+<p>In rough order: the Java client library over the workstation
+protocol, the remaining tmadmin surface, WSH-style multiprocess
+serving, then depth (more Oracle versions in the CI matrix, more
+probes). The gap list and the API coverage matrix live in the
+repository, updated as items land.</p>
 
 <h2>Follow the project</h2>
 

@@ -16,6 +16,7 @@
 
 #include "fux.h"
 #include "mib.h"
+#include "probes.h"
 #include "trx.h"
 #include "qm.h"
 #include "tlog.h"
@@ -123,6 +124,7 @@ int tx_open() {
   }
 
   auto xarc = xasw->xa_open_entry(info + len + 1, fux::tx::grpno, TMNOFLAGS);
+  FUX_PROBE3(xa__open, xasw->name, fux::tx::grpno, xarc);
   if (xarc == XA_OK) {
     if (getctxt().state == tx_state::s0) {
       getctxt().notrx();
@@ -150,6 +152,7 @@ int tx_close() {
   }
   auto xarc = xasw->xa_close_entry(getctxt().grpcfg->closeinfo, fux::tx::grpno,
                                    TMNOFLAGS);
+  FUX_PROBE2(xa__close, xasw->name, xarc);
   if (xarc == XA_OK) {
     getctxt().state = tx_state::s0;
     return TX_OK;
@@ -285,18 +288,22 @@ static void recover_tlog() {
   }
   XID xids[64];
   int n = xasw->xa_recover_entry(xids, 64, 0, TMSTARTRSCAN);
+  FUX_PROBE1(xa__recover, n);
   for (int i = 0; i < n; i++) {
     int outcome = log->outcome(&xids[i]);
     if (outcome == 1) {
       userlog("recovering in-doubt transaction %s with COMMIT",
               fux::to_string(&xids[i]).c_str());
+      FUX_PROBE2(heuristic__resolve, fux::to_string(&xids[i]).c_str(), 1);
       xasw->xa_commit_entry(&xids[i], 0, TMNOFLAGS);
     } else if (outcome == 3) {
       // resolved heuristically before this boot; nothing to redo
       userlog("in-doubt transaction %s was completed heuristically",
               fux::to_string(&xids[i]).c_str());
+      FUX_PROBE2(heuristic__resolve, fux::to_string(&xids[i]).c_str(), 3);
       xasw->xa_forget_entry(&xids[i], 0, TMNOFLAGS);
     } else {
+      FUX_PROBE2(heuristic__resolve, fux::to_string(&xids[i]).c_str(), 0);
       if (fux::qm::qm_branch_staged_empty(&xids[i])) {
         // prepared but the effects are already gone and no decision was
         // ever logged: someone completed this branch outside the log
@@ -409,12 +416,10 @@ static int _tx_end(TXINFO *info, long flags) {
     return TX_OK;
   }
 
-  userlog("xa_end(%s, %d, 0x%0lx) ...",
-          fux::to_string(&getctxt().info.xid).c_str(), fux::tx::grpno, flags);
+  auto gtrid = fux::to_string(&getctxt().info.xid);
+  FUX_PROBE3(xa__end, gtrid.c_str(), fux::tx::grpno, flags);
   auto xarc = xasw->xa_end_entry(&getctxt().info.xid, fux::tx::grpno, flags);
-  userlog("xa_end(%s, %d, 0x%0lx) = %d",
-          fux::to_string(&getctxt().info.xid).c_str(), fux::tx::grpno, flags,
-          xarc);
+  FUX_PROBE1(xa__end_return, xarc);
   if (info != nullptr) {
     *info = getctxt().info;
     getctxt().notrx();
@@ -477,12 +482,10 @@ static int _tx_start(TXINFO *info, long flags) {
     return TX_OK;
   }
 
-  userlog("xa_start(%s, %d, 0x%08lx) ...",
-          fux::to_string(&getctxt().info.xid).c_str(), fux::tx::grpno, flags);
+  auto gtrid = fux::to_string(&getctxt().info.xid);
+  FUX_PROBE3(xa__start, gtrid.c_str(), fux::tx::grpno, flags);
   auto xarc = xasw->xa_start_entry(&getctxt().info.xid, fux::tx::grpno, flags);
-  userlog("xa_start(%s, %d, 0x%08lx) = %d",
-          fux::to_string(&getctxt().info.xid).c_str(), fux::tx::grpno, flags,
-          xarc);
+  FUX_PROBE1(xa__start_return, xarc);
   if (xarc == XA_OK) {
     if (getctxt().state == tx_state::s1) {
       getctxt().state = tx_state::s3;
@@ -566,6 +569,7 @@ bool tx_active() {
 };  // namespace fux
 
 int fux::tm::coordinate(const XID *xid, int op) {
+  FUX_PROBE2(tx__coordinate, fux::to_string(xid).c_str(), op);
   std::vector<branch> branches = collect(const_cast<XID *>(xid));
   if (branches.empty()) {
     return XA_RDONLY;
@@ -582,7 +586,9 @@ int fux::tm::coordinate(const XID *xid, int op) {
       return p.result;
     }
   }
-  return any ? XA_OK : XA_RDONLY;
+  auto vote = any ? XA_OK : XA_RDONLY;
+  FUX_PROBE1(tx__coordinate_return, vote);
+  return vote;
 }
 
 int tx_set_commit_return(COMMIT_RETURN when_return) {
@@ -692,21 +698,19 @@ static void tm(fux::fml32buf &buf) {
   int ret;
   switch (func) {
     case fux::tm::prepare:
-      userlog("xa_prepare(%s, %d, 0x%0lx) ...", xids.c_str(), rmid, flags);
+      FUX_PROBE3(xa__prepare, xids.c_str(), rmid, flags);
       ret = xasw->xa_prepare_entry(&xid, rmid, flags);
-      userlog("xa_prepare(%s, %d, 0x%0lx) = %d", xids.c_str(), rmid, flags,
-              ret);
+      FUX_PROBE1(xa__prepare_return, ret);
       break;
     case fux::tm::commit:
-      userlog("xa_commit(%s, %d, 0x%0lx) ...", xids.c_str(), rmid, flags);
+      FUX_PROBE3(xa__commit, xids.c_str(), rmid, flags);
       ret = xasw->xa_commit_entry(&xid, rmid, flags);
-      userlog("xa_commit(%s, %d, 0x%0lx) = %d", xids.c_str(), rmid, flags, ret);
+      FUX_PROBE1(xa__commit_return, ret);
       break;
     case fux::tm::rollback:
-      userlog("xa_rollback(%s, %d, 0x%0lx) ...", xids.c_str(), rmid, flags);
+      FUX_PROBE3(xa__rollback, xids.c_str(), rmid, flags);
       ret = xasw->xa_rollback_entry(&xid, rmid, flags);
-      userlog("xa_rollback(%s, %d, 0x%0lx) = %d", xids.c_str(), rmid, flags,
-              ret);
+      FUX_PROBE1(xa__rollback_return, ret);
       break;
     default:
       ret = XAER_INVAL;

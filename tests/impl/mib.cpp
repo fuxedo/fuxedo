@@ -64,6 +64,7 @@ TEST_CASE("dead server advertisements are dropped", "[mib]") {
   domain.maxqueues = 5;
 
   mib m(domain, fux::mib::in_heap());
+  m.make_group(1, "GROUP1", "", "", "");
   auto srv1 = m.make_server(1, 1, "one", "clopt", "rq1");
   auto q1 = m.servers().at(srv1).rqaddr;
   auto srv2 = m.make_server(2, 1, "two", "clopt", "rq2");
@@ -119,6 +120,7 @@ TEST_CASE("services can be advertised", "[mib]") {
   domain.maxqueues = 5;
 
   mib m(domain, fux::mib::in_heap());
+  m.make_group(1, "GROUP1", "", "", "");
   auto srv = m.make_server(1, 1, "server", "clopt", "rqaddr");
   auto q = m.servers().at(srv).rqaddr;
 
@@ -137,6 +139,7 @@ SCENARIO("servers can be added", "[mib]") {
     domain.maxgroups = 1;
     domain.maxqueues = 1;
     mib m(domain, fux::mib::in_heap());
+    m.make_group(1, "GROUP1", "", "", "");
 
     WHEN("one server is added") {
       auto ptr = m.make_server(1, 1, "server", "clopt", "rqaddr");
