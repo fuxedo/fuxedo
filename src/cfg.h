@@ -21,6 +21,13 @@ struct domain {
   uint16_t maxservices = 100;
   uint16_t maxgroups = 100;
   uint16_t maxqueues = 50;
+  // accepted and carried through for configuration fidelity; fuxedo
+  // implements the underlying mechanics differently (signal-based
+  // notification rides the reply queue, BB sanityscan is the BBL
+  // watchdog, transaction table sizing is fixed)
+  std::string notify;
+  std::string sanityscan;
+  uint16_t maxgtt = 0;
 };
 
 struct machine {

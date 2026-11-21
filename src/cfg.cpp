@@ -71,6 +71,10 @@ tables build(const ubbconfig &ubb) {
       to_long(param(ubb.resources, "MAXQUEUES"), "MAXQUEUES", 1, 8192, 50);
   t.dom.maxaccessers = to_long(param(ubb.resources, "MAXACCESSERS"),
                                   "MAXACCESSERS", 1, 32768, 50);
+  t.dom.notify = param(ubb.resources, "NOTIFY");
+  t.dom.sanityscan = param(ubb.resources, "SANITYSCAN");
+  t.dom.maxgtt = static_cast<uint16_t>(
+      to_long(param(ubb.resources, "MAXGTT"), "MAXGTT", 0, 32768, 0));
 
   if (ubb.machines.size() != 1) {
     throw std::logic_error("Exactly one MACHINE entry supported");
@@ -199,6 +203,15 @@ std::string emit(const tables &t) {
   out += "MAXSERVICES " + std::to_string(t.dom.maxservices) + "\n";
   out += "MAXGROUPS " + std::to_string(t.dom.maxgroups) + "\n";
   out += "MAXQUEUES " + std::to_string(t.dom.maxqueues) + "\n";
+  if (!t.dom.notify.empty()) {
+    out += "NOTIFY " + t.dom.notify + "\n";
+  }
+  if (!t.dom.sanityscan.empty()) {
+    out += "SANITYSCAN " + t.dom.sanityscan + "\n";
+  }
+  if (t.dom.maxgtt != 0) {
+    out += "MAXGTT " + std::to_string(t.dom.maxgtt) + "\n";
+  }
 
   out += "\n*MACHINES\n";
   out += "\"" + t.mach.pmid + "\" LMID=" + t.mach.lmid;
