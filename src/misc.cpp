@@ -3,10 +3,68 @@
 
 #include <stdarg.h>
 
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <string>
+
+#include "Uunix.h"
 #include "misc.h"
 
 namespace fux {
 bool threaded = false;
+}
+
+static thread_local int uunixerr = 0;
+
+int *Uunixerr_addr(void) { return &uunixerr; }
+
+const char *Uunixmsg[] = {"success", "general failure", nullptr};
+
+void Uunix_err(const char *opname) {
+  (void)opname;
+  uunixerr = errno;
+}
+
+char *Ustrerror(int err) {
+  static thread_local char buf[128];
+  auto *msg = strerror(err);
+  std::strncpy(buf, msg, sizeof(buf) - 1);
+  buf[sizeof(buf) - 1] = '\0';
+  return buf;
+}
+
+char *tuxgetenv(const char *name) { return std::getenv(name); }
+
+int tuxputenv(const char *str) {
+  auto *eq = std::strchr(str, '=');
+  if (eq == nullptr || eq == str) {
+    return -1;
+  }
+  std::string name(str, eq - str);
+  return setenv(name.c_str(), eq + 1, 1);
+}
+
+int tuxreadenv(const char *file, const char *prefix) {
+  std::ifstream in(file);
+  if (!in) {
+    return -1;
+  }
+  std::string line;
+  while (std::getline(in, line)) {
+    if (line.empty() || line[0] == '#') {
+      continue;
+    }
+    auto eq = line.find('=');
+    if (eq == std::string::npos || eq == 0) {
+      continue;
+    }
+    std::string name = prefix ? std::string(prefix) + line.substr(0, eq)
+                              : line.substr(0, eq);
+    setenv(name.c_str(), line.substr(eq + 1).c_str(), 1);
+  }
+  return 0;
 }
 
 std::string string_format(const char *fmt, ...) {

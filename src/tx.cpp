@@ -503,7 +503,7 @@ int _tx_start(TXINFO *info) { return _tx_start(info, TMNOFLAGS); }
 namespace fux {
 void tx_resume() { _tx_resume(nullptr); }
 void tx_suspend() { _tx_suspend(nullptr); }
-void tx_end(bool ok) { _tx_end(ok); }
+bool tx_end(bool ok) { return _tx_end(ok) == TX_OK; }
 void tx_join(fux::gttid gttid) {
   auto &t = getmib().transactions().join(gttid, fux::tx::grpidx);
   getctxt().gttid = gttid;

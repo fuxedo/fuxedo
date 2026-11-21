@@ -9,6 +9,7 @@
 
 #include "mib.h"
 #include "misc.h"
+#include "routing.h"
 
 namespace fux::cfg {
 
@@ -158,6 +159,25 @@ tables build(const ubbconfig &ubb) {
     t.servers.push_back(std::move(s));
   }
 
+  for (auto &rtconf : ubb.routing) {
+    routing r;
+    r.name = rtconf.first;
+    r.field = param(rtconf.second, "FIELD");
+    r.buftype = param(rtconf.second, "BUFTYPE");
+    r.ranges = param(rtconf.second, "RANGES");
+    if (r.field.empty() || r.buftype.empty() || r.ranges.empty()) {
+      throw std::out_of_range("ROUTING entry " + r.name +
+                              " requires FIELD, BUFTYPE and RANGES");
+    }
+    try {
+      fux::routing::parse_ranges(r.ranges);
+    } catch (const std::runtime_error &e) {
+      throw std::out_of_range("ROUTING entry " + r.name +
+                              " contains an invalid RANGES value");
+    }
+    t.routings.push_back(std::move(r));
+  }
+
   return t;
 }
 
@@ -245,6 +265,14 @@ std::string emit(const tables &t) {
         out += " THREADSTACKSIZE=" + std::to_string(s.threadstacksize);
       }
       out += "\n";
+    }
+  }
+
+  if (!t.routings.empty()) {
+    out += "\n*ROUTING\n";
+    for (auto &r : t.routings) {
+      out += r.name + " FIELD=" + r.field + " BUFTYPE=\"" + r.buftype +
+             "\" RANGES=\"" + r.ranges + "\"\n";
     }
   }
 

@@ -5,6 +5,8 @@
 #include <xa.h>
 #include <xatmi.h>
 
+#include <fml32.h>
+
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -17,6 +19,7 @@
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
+#include "routing.h"
 #include "svcrepo.h"
 #include "trace.h"
 #include "trx.h"
@@ -72,8 +75,91 @@ client::~client() {
   }
 }
 
+int client::routed_group(const char *svc, char *data) {
+  auto sidx = mibcon_.find_service(svc);
+  if (sidx == mib::badoff) {
+    return -1;
+  }
+  auto &svc_rec = mibcon_.services().at(sidx);
+  if (svc_rec.routingname[0] == '\0') {
+    return -1;
+  }
+  char type[16] = {};
+  char subtype[16] = {};
+  if (tptypes(data, type, subtype) == -1) {
+    return -1;
+  }
+  auto rt = mibcon_.routings();
+  for (size_t i = 0; i < rt->len; i++) {
+    auto &e = rt.at(i);
+    if (strcmp(e.name, svc_rec.routingname) != 0 ||
+        !fux::routing::buftype_matches(e.buftype, type, subtype)) {
+      continue;
+    }
+    if (strcmp(type, "FML32") != 0) {
+      return -1;  // only FML32 buffers carry routing fields for now
+    }
+    auto fb = reinterpret_cast<FBFR32 *>(data);
+    std::string value;
+    fux::routing::field_kind kind = fux::routing::field_kind::string;
+    if (e.fldtype == FLD_SHORT || e.fldtype == FLD_LONG) {
+      long v = 0;
+      if (Fget32(fb, static_cast<FLDID32>(e.fieldid), 0, reinterpret_cast<char *>(&v), 0) == -1) {
+        TPERROR(TPESYSTEM, "Routing field %s null", e.field);
+        return -2;
+      }
+      value = std::to_string(v);
+      kind = fux::routing::field_kind::integer;
+    } else if (e.fldtype == FLD_FLOAT || e.fldtype == FLD_DOUBLE) {
+      double v = 0;
+      if (Fget32(fb, static_cast<FLDID32>(e.fieldid), 0, reinterpret_cast<char *>(&v), 0) == -1) {
+        TPERROR(TPESYSTEM, "Routing field %s null", e.field);
+        return -2;
+      }
+      value = std::to_string(v);
+      kind = fux::routing::field_kind::floating;
+    } else if (e.fldtype == FLD_STRING || e.fldtype == FLD_CHAR) {
+      char buf[256] = {};
+      FLDLEN32 len = sizeof(buf);
+      if (Fget32(fb, static_cast<FLDID32>(e.fieldid), 0, buf, &len) == -1) {
+        TPERROR(TPESYSTEM, "Routing field %s null", e.field);
+        return -2;
+      }
+      value.assign(buf, strnlen(buf, sizeof(buf)));
+    } else {
+      TPERROR(TPESYSTEM, "Routing field %s has unsupported type", e.field);
+      return -2;
+    }
+    auto ranges = fux::routing::parse_ranges(e.ranges);
+    auto *hit = fux::routing::match(ranges, value, kind);
+    if (hit == nullptr) {
+      TPERROR(TPESYSTEM, "Routing field value %s not valid", e.field);
+      return -2;
+    }
+    for (auto g = hit->groups.rbegin(); g != hit->groups.rend(); ++g) {
+      if (*g == "*") {
+        return -1;  // any group
+      }
+      auto gidx = mibcon_.group_index(*g);
+      if (gidx != mib::badoff) {
+        return mibcon_.groups().at(gidx).grpno;
+      }
+    }
+    TPERROR(TPENOENT, "Routing group not found");
+    return -2;
+  }
+  return -1;
+}
+
 int client::tpacall_group(int grpno, const char *svc, char *data, long len,
                           long flags) try {
+  if (grpno == -1 && data != nullptr) {
+    int routed = routed_group(svc, data);
+    if (routed == -2) {
+      return -1;
+    }
+    grpno = routed;
+  }
   auto target = repo_.get_queue(grpno, svc);
   auto conv = repo_.buftypeconv(svc);
 

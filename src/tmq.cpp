@@ -3,6 +3,10 @@
 
 #include <xatmi.h>
 
+#include <chrono>
+#include <limits>
+#include <thread>
+
 #include <atmi.h>
 #include <userlog.h>
 
@@ -178,6 +182,12 @@ int exec_dequeue(const char *qspace, const char *qname, TPQCTL *ctl,
     if ((ctl->flags & TPQPRIORITY) != 0) {
       ctl->priority = result.m.priority;
     }
+    if ((ctl->flags & TPQREPLYQ) != 0 && !result.m.replyq.empty()) {
+      memset(ctl->replyqueue, 0, sizeof(ctl->replyqueue));
+      std::copy_n(result.m.replyq.c_str(),
+                  std::min(result.m.replyq.size(), (size_t)TMQNAMELEN),
+                  ctl->replyqueue);
+    }
     fux::atmi::reset_tperrno();
     return 0;
   } catch (const fux::qm::qm_error &e) {
@@ -265,14 +275,21 @@ int tpenqueue(char *qspace, char *qname, TPQCTL *ctl, char *data, long len,
 // TPQWAIT is served by the caller, not the queue server: try a plain
 // dequeue once a second until the deadline. Keeps TMQUEUE single-threaded
 // and responsive, the way the platform runs its queue servers.
+// TPQWAIT and TPQTIME_* live in ctl->flags (they describe deq_time); the
+// flags argument carries only TPNOTIME. Returns milliseconds until the
+// deadline, 0 for a single non-blocking attempt, or a negative sentinel
+// when TPNOTIME lifts the limit entirely.
 static long wait_deadline_ms(long flags, const TPQCTL *ctl) {
-  if ((flags & TPQWAIT) == 0) {
+  if ((ctl->flags & TPQWAIT) == 0) {
     return 0;
   }
+  if ((flags & TPNOTIME) != 0) {
+    return std::numeric_limits<long>::min();
+  }
   long wait_s = 30;  // TODO(pin): default wait when no TPQTIME_* is given
-  if ((flags & TPQTIME_REL) != 0) {
+  if ((ctl->flags & TPQTIME_REL) != 0) {
     wait_s = ctl->deq_time;
-  } else if ((flags & TPQTIME_ABS) != 0) {
+  } else if ((ctl->flags & TPQTIME_ABS) != 0) {
     wait_s = ctl->deq_time - time(nullptr);
   }
   if (wait_s <= 0) {
@@ -288,7 +305,7 @@ static int tpdequeue_once(const std::string &svc, const char *qspace,
 int tpdequeue(char *qspace, char *qname, TPQCTL *ctl, char **data, long *len,
               long flags) {
   constexpr long valid_flags = TPQGETBYMSGID | TPQGETBYCORRID | TPQPEEK |
-                               TPQWAIT | TPQTIME_ABS | TPQTIME_REL;
+                               TPQWAIT | TPQTIME_ABS | TPQTIME_REL | TPNOTIME;
   if (qspace == nullptr || qname == nullptr || ctl == nullptr ||
       data == nullptr) {
     TPERROR(TPEINVAL, "qspace, qname, ctl and data are required");
@@ -309,25 +326,26 @@ int tpdequeue(char *qspace, char *qname, TPQCTL *ctl, char **data, long *len,
                     flags);
   FUX_PROBE3(tpdequeue__entry, qspace, qname, flags);
   long wait_ms = wait_deadline_ms(flags, ctl);
-  long deadline =
-      wait_ms > 0
-          ? std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::steady_clock::now().time_since_epoch())
-                    .count() +
-                wait_ms
-          : 0;
+  long deadline = 0;  // 0 or negative: no expiry (single shot or TPNOTIME)
+  if (wait_ms > 0) {
+    deadline =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now().time_since_epoch())
+            .count() +
+        wait_ms;
+  }
 
   for (;;) {
     int rc = tpdequeue_once(svc, qspace, qname, ctl, data, len, flags,
                             via_server);
-    if (rc == 0 || wait_ms <= 0 || tperrno != TPETIME) {
+    if (rc == 0 || wait_ms == 0 || wait_ms == -1 || tperrno != TPETIME) {
       fux::trace::event("} tpdequeue = %d", rc);
       return rc;
     }
     long now = std::chrono::duration_cast<std::chrono::milliseconds>(
                    std::chrono::steady_clock::now().time_since_epoch())
                    .count();
-    if (now >= deadline) {
+    if (deadline > 0 && now >= deadline) {
       fux::trace::event("} tpdequeue = %d", rc);
       return rc;
     }

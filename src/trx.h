@@ -21,7 +21,10 @@ XID current_xid();
 void tx_resume();
 void tx_suspend();
 void tx_join(fux::gttid id);
-void tx_end(bool ok);
+// Ends the current transaction (commit when ok, rollback otherwise);
+// false when the requested outcome failed (e.g. commit was aborted)
+bool tx_end(bool ok);
+int tx_begin();
 
 namespace tx {
 extern uint16_t grpno;

@@ -174,7 +174,7 @@ struct service {
   long svctimeout;
   long trantime;
   char buftype[256];
-  char routingname[16];
+  char routingname[128];
   char signature_required[2];
   char encryption_required[2];
   char buftypeconv[10];  // XML2FML, XML2FML32, NOCONVERT
@@ -183,6 +183,19 @@ struct service {
 
   void modified() { revision++; }
 };
+
+// one *ROUTING criteria; the field id and type are resolved by tmloadcf
+// so clients evaluate routing without loading field tables
+struct routing_entry {
+  char name[128];
+  char field[64];
+  long fieldid = 0;
+  long fldtype = 0;
+  char buftype[256];
+  char ranges[2048];
+};
+
+constexpr size_t maxrouting = 32;
 
 struct advertisement {
   size_t service;

@@ -5,9 +5,12 @@
 #include <functional>  //std::hash
 #include <iostream>
 
+#include <fml32.h>
+
 #include "fux.h"
 #include "mib.h"
 #include "misc.h"
+#include "routing.h"
 #include "ubb2mib.h"
 #include "ubbreader.h"
 
@@ -166,5 +169,47 @@ void ubb2mib(ubbconfig &u, mib &m) {
       checked_copy(autotran->second == "Y" ? "Y" : "N",
                    services.at(service).autotran);
     }
+    auto rtname = svcconf.second.find("ROUTING");
+    if (rtname != svcconf.second.end()) {
+      checked_copy(rtname->second, services.at(service).routingname);
+    }
+  }
+
+  auto routings = m.routings();
+  for (auto &rtconf : u.routing) {
+    if (routings->len >= maxrouting) {
+      throw std::logic_error("Too many *ROUTING entries, maximum " +
+                             std::to_string(maxrouting));
+    }
+    routing_entry entry = {};
+    checked_copy(rtconf.first, entry.name);
+    checked_copy(rtconf.second["FIELD"], entry.field);
+    checked_copy(rtconf.second["BUFTYPE"], entry.buftype);
+    checked_copy(rtconf.second["RANGES"], entry.ranges);
+    if (entry.field[0] == '\0' || entry.buftype[0] == '\0' ||
+        entry.ranges[0] == '\0') {
+      throw std::logic_error("ROUTING entry " + rtconf.first +
+                             " requires FIELD, BUFTYPE and RANGES");
+    }
+    try {
+      fux::routing::parse_ranges(entry.ranges);
+    } catch (const std::runtime_error &) {
+      throw std::logic_error("ROUTING entry " + rtconf.first +
+                             " contains an invalid RANGES value");
+    }
+    // resolve the routing field now (the way the platform resolves it in
+    // the bulletin board at boot) so clients evaluate routing by id
+    auto fieldid = Fldid32(entry.field);
+    if (fieldid == BADFLDID) {
+      throw std::logic_error("Cannot map field name " +
+                             std::string(entry.field) +
+                             " to field identifier for criteria " +
+                             rtconf.first);
+    }
+    entry.fieldid = fieldid;
+    entry.fldtype = Fldtype32(fieldid);
+    auto &slot = routings.at(routings->len);
+    slot = entry;
+    routings->len++;
   }
 }

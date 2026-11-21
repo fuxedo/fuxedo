@@ -16,6 +16,7 @@ struct ubbconfig {
   ubb_section groups;
   ubb_section servers;
   ubb_section services;
+  ubb_section routing;
 
   ubbconfig()
       : resources{

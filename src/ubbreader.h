@@ -66,6 +66,8 @@ class ubbreader : public basic_parser {
             config.machines.push_back(std::make_pair(object, merged));
           } else if (cursection == "SERVICES") {
             config.services.push_back(std::make_pair(object, merged));
+          } else if (cursection == "ROUTING") {
+            config.routing.push_back(std::make_pair(object, merged));
           }
         }
         object.clear();

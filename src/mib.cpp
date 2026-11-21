@@ -123,6 +123,7 @@ size_t mib::needed(const fux::cfg::domain &cfg) {
          nearest64(cfg.maxservers * cfg.maxservices * sizeof(advertisement)) +
          nearest64(cfg.maxgroups * sizeof(group)) +
          nearest64(cfg.maxaccessers * sizeof(accesser)) +
+         nearest64(maxrouting * sizeof(routing_entry)) +
          nearest64(transaction_table::needed(100, cfg.maxgroups)) +
          nearest64(event_table::needed(256));
 }
@@ -138,6 +139,7 @@ void mib::init_memory() {
               off - offsetof(mibmem, advertisements));
   off += init(mem_->accessers, cfg_.maxaccessers,
               off - offsetof(mibmem, accessers));
+  off += init(mem_->routings, maxrouting, off - offsetof(mibmem, routings));
 
   mem_->transactions_off = off;
   transactions().init(100, cfg_.maxgroups);

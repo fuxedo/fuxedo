@@ -39,7 +39,7 @@ module:
 	@if [ -z "$(PYBUILD)" ] || [ ! -f $(TUXEDO_PYTHON)/build/.tuxdir ] || \
 	    [ "$$(cat $(TUXEDO_PYTHON)/build/.tuxdir 2>/dev/null)" != "$(TUXDIR)" ]; then \
 		echo "building tuxedo-python module from $(TUXEDO_PYTHON) against $(TUXDIR)"; \
-		rm -rf $(TUXEDO_PYTHON)/build/temp.*; \
+		rm -rf $(TUXEDO_PYTHON)/build; \
 		(cd $(TUXEDO_PYTHON) && TUXDIR=$(TUXDIR) python3 setup.py build) || exit 1; \
 		echo "$(TUXDIR)" > $(TUXEDO_PYTHON)/build/.tuxdir; \
 	fi

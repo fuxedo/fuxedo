@@ -3,22 +3,16 @@
 #include <stdio.h>
 #include <string.h>
 
-// STRING service: receives the forwarded queue message and puts a reply
-// on the RPLYQ queue of the same queue space.
+// STRING service: receives the forwarded queue message and returns the
+// reply; TMQFORWARD enqueues it on the reply queue recorded with the
+// message (the platform model).
 void STRING(TPSVCINFO *svcinfo) {
   userlog("QSAMPLE: STRING got %s", (char *)svcinfo->data);
 
   char *reply = tpalloc("STRING", NULL, 1024);
   snprintf(reply, 1024, "replied:%s", (char *)svcinfo->data);
-
-  TPQCTL ctl = {};
-  int rc = tpenqueue("QSPACE", "RPLYQ", &ctl, reply, 0, 0);
-  if (rc == -1) {
-    userlog("QSAMPLE: reply enqueue failed: %s", tpstrerror(tperrno));
-    tpreturn(TPFAIL, 0, svcinfo->data, svcinfo->len, 0);
-  }
-  strcpy(svcinfo->data, "OK");
-  tpreturn(TPSUCCESS, 0, svcinfo->data, 3, 0);
+  tpreturn(TPSUCCESS, 0, reply, strlen(reply) + 1, 0);
+  tpfree(reply);
 }
 
 int tpsvrinit(int argc, char **argv) {

@@ -19,6 +19,7 @@ include_HEADERS = include/atmi.h include/xatmi.h \
                   include/userlog.h \
                   include/atmidefs.h \
                   include/tmenv.h \
+                  include/Uunix.h \
                   include/xa.h \
                   include/tx.h \
                   include/tpadm.h
@@ -37,6 +38,7 @@ src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
                            src/qmxa.cpp src/nonexa.cpp src/tx.cpp src/trx.cpp \
                            src/trace.cpp src/dmcfg.cpp src/dmlink.cpp \
                            src/misc.cpp src/base64.cpp \
+                           src/routing.cpp \
                            src/tpadmcall.cpp src/tmq.cpp src/qm.cpp \
                            src/tlog.cpp src/events.cpp src/evsrv.cpp
 
@@ -51,7 +53,7 @@ bin_PROGRAMS = src/mkfldhdr32 src/viewc32 src/viewdis32 src/ud32 \
                src/tmloadcf src/tmunloadcf \
                src/buildserver src/buildclient src/buildtms \
                src/tmboot src/tmshutdown \
-               src/BBL src/TMS src/TMQUEUE src/TMQFORWARD src/GWADM \
+               src/BBL src/TMS src/TMS_QM src/TMQUEUE src/TMQFORWARD src/GWADM \
                src/GWTDOMAIN src/WSL src/TMUSREVT src/TMSYSEVT
 
 src_qmadmin_SOURCES = src/qmadmin.cpp
@@ -66,6 +68,11 @@ src_tmboot_LDADD = src/libfuxedo.la
 
 src_TMS_SOURCES = src/TMS.cpp
 src_TMS_LDADD = src/libfuxedo.la
+
+# queue manager resource manager; the QM two-phase effects are driven
+# inside TMQUEUE, so this runs the same transaction server as TMS
+src_TMS_QM_SOURCES = src/TMS.cpp
+src_TMS_QM_LDADD = src/libfuxedo.la
 
 src_BBL_SOURCES = src/BBL.cpp
 src_BBL_LDADD = src/libfuxedo.la -lpthread
@@ -139,7 +146,7 @@ src_tmipcrm_LDADD = src/libfuxedo.la
 udataobjdir = @prefix@/udataobj
 udataobj_DATA = RM include/tpadm
 
-TESTS = tests/compat/xatmi tests/compat/fml32 tests/compat/expr tests/compat/view32 tests/compat/hardening tests/compat/xmlfml tests/impl/mib tests/impl/dmlink tests/impl/ipcq tests/compat/base64 tests/impl/userlog tests/impl/trx tests/impl/qm tests/impl/cfg tests/impl/tlog tests/impl/qmtx
+TESTS = tests/impl/routing tests/compat/xatmi tests/compat/fml32 tests/compat/expr tests/compat/view32 tests/compat/hardening tests/compat/xmlfml tests/impl/mib tests/impl/dmlink tests/impl/ipcq tests/compat/base64 tests/impl/userlog tests/impl/trx tests/impl/qm tests/impl/cfg tests/impl/tlog tests/impl/qmtx
 check_PROGRAMS = $(TESTS)
 
 AM_TESTS_ENVIRONMENT = FLDTBLDIR32=.:src:tests FIELDTBLS32=dummy,fields \
@@ -188,6 +195,9 @@ tests_impl_trx_SOURCES = tests/impl/trx.cpp tests/tests-main.cpp
 tests_impl_trx_LDADD = src/libfuxedo.la
 
 tests_impl_qm_SOURCES = tests/impl/qm.cpp tests/tests-main.cpp
+
+tests_impl_routing_SOURCES = tests/impl/routing.cpp tests/tests-main.cpp
+tests_impl_routing_LDADD = src/libfuxedo.la
 
 tests_impl_cfg_SOURCES = tests/impl/cfg.cpp tests/tests-main.cpp
 tests_impl_cfg_LDADD = src/libfuxedo.la

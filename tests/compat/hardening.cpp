@@ -213,10 +213,11 @@ TEST_CASE("XATMI argument validation", "[hardening]") {
 
   // transaction demarcation with no booted application: must not
   // crash. fuxedo with a readable TUXCONFIG allows client transactions
-  // (the txq design); Oracle and config-less contexts refuse. tpgetlev
-  // answers -1 where no RM state exists, 0 otherwise.
-  if (tpbegin(30, 0) == 0) {
-    REQUIRE(tpabort(0) == 0);
+  // (the txq design); Oracle and config-less contexts refuse. Success
+  // is != -1 on both platforms (pinned). tpgetlev answers -1 where no
+  // RM state exists, 0 otherwise.
+  if (tpbegin(30, 0) != -1) {
+    REQUIRE(tpabort(0) != -1);
   } else {
     REQUIRE(tpcommit(0) == -1);
     REQUIRE(tpabort(0) == -1);

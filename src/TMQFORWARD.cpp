@@ -45,6 +45,7 @@ static std::string error_queue() {
 static void forward_loop() {
   while (true) {
     TPQCTL ctl = {};
+    ctl.flags = TPQREPLYQ;  // learn the message's reply queue
     char *data = tpalloc(const_cast<char *>("CARRAY"), nullptr, 1024);
     long len = 0;
     int rc = fux::tmq::exec_dequeue(g_qspace.c_str(), g_queue.c_str(), &ctl,
@@ -73,6 +74,19 @@ static void forward_loop() {
           payload.assign(data, len);
         }
         fux::tmq::exec_enqueue(g_qspace.c_str(), errq.c_str(), &ectl, payload);
+      }
+    } else if (ctl.replyqueue[0] != '\0' && data != nullptr && len > 0) {
+      // the reply goes to the queue named by the originator
+      std::string wire;
+      long used = fux::mem::bufsize(data, len);
+      if (used > 0) {
+        wire.resize(used);
+        if (tpexport(data, len, &wire[0], &used, 0) != -1) {
+          wire.resize(used);
+          TPQCTL rctl = {};
+          fux::tmq::exec_enqueue(g_qspace.c_str(), ctl.replyqueue, &rctl,
+                                 wire);
+        }
       }
     }
     tpfree(data);

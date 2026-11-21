@@ -84,11 +84,24 @@ struct server {
   }
 };
 
+struct routing {
+  std::string name;
+  std::string field;
+  std::string buftype;
+  std::string ranges;
+
+  bool operator==(const routing &o) const {
+    return name == o.name && field == o.field && buftype == o.buftype &&
+           ranges == o.ranges;
+  }
+};
+
 struct tables {
   domain dom;
   machine mach;
   std::vector<group> groups;
   std::vector<server> servers;
+  std::vector<routing> routings;
 };
 
 // Parses and validates a ubbconfig into typed tables. Throws

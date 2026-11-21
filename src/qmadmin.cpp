@@ -135,10 +135,11 @@ void cmd_help(const std::vector<std::string> &) {
 
 void cmd_echo(const std::vector<std::string> &args) {
   if (args.empty()) {
-    std::cout << "Echo mode is " << (echo_mode ? "on" : "off") << std::endl;
-    return;
+    echo_mode = !echo_mode;
+  } else {
+    echo_mode = args[0] == "on" || args[0] == "y";
   }
-  echo_mode = args[0] == "on" || args[0] == "y";
+  std::cout << "Echo mode is " << (echo_mode ? "on" : "off") << std::endl;
 }
 
 void cmd_verbose(const std::vector<std::string> &) {
@@ -729,7 +730,11 @@ const std::map<std::string, cmd_fn> commands = {
 
 }  // namespace
 
-int main() {
+int main(int argc, char *argv[]) {
+  // qmadmin <device> selects the queue device for this session
+  if (argc > 1) {
+    setenv("QMCONFIG", argv[1], 1);
+  }
   try {
     fux::qm::qmconfig();
   } catch (const std::exception &e) {

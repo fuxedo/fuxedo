@@ -86,6 +86,7 @@ struct mibmem {
   mibarr<service> services;
   mibarr<advertisement> advertisements;
   mibarr<accesser> accessers;
+  mibarr<routing_entry> routings;
 
   size_t transactions_off;
   size_t events_off;
@@ -160,6 +161,7 @@ class mib {
   auto queues() { return mibarrptr<queue>(&mem_->queues); }
   auto services() { return mibarrptr<service>(&mem_->services); }
   auto accessers() { return mibarrptr<accesser>(&mem_->accessers); }
+  auto routings() { return mibarrptr<routing_entry>(&mem_->routings); }
   auto advertisements() {
     return mibarrptr<advertisement>(&mem_->advertisements);
   }

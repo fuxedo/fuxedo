@@ -31,6 +31,23 @@ jobs:
     - name: API reference pages are current
       run: python3 docs/api/gen.py && git diff --exit-code docs/
 
+  compat-221:
+    # Builds fuxedo in 22.1 emulation mode so the is221 branches in
+    # expr/mem/ws/boot paths are compiled and exercised, not just the
+    # default 12.1 mode
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: dependencies
+      run: sudo apt-get update && sudo apt-get install -y systemtap-sdt-dev
+    - name: configure
+      run: ./autogen.sh && ./configure --prefix=/home/runner/fuxbin --with-tuxedo-compat=22.1
+    - name: make
+      run: make
+    - name: make check
+      run: make check
+
   oracle:
     # Runs the C-API compatibility suites and the behavioral tests
     # against real Oracle Tuxedo installations, from prebuilt trees

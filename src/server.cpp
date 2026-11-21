@@ -471,8 +471,10 @@ struct server_thread {
   }
 
   void tpreturn(int rval, long rcode, char *data, long len, long flags) {
-    if (fux::tx::transactional()) {
-      fux::tx_end(rval == TPSUCCESS);
+    if (fux::tx::transactional() && !fux::tx_end(rval == TPSUCCESS)) {
+      // the transaction outcome failed (commit aborted / rollback
+      // error): the caller learns the transaction did not succeed
+      rval = TPEABORT;
     }
     reply(rval, rcode, data, len, flags);
     longjmp(tpreturn_env, 1);
@@ -508,6 +510,17 @@ static void execute(server_thread *tp) {
 
   if (tp->req->flags & TPTRAN) {
     fux::tx_join(tp->req->gttid);
+  }
+
+  // AUTOTRAN=Y: a caller-less request starts its own transaction; the
+  // outcome rides on tpreturn (commit on TPSUCCESS, abort otherwise),
+  // and an aborted one surfaces as TPESVCFAIL to the caller
+  if (!fux::tx::transactional()) {
+    auto sidx = main_ptr->m_.find_service(tpsvcinfo.name);
+    if (sidx != mib::badoff &&
+        main_ptr->m_.services().at(sidx).autotran[0] == 'Y') {
+      tx_begin();
+    }
   }
 
   // conversational requests set up the half-duplex context: the caller

@@ -55,6 +55,13 @@ class client {
   queue_entry get_queue(const char *svc) { return repo_.get_queue(-1, svc); }
 
  private:
+  // Data-dependent routing (*ROUTING): when the service names a routing
+  // criteria and the request buffer type is covered by it, the field
+  // value picks the target group. Returns the group number, or -1 when
+  // routing does not apply. No matching range or a missing field fails
+  // the call with TPESYSTEM, the way the platform does.
+  int routed_group(const char *svc, char *data);
+
   fux::ipc::flags to_flags(long flags);
   long next_blocktime();
   // drain late replies and timeout markers out of the reply queue; the

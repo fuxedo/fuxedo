@@ -19,9 +19,11 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 #include "cfg.h"
+#include "fbfr32.h"
 #include "fux.h"
 #include "mib.h"
 #include "misc.h"
+#include "qm.h"
 
 using fux::fml32buf;
 
@@ -491,17 +493,172 @@ static void t_queue_get(fml32buf & /*in*/, fml32buf &out) {
   out.put(TA_OCCURS, 0, oc);
 }
 
+// /Q classes are served from the queue folders; they work with and
+// without a running application, like the file view. TA_QMCONFIG in the
+// request selects the device, falling back to the QMCONFIG environment.
+class qm_select {
+ public:
+  qm_select(const std::string &device) : prev_(fux::util::getenv("QMCONFIG", "")) {
+    setenv("QMCONFIG", device.c_str(), 1);
+  }
+  ~qm_select() {
+    if (prev_.empty()) {
+      unsetenv("QMCONFIG");
+    } else {
+      setenv("QMCONFIG", prev_.c_str(), 1);
+    }
+  }
+
+ private:
+  std::string prev_;
+};
+
+static std::string qm_device(fml32buf &in) {
+  auto device = in.get<std::string>(TA_QMCONFIG, 0, "");
+  if (device.empty()) {
+    device = fux::util::getenv("QMCONFIG", "");
+  }
+  if (device.empty()) {
+    throw std::logic_error("QMCONFIG not set");
+  }
+  return device;
+}
+
+static long meta_long(const fux::qm::kv &meta, const char *key, long def = 0) {
+  auto it = meta.find(key);
+  return it == meta.end() ? def : std::stol(it->second);
+}
+
+static std::string meta_str(const fux::qm::kv &meta, const char *key) {
+  auto it = meta.find(key);
+  return it == meta.end() ? "" : it->second;
+}
+
+static void t_appqspace_get(fml32buf &in, fml32buf &out) {
+  qm_select sel(qm_device(in));
+  auto want = in.get<std::string>(TA_APPQSPACENAME, 0, "");
+  auto lmid = in.get<std::string>(TA_LMID, 0, "");
+
+  FLDOCC32 oc = 0;
+  for (auto &space : fux::qm::list_qspaces()) {
+    if (!want.empty() && space != want) {
+      continue;
+    }
+    auto meta = fux::qm::read_meta(fux::qm::qspace_dir(space) /
+                                   fux::qm::META_FILE);
+    out.put(TA_APPQSPACENAME, oc, space);
+    out.put(TA_QMCONFIG, oc, fux::util::getenv("QMCONFIG", ""));
+    out.put(TA_LMID, oc, lmid);
+    out.put(TA_STATE, oc, "ACT");
+    out.put(TA_MAXPAGES, oc, meta_long(meta, "pages"));
+    out.put(TA_MAXQUEUES, oc, meta_long(meta, "queues"));
+    out.put(TA_MAXTRANS, oc, meta_long(meta, "trans"));
+    out.put(TA_MAXPROC, oc, meta_long(meta, "procs"));
+    out.put(TA_MAXMSG, oc, meta_long(meta, "messages"));
+    out.put(TA_ERRORQNAME, oc, meta_str(meta, "errorq"));
+    out.put(TA_BLOCKING, oc, meta_long(meta, "blocking", 16));
+    out.put(TA_CURQUEUES, oc, (long)fux::qm::list_queues(space).size());
+    oc++;
+  }
+
+  out.put(TA_ERROR, 0, TAOK);
+  out.put(TA_OCCURS, 0, oc);
+}
+
+static void t_appq_get(fml32buf &in, fml32buf &out) {
+  qm_select sel(qm_device(in));
+  auto want_space = in.get<std::string>(TA_APPQSPACENAME, 0, "");
+  auto want_queue = in.get<std::string>(TA_APPQNAME, 0, "");
+  auto lmid = in.get<std::string>(TA_LMID, 0, "");
+
+  FLDOCC32 oc = 0;
+  for (auto &space : fux::qm::list_qspaces()) {
+    if (!want_space.empty() && space != want_space) {
+      continue;
+    }
+    for (auto &qname : fux::qm::list_queues(space)) {
+      if (!want_queue.empty() && qname != want_queue) {
+        continue;
+      }
+      auto meta = fux::qm::read_meta(
+          fux::qm::queue_dir(space, qname) / fux::qm::META_FILE);
+      out.put(TA_APPQSPACENAME, oc, space);
+      out.put(TA_APPQNAME, oc, qname);
+      out.put(TA_QMCONFIG, oc, fux::util::getenv("QMCONFIG", ""));
+      out.put(TA_LMID, oc, lmid);
+      out.put(TA_STATE, oc, "ACT");
+      out.put(TA_APPQORDER, oc, meta_str(meta, "order"));
+      out.put(TA_OUTOFORDER, oc, meta_str(meta, "outoforder"));
+      out.put(TA_MAXRETRIES, oc, meta_long(meta, "retries"));
+      out.put(TA_RETRYDELAY, oc, meta_long(meta, "retrydelay"));
+      out.put(TA_CMDHW, oc, meta_str(meta, "hi"));
+      out.put(TA_CMDLW, oc, meta_str(meta, "lo"));
+      out.put(TA_CMD, oc, meta_str(meta, "cmd"));
+      out.put(TA_CURQUEUES,
+              oc, (long)fux::qm::list_msgs(space, qname, false).size());
+      oc++;
+    }
+  }
+
+  out.put(TA_ERROR, 0, TAOK);
+  out.put(TA_OCCURS, 0, oc);
+}
+
+static void t_appqmsg_get(fml32buf &in, fml32buf &out) {
+  qm_select sel(qm_device(in));
+  auto want_space = in.get<std::string>(TA_APPQSPACENAME, 0, "");
+  auto want_queue = in.get<std::string>(TA_APPQNAME, 0, "");
+  auto lmid = in.get<std::string>(TA_LMID, 0, "");
+
+  long t = time(nullptr);
+  FLDOCC32 oc = 0;
+  for (auto &space : fux::qm::list_qspaces()) {
+    if (!want_space.empty() && space != want_space) {
+      continue;
+    }
+    for (auto &qname : fux::qm::list_queues(space)) {
+      if (!want_queue.empty() && qname != want_queue) {
+        continue;
+      }
+      for (auto &m : fux::qm::list_msgs(space, qname, false)) {
+        out.put(TA_APPQSPACENAME, oc, space);
+        out.put(TA_APPQNAME, oc, qname);
+        out.put(TA_QMCONFIG, oc, fux::util::getenv("QMCONFIG", ""));
+        out.put(TA_LMID, oc, lmid);
+        // TA_MSGID is a long field: the numeric sequence part of the id
+        auto dot = m.id.find('.');
+        out.put(TA_MSGID, oc, std::stol(m.id.substr(dot + 1)));
+        out.put(TA_CORRID, oc, m.corrid);
+        out.put(TA_PRIORITY, oc, m.priority);
+        const char *state = "READY";
+        if (m.deqtime > t) {
+          state = "TIME";  // waiting for its deq_time
+        } else if (m.exptime != 0 && m.exptime <= t) {
+          state = "EXP";
+        }
+        out.put(TA_STATE, oc, state);
+        oc++;
+      }
+    }
+  }
+
+  out.put(TA_ERROR, 0, TAOK);
+  out.put(TA_OCCURS, 0, oc);
+}
+
 }  // namespace
 
 int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long /*flags*/) {
   return fux::atmi::exception_boundary(
       [&] {
         // the platform requires a preallocated FML32 output buffer and
-        // rejects a NULL one before any IPC happens
+        // rejects a NULL one before any IPC happens; its previous
+        // content is discarded on every call, keeping the allocation
         if (outbuf == nullptr || *outbuf == nullptr) {
           TPERROR(TPEINVAL, "*outbuf must point to an allocated FML32 buffer");
           return -1;
         }
+        Finit32(*outbuf, reinterpret_cast<Fbfr32 *>(*outbuf)->size());
         fml32buf in(&inbuf);
         fml32buf out(outbuf);
 
@@ -532,6 +689,23 @@ int tpadmcall(FBFR32 *inbuf, FBFR32 **outbuf, long /*flags*/) {
               t_svcgrp_get(in, out);
             } else {
               t_service_get(in, out);
+            }
+            return 0;
+          }
+          throw std::logic_error("Unsupported TA_OPERATION " + operation);
+        }
+
+        // /Q classes: served from the queue folders, application need
+        // not be running
+        if (klass == "T_APPQSPACE" || klass == "T_APPQ" ||
+            klass == "T_APPQMSG") {
+          if (operation == "GET") {
+            if (klass == "T_APPQSPACE") {
+              t_appqspace_get(in, out);
+            } else if (klass == "T_APPQ") {
+              t_appq_get(in, out);
+            } else {
+              t_appqmsg_get(in, out);
             }
             return 0;
           }
