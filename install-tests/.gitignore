@@ -74,3 +74,4 @@ ubbconfig.fast
 /orarm/TLOG
 /orarm/server.lis
 /orarm/xa_*.trc
+/orarm/orarm.h

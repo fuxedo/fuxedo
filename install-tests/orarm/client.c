@@ -52,6 +52,46 @@ int main(void) {
   svc("INSERT", 106, "slow");
   printf("S6 commit rc=%d tperrno=%d\n", tpcommit(0), tperrno);
 
+  // S7: two-RM commit: Oracle insert + /Q enqueue in one transaction
+  tpbegin(30, 0);
+  svc("INSERT", 201, "s7");
+  {
+    char *qmsg = tpalloc("STRING", NULL, 32);
+    strcpy(qmsg, "two-rm-commit");
+    TPQCTL qctl;
+    memset(&qctl, 0, sizeof(qctl));
+    int rc = tpenqueue("QSPACE", "JOBS", &qctl, qmsg, 0, 0);
+    printf("S7 enqueue rc=%d tperrno=%d\n", rc, tperrno);
+    tpfree(qmsg);
+  }
+  printf("S7 commit rc=%d tperrno=%d\n", tpcommit(0), tperrno);
+
+  // S8: two-RM abort: neither the row nor the message may survive
+  tpbegin(30, 0);
+  svc("INSERT", 202, "s8");
+  {
+    char *qmsg = tpalloc("STRING", NULL, 32);
+    strcpy(qmsg, "two-rm-abort");
+    TPQCTL qctl;
+    memset(&qctl, 0, sizeof(qctl));
+    int rc = tpenqueue("QSPACE", "JOBS", &qctl, qmsg, 0, 0);
+    printf("S8 enqueue rc=%d tperrno=%d\n", rc, tperrno);
+    tpfree(qmsg);
+  }
+  printf("S8 abort rc=%d tperrno=%d\n", tpabort(0), tperrno);
+
+  // post-run probe: the S7 message must be dequeuable, S8's never
+  {
+    char *qmsg = tpalloc("STRING", NULL, 64);
+    TPQCTL qctl;
+    memset(&qctl, 0, sizeof(qctl));
+    long qlen = 64;
+    int rc = tpdequeue("QSPACE", "JOBS", &qctl, &qmsg, &qlen, 0);
+    printf("S7 probe dequeue rc=%d tperrno=%d msg=%s\n", rc, tperrno,
+           rc == 0 ? qmsg : "-");
+    tpfree(qmsg);
+  }
+
   tpfree((char *)fb);
   tpfree(reply);
   tpterm();

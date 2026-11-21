@@ -19,24 +19,29 @@ export ORARM_PASS := fuxedo
 export ORARM_DB := //localhost:1521/XEPDB1
 export ORARM_DB_ALIAS := XEPDB1
 export TNS_ADMIN := $(CURDIR)
-XAINFO := Oracle_XA+ACC=P/$(ORARM_USER)/$(ORARM_PASS)+SqlNet=XEPDB1+Threads=true+SesTm=60
-ifeq ($(wildcard $(TUXDIR)/lib/libfuxedo.so*),)
-export OPENINFO := $(XAINFO)
-else
-export OPENINFO := Oracle_XA:$(XAINFO)
-endif
-# Oracle's prebuilt lib/TMS.o needs a non-PIE link on modern toolchains
-export CFLAGS := -no-pie
+# the platform strips "<switch_name>:" before xa_open; the xa_info
+# itself keeps its own "Oracle_XA+" prefix (same on Oracle and fuxedo)
+export OPENINFO := Oracle_XA:Oracle_XA+ACC=P/$(ORARM_USER)/$(ORARM_PASS)+SqlNet=XEPDB1+Threads=true+SesTm=60
+# Oracle's prebuilt lib/TMS.o needs a non-PIE link on modern
+# toolchains; scoped to the buildtms invocation, not the whole build
 
 IPCKEY := $(shell echo $$(( (RANDOM % 20000) + 41000 )))
 
-check: scrub db-setup orasvr client TMS_ORACLE tuxconfig crlog
+check: scrub db-setup orasvr client TMS_ORACLE TMS_QM_ORARM tuxconfig crlog qsetup
 	-tmipcrm -y 2>/dev/null
 	tmboot -y
 	sleep 3
 	./client
 	-tmshutdown -y
 	$(MAKE) verify
+
+# queue space for the two-RM scenarios
+qsetup:
+	rm -rf QUE
+	printf 'crdl %s 0 400\nqspacecreate -n 100B\nQSPACE\n46001\n100\n6\n4\n9\n3\nERRQ\nn\n16\nqopen QSPACE\nqcreate JOBS fifo none 2 30 100%% 0%% -\n' "$$(pwd)/QUE" | qmadmin "$$(pwd)/QUE"
+
+TMS_QM_ORARM:
+	CFLAGS=-no-pie buildtms -o $@ -r TUXEDO/QM -v
 
 # (re)create the test table; the instance may have been rebuilt
 db-setup:
@@ -57,7 +62,7 @@ scrub:
 # row visibility, asserted from outside the application
 verify:
 	@$(ORACLE_HOME)/bin/sqlplus -s $(ORARM_USER)/$(ORARM_PASS)@$(ORARM_DB) @verify.sql
-	@echo "expected: s1=1 s3=1 s5=1 s2=0 s4=0 s6=0"
+	@echo "expected: s1=1 s3=1 s5=1 s2=0 s4=0 s6=0 s7=1 s8=0"
 
 ubbconfig: ubbconfig.in
 	cat $< \
@@ -72,7 +77,7 @@ tuxconfig: ubbconfig
 
 # the platform flow: allocate the log device, then initialize it
 crlog: tuxconfig
-	rm -rf TLOG
+	rm -rf TLOG QUE
 	printf 'crdl -b 200 -z %s\ncrlog -m tuxapp\nq\n' "$(CURDIR)/TLOG" | tmadmin
 
 orasvr: server.c orarm.h
@@ -86,16 +91,17 @@ client: client.c orarm.h
 	  -v -f "-Wl,--no-as-needed"
 
 TMS_ORACLE:
-	buildtms -o $@ -r Oracle_XA -v
+	CFLAGS=-no-pie buildtms -o $@ -r Oracle_XA -v
 
 orarm.h: orarm.flds
 	mkfldhdr32 $<
+	@test -f $@ || mv orarm.flds.h $@
 
 clean:
 	-tmshutdown -y 2>/dev/null
 	-tmipcrm -y 2>/dev/null
-	rm -f ubbconfig tuxconfig orasvr client TMS_ORACLE orarm.h \
+	rm -f ubbconfig tuxconfig orasvr client TMS_ORACLE TMS_QM_ORARM orarm.h \
 	  orarm.fml ULOG.* stdout stderr
-	rm -rf TLOG
+	rm -rf TLOG QUE
 
-.PHONY: check verify crlog clean ubbconfig scrub db-setup
+.PHONY: check verify crlog clean ubbconfig scrub db-setup qsetup

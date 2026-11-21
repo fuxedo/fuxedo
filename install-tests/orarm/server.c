@@ -21,6 +21,7 @@
 #include <userlog.h>
 
 #include <oci.h>
+#include <xa.h>
 
 #include "orarm.h"
 
