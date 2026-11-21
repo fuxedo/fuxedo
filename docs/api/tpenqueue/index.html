@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tpenqueue() - append a message to a /Q queue | Fuxedo API reference</title>
+<meta name="description" content="tpenqueue() - append a message to a /Q queue. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="keywords" content="tpenqueue, tpenqueue example, Oracle Tuxedo tpenqueue, Tuxedo C API, Fuxedo, XATMI,tpdequeue,tpcall,tpbegin">
+<link rel="canonical" href="https://fuxedo.io/api/tpenqueue/">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://fuxedo.io/api/tpenqueue/">
+<meta property="og:title" content="tpenqueue() - append a message to a /Q queue">
+<meta property="og:description" content="tpenqueue() - append a message to a /Q queue. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="tpenqueue() - append a message to a /Q queue">
+<meta name="twitter:description" content="tpenqueue() - append a message to a /Q queue. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "tpenqueue() - append a message to a /Q queue",
+      "description": "tpenqueue() - append a message to a /Q queue. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.",
+      "url": "https://fuxedo.io/api/tpenqueue/",
+      "isPartOf": {"@type": "WebSite", "name": "Fuxedo API reference", "url": "https://fuxedo.io/api/"},
+      "programmingLanguage": "C",
+      "license": "https://opensource.org/licenses/MIT"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Fuxedo", "item": "https://fuxedo.io/"},
+        {"@type": "ListItem", "position": 2, "name": "API reference", "item": "https://fuxedo.io/api/"},
+        {"@type": "ListItem", "position": 3, "name": "tpenqueue"}
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/api/api.css">
+</head>
+<body>
+<div class="page">
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">tpenqueue()</h1>
+<p class="tagline">append a message to a /Q queue</p>
+
+<div class="api-layout">
+<nav class="api-nav">
+<h2>XATMI: session</h2>
+<ul>
+<li><a href="/api/tpinit/">tpinit</a></li>
+<li><a href="/api/tpterm/">tpterm</a></li>
+</ul>
+<h2>XATMI: errors</h2>
+<ul>
+<li><a href="/api/tperrno/">tperrno</a></li>
+<li><a href="/api/tpstrerror/">tpstrerror</a></li>
+</ul>
+<h2>XATMI: calls</h2>
+<ul>
+<li><a href="/api/tpcall/">tpcall</a></li>
+<li><a href="/api/tpacall/">tpacall</a></li>
+<li><a href="/api/tpgetrply/">tpgetrply</a></li>
+<li><a href="/api/tpcancel/">tpcancel</a></li>
+<li><a href="/api/tpforward/">tpforward</a></li>
+</ul>
+<h2>XATMI: buffers</h2>
+<ul>
+<li><a href="/api/tpalloc/">tpalloc</a></li>
+<li><a href="/api/tpfree/">tpfree</a></li>
+<li><a href="/api/tptypes/">tptypes</a></li>
+<li><a href="/api/tpexport/">tpexport</a></li>
+<li><a href="/api/tpimport/">tpimport</a></li>
+</ul>
+<h2>XATMI: transactions</h2>
+<ul>
+<li><a href="/api/tpbegin/">tpbegin</a></li>
+<li><a href="/api/tpgetlev/">tpgetlev</a></li>
+<li><a href="/api/tpsuspend/">tpsuspend</a></li>
+<li><a href="/api/tpresume/">tpresume</a></li>
+<li><a href="/api/tpcommit/">tpcommit</a></li>
+<li><a href="/api/tpabort/">tpabort</a></li>
+</ul>
+<h2>XATMI: queues</h2>
+<ul>
+<li><a class="here" href="/api/tpenqueue/">tpenqueue</a></li>
+<li><a href="/api/tpdequeue/">tpdequeue</a></li>
+</ul>
+<h2>XATMI: server</h2>
+<ul>
+<li><a href="/api/tpsvrinit/">tpsvrinit</a></li>
+<li><a href="/api/tpsvrdone/">tpsvrdone</a></li>
+<li><a href="/api/tpsvrthrinit/">tpsvrthrinit</a></li>
+<li><a href="/api/tpsvrthrdone/">tpsvrthrdone</a></li>
+<li><a href="/api/tpreturn/">tpreturn</a></li>
+<li><a href="/api/tpadvertise/">tpadvertise</a></li>
+<li><a href="/api/tpadvertisex/">tpadvertisex</a></li>
+<li><a href="/api/tpunadvertise/">tpunadvertise</a></li>
+</ul>
+<h2>FML32</h2>
+<ul>
+<li><a href="/api/fml32/">fml32</a></li>
+<li><a href="/api/Ferror32/">Ferror32</a></li>
+<li><a href="/api/Fstrerror32/">Fstrerror32</a></li>
+<li><a href="/api/Fadd32/">Fadd32</a></li>
+<li><a href="/api/Fchg32/">Fchg32</a></li>
+<li><a href="/api/Fget32/">Fget32</a></li>
+<li><a href="/api/Fdel32/">Fdel32</a></li>
+<li><a href="/api/Fnext32/">Fnext32</a></li>
+<li><a href="/api/Fprint32/">Fprint32</a></li>
+<li><a href="/api/Ffprint32/">Ffprint32</a></li>
+<li><a href="/api/Fwrite32/">Fwrite32</a></li>
+<li><a href="/api/Fread32/">Fread32</a></li>
+<li><a href="/api/Fboolco32/">Fboolco32</a></li>
+<li><a href="/api/Fboolev32/">Fboolev32</a></li>
+<li><a href="/api/Fboolpr32/">Fboolpr32</a></li>
+<li><a href="/api/Fmkfldid32/">Fmkfldid32</a></li>
+<li><a href="/api/Fneeded32/">Fneeded32</a></li>
+<li><a href="/api/Fsizeof32/">Fsizeof32</a></li>
+<li><a href="/api/Flen32/">Flen32</a></li>
+</ul>
+</nav>
+
+<div class="api-main">
+
+<h2>Synopsis</h2>
+<pre><code>#include &lt;atmi.h&gt;
+
+int tpenqueue(char *qspace, char *qname, TPQCTL *ctl,
+              char *data, long len, long flags);</code></pre>
+
+<h2>Description</h2>
+
+<p>tpenqueue() appends the buffer <code>data</code> to the queue
+<code>qname</code> in queue space <code>qspace</code>. Queue spaces live
+in the device named by the <code>QMCONFIG</code> environment variable;
+when the application runs a TMQUEUE server for the space, the request
+is routed through it, otherwise the caller talks to the queue files
+directly.</p>
+<p>The <code>TPQCTL</code> structure carries optional delivery
+properties; a zeroed structure means a plain, persistent message. The
+<code>flags</code> argument itself must be 0.</p>
+<p>Inside a transaction the enqueue is staged with the transaction and
+is undone when the transaction aborts, so a message either appears
+exactly once or not at all.</p>
+
+<h2>Arguments</h2>
+<table>
+<tr><th>Argument</th><th>Description</th></tr>
+<tr><td>qspace, qname</td><td>Queue space and queue names, both required. An unknown queue fails with TPENOENT.</td></tr>
+<tr><td>ctl</td><td>TPQCTL control structure. Zero all of it for plain delivery; see the flags below.</td></tr>
+<tr><td>data, len</td><td>The message buffer; len 0 for self-describing types (STRING, FML32, VIEW32) like in tpcall().</td></tr>
+<tr><td>flags</td><td>Must be 0. Anything else fails with TPEINVAL.</td></tr>
+</table>
+
+<h2>Flags</h2>
+<table>
+<tr><th>Flag</th><th>Description</th></tr>
+<tr><td>TPQREPLYQ</td><td>Set ctl.replyqueue to a queue name; the reply to this message is expected there.</td></tr>
+<tr><td>TPQFAILUREQ</td><td>Set ctl.failurequeue for messages that fail delivery.</td></tr>
+<tr><td>TPQTIME_ABS, TPQTIME_REL</td><td>Set ctl.deq_time to the absolute epoch time, or seconds from now, when the message becomes visible. Until then tpdequeue() skips it; the MIB T_APPQMSG class still lists it as TIME-state.</td></tr>
+<tr><td>TPQPRIORITY</td><td>Set ctl.priority (0-100, default 50) for priority-ordered queues.</td></tr>
+<tr><td>TPQCORRID</td><td>Set ctl.corrid, a caller-chosen correlation id, to find the message again with TPQGETBYCORRID on dequeue.</td></tr>
+<tr><td>TPQMSGID</td><td>On return, ctl.msgid identifies the stored message.</td></tr>
+</table>
+
+<h2>Errors (tperrno)</h2>
+<table>
+<tr><th>Code</th><th>Description</th></tr>
+<tr><td>TPEINVAL</td><td>NULL arguments, nonzero flags, or ctl field combinations that do not parse.</td></tr>
+<tr><td>TPENOENT</td><td>The queue space or queue does not exist.</td></tr>
+<tr><td>TPEDIAGNOSTIC</td><td>Queue manager rejection; ctl.diagnostic carries a QME_* code such as QMEBADQUEUE or QMEENOMSG.</td></tr>
+<tr><td>TPETRAN</td><td>Queue operations were requested inside a transaction for a resource manager that cannot stage them.</td></tr>
+<tr><td>TPETIME, TPESYSTEM, TPEOS</td><td>Timeouts and internal failures.</td></tr>
+</table>
+
+<h2>Notes</h2>
+
+<p><strong>Visibility.</strong> Messages with a future deq_time are not
+returned by tpdequeue() until their time arrives; an expired message
+moves to its failure queue automatically. The T_APPQMSG MIB class lists
+every stored message, future ones included.</p>
+
+
+<h2>Example</h2>
+<p class="example-file">Full source: <code>docs/api/examples/enqueue.c</code>
+(build and run with <code>make -C docs/api/examples check
+TUXDIR=&lt;install&gt;</code>); the lines documenting tpenqueue() are highlighted.</p>
+<pre><code>// Enqueue example: tpenqueue() puts a message on a /Q queue.
+// Queue files live in the device named by the QMCONFIG environment
+// variable; the sample domain does not need a TMQUEUE server for
+// this. run.sh creates the DOCS queue space and the TASKS queue
+// before invoking this program.
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;atmi.h&gt;
+
+static int fail(const char *what) {
+  fprintf(stderr, &quot;%s failed: %s (%d)\n&quot;, what, tpstrerror(tperrno),
+          tperrno);
+  return 1;
+}
+
+int main(void) {
+  if (tpinit(NULL) == -1) {
+    return fail(&quot;tpinit&quot;);
+  }
+
+  char *msg = tpalloc(&quot;STRING&quot;, NULL, 64);
+  strcpy(msg, &quot;urgent: ping&quot;);
+
+<span class="hl">  // TPQCTL describes optional delivery properties; zero means plain
+  // delivery. TPQREPLYQ records a queue name with the message so a
+  // reply can be routed there by whoever processes it.
+  TPQCTL ctl;
+  memset(&amp;ctl, 0, sizeof(ctl));
+  ctl.flags = TPQREPLYQ;
+  strcpy(ctl.replyqueue, &quot;PINGRPLY&quot;);
+
+  // tpenqueue(qspace, queue, ctl, data, len, flags) appends the
+  // buffer to the queue. Like tpcall(), STRING buffers pass len 0.
+  // Inside a transaction the enqueue is staged with it and undone on
+  // abort. On TPEDIAGNOSTIC, ctl.diagnostic carries a QME_* code.
+  if (tpenqueue(&quot;DOCS&quot;, &quot;TASKS&quot;, &amp;ctl, msg, 0, 0) == -1) {
+    fprintf(stderr, &quot;tpenqueue failed: %s (%d) diagnostic %ld\n&quot;,
+            tpstrerror(tperrno), tperrno, ctl.diagnostic);
+    return 1;
+  }</span>
+
+  printf(&quot;enqueued: %s\n&quot;, msg);
+  tpfree(msg);
+  tpterm();
+  return 0;
+}</code></pre>
+
+<p>See also: <a href="/api/tpdequeue/">tpdequeue</a>, <a href="/api/tpcall/">tpcall</a>, <a href="/api/tpbegin/">tpbegin</a>.</p>
+
+<p class="compat-line">fuxedo: supported.
+Cross-checked against Oracle Tuxedo 12.2.2 and 22.1
+with the API hardening suite.</p>
+
+</div>
+</div>
+
+<footer>
+<p>Part of the <a href="/api/">Fuxedo API reference</a>.
+<a href="https://github.com/fuxedo/fuxedo">Fuxedo</a> is the open source
+alternative to Oracle Tuxedo: same API, same commands, same System V IPC
+mechanics.</p>
+</footer>
+</div>
+</body>
+</html>

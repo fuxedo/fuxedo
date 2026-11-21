@@ -102,12 +102,14 @@ qcreate JOBS fifo none 2 30 100% 0% -""")
         # the future message is not dequeuable yet, the ready one is
         _, data = t.tpdequeue("QS1", "JOBS", t.TPQCTL())
         assert data == "run-now"
-        from tuxedo import XatmiException
+        from tuxedo import QmException
         try:
             t.tpdequeue("QS1", "JOBS", t.TPQCTL())
             raise AssertionError("future message must not be dequeuable yet")
-        except XatmiException as e:
-            assert e.code == t.TPETIME, f"unexpected code {e.code}"
+        except QmException as e:
+            # empty queue: TPEDIAGNOSTIC carrying QMENOMSG, pinned on
+            # Oracle 12.2.2 (QmException.code is the diagnostic)
+            assert e.code == t.QMENOMSG, f"unexpected diagnostic {e.code}"
 
 
 if __name__ == "__main__":

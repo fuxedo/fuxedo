@@ -35,11 +35,13 @@ int main(void) {
   printf("reply: [%s]\n", buf);
   assert(strncmp(buf, "replied:hello queue", 19) == 0);
 
-  // direct dequeue of an empty queue must fail with TPETIME
+  // direct dequeue of an empty queue fails with TPEDIAGNOSTIC and
+  // QMENOMSG (pinned against Oracle 12.2.2)
   TPQCTL ectl = {};
   long elen = 100;
   assert(tpdequeue("QSPACE", "RPLYQ", &ectl, (char **)&buf, &elen, 0) == -1);
-  assert(tperrno == TPETIME);
+  assert(tperrno == TPEDIAGNOSTIC);
+  assert(ectl.diagnostic == QMENOMSG);
 
   tpterm();
   return 0;

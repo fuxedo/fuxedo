@@ -102,8 +102,9 @@ def test_client_transactional_enqueue_commit():
             try:
                 t.tpdequeue("QSPACE", "Q1", t.TPQCTL())
                 raise AssertionError("aborted message must not be visible")
-            except t.XatmiException as e:
-                assert e.code == t.TPETIME, e.code
+            except t.QmException as e:
+                # empty queue: TPEDIAGNOSTIC with QMENOMSG (Oracle pin)
+                assert e.code == t.QMENOMSG, e.code
             txroot = dir / "QUE" / "QSPACE" / ".tx"
             assert not txroot.exists() or not any(txroot.iterdir())
 

@@ -76,6 +76,12 @@ class file_lock {
 };
 
 void log::create(const std::string &device, uint64_t offset, uint64_t size) {
+  // the platform's crlog expects an empty placeholder file to exist;
+  // replace it instead of failing on the mkdir
+  std::error_code ec;
+  if (fs::is_regular_file(device, ec) && fs::file_size(device, ec) == 0) {
+    fs::remove(device, ec);
+  }
   fs::create_directories(device);
   meta m = {};
   memcpy(m.magic, MAGIC, sizeof(m.magic));

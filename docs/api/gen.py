@@ -29,6 +29,7 @@ GROUPS = [
                         "tpimport"]),
     ("XATMI: transactions", ["tpbegin", "tpgetlev", "tpsuspend",
                              "tpresume", "tpcommit", "tpabort"]),
+    ("XATMI: queues", ["tpenqueue", "tpdequeue"]),
     ("XATMI: server", ["tpsvrinit", "tpsvrdone", "tpsvrthrinit",
                        "tpsvrthrdone", "tpreturn", "tpadvertise",
                        "tpadvertisex", "tpunadvertise"]),
@@ -622,6 +623,132 @@ as failure.</p>""",
         "versions": None,
         "example": ("txdemo.c", "tpabort"),
         "see_also": ["tpcommit", "tpbegin"],
+    },
+    "tpenqueue": {
+        "title": "append a message to a /Q queue",
+        "group": "XATMI: queues",
+        "synopsis": "int tpenqueue(char *qspace, char *qname, TPQCTL *ctl,\n"
+                    "              char *data, long len, long flags);",
+        "description": """
+<p>tpenqueue() appends the buffer <code>data</code> to the queue
+<code>qname</code> in queue space <code>qspace</code>. Queue spaces live
+in the device named by the <code>QMCONFIG</code> environment variable;
+when the application runs a TMQUEUE server for the space, the request
+is routed through it, otherwise the caller talks to the queue files
+directly.</p>
+<p>The <code>TPQCTL</code> structure carries optional delivery
+properties; a zeroed structure means a plain, persistent message. The
+<code>flags</code> argument itself must be 0.</p>
+<p>Inside a transaction the enqueue is staged with the transaction and
+is undone when the transaction aborts, so a message either appears
+exactly once or not at all.</p>""",
+        "args": [
+            ("qspace, qname", "Queue space and queue names, both required. "
+                              "An unknown queue fails with TPENOENT."),
+            ("ctl", "TPQCTL control structure. Zero all of it for plain "
+                    "delivery; see the flags below."),
+            ("data, len", "The message buffer; len 0 for self-describing "
+                          "types (STRING, FML32, VIEW32) like in tpcall()."),
+            ("flags", "Must be 0. Anything else fails with TPEINVAL."),
+        ],
+        "flags": [
+            ("TPQREPLYQ", "Set ctl.replyqueue to a queue name; the reply "
+                          "to this message is expected there."),
+            ("TPQFAILUREQ", "Set ctl.failurequeue for messages that fail "
+                            "delivery."),
+            ("TPQTIME_ABS, TPQTIME_REL", "Set ctl.deq_time to the absolute "
+                                         "epoch time, or seconds from now, "
+                                         "when the message becomes "
+                                         "visible. Until then tpdequeue() "
+                                         "skips it; the MIB T_APPQMSG "
+                                         "class still lists it as "
+                                         "TIME-state."),
+            ("TPQPRIORITY", "Set ctl.priority (0-100, default 50) for "
+                            "priority-ordered queues."),
+            ("TPQCORRID", "Set ctl.corrid, a caller-chosen correlation "
+                          "id, to find the message again with "
+                          "TPQGETBYCORRID on dequeue."),
+            ("TPQMSGID", "On return, ctl.msgid identifies the stored "
+                         "message."),
+        ],
+        "errors": [
+            ("TPEINVAL", "NULL arguments, nonzero flags, or ctl field "
+                         "combinations that do not parse."),
+            ("TPENOENT", "The queue space or queue does not exist."),
+            ("TPEDIAGNOSTIC", "Queue manager rejection; ctl.diagnostic "
+                              "carries a QME_* code such as QMEBADQUEUE "
+                              "or QMEENOMSG."),
+            ("TPETRAN", "Queue operations were requested inside a "
+                        "transaction for a resource manager that cannot "
+                        "stage them."),
+            ("TPETIME, TPESYSTEM, TPEOS", "Timeouts and internal "
+                                          "failures."),
+        ],
+        "notes": """
+<p><strong>Visibility.</strong> Messages with a future deq_time are not
+returned by tpdequeue() until their time arrives; an expired message
+moves to its failure queue automatically. The T_APPQMSG MIB class lists
+every stored message, future ones included.</p>""",
+        "versions": None,
+        "example": ("enqueue.c", "tpenqueue"),
+        "see_also": ["tpdequeue", "tpcall", "tpbegin"],
+    },
+    "tpdequeue": {
+        "title": "take the next message off a /Q queue",
+        "group": "XATMI: queues",
+        "synopsis": "int tpdequeue(char *qspace, char *qname, TPQCTL *ctl,\n"
+                    "              char **data, long *len, long flags);",
+        "description": """
+<p>tpdequeue() removes the next visible message from <code>qname</code>
+and returns it in <code>*data</code>. <code>*data</code> must point at
+a tpalloc'd buffer; the library may replace it with a larger one if the
+message does not fit.</p>
+<p>Messages whose deq_time lies in the future are skipped, so a queue
+holding only future messages behaves as empty. Waiting is governed by
+TPQWAIT in <code>ctl-&gt;flags</code>, with an optional deadline from
+TPQTIME_ABS/TPQTIME_REL; the <code>flags</code> argument itself accepts
+TPNOTIME (wait without a deadline) and the selectors below.</p>""",
+        "args": [
+            ("qspace, qname", "Queue space and queue names, both required. "
+                              "An unknown queue fails with TPENOENT."),
+            ("ctl", "TPQCTL control structure; zeroed for a plain "
+                    "dequeue."),
+            ("data, len", "Address of the buffer pointer and a length. "
+                          "The buffer must come from tpalloc()."),
+            ("flags", "0, TPNOTIME, TPQPEEK, or a selector."),
+        ],
+        "flags": [
+            ("TPQWAIT", "ctl.flags: wait for a message instead of failing "
+                        "with TPETIME on an empty queue."),
+            ("TPQTIME_ABS, TPQTIME_REL", "ctl.flags: with TPQWAIT, set "
+                                         "ctl.deq_time as the wait "
+                                         "deadline (absolute epoch or "
+                                         "seconds)."),
+            ("TPNOTIME", "flags: with TPQWAIT, wait without a deadline."),
+            ("TPQGETBYMSGID, TPQGETBYCORRID", "ctl.flags with ctl.msgid or "
+                                              "ctl.corrid set: take the "
+                                              "specific message instead "
+                                              "of the first one."),
+            ("TPQPEEK", "Read the message without removing it."),
+        ],
+        "errors": [
+            ("TPEINVAL", "NULL arguments, *data not tpalloc'd, or invalid "
+                         "flag combinations."),
+            ("TPENOENT", "The queue space or queue does not exist."),
+            ("TPETIME", "No visible message (and no wait, or the wait "
+                        "deadline passed)."),
+            ("TPEDIAGNOSTIC", "Queue manager rejection; ctl.diagnostic "
+                              "carries a QME_* code."),
+            ("TPETRAN, TPESYSTEM, TPEOS", "Transactional misuse and "
+                                          "internal failures."),
+        ],
+        "notes": """
+<p><strong>Reply routing.</strong> A message enqueued with TPQREPLYQ
+names the queue where the service reply belongs; a TMQFORWARD-driven
+service chain reads the reply queue from the dequeued message.</p>""",
+        "versions": None,
+        "example": ("dequeue.c", "tpdequeue"),
+        "see_also": ["tpenqueue", "tpalloc", "tpcall"],
     },
     "tpexport": {
         "title": "render a typed buffer in portable form",

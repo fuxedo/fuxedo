@@ -17,7 +17,8 @@ export FLDTBLDIR32 := $(CURDIR)
 export FIELDTBLS32 := demo
 export TMPDIR := $(CURDIR)/.tmp
 
-CLIENTS := tpcall acall cancel buffers session fmldemo txdemo
+CLIENTS := tpcall acall cancel buffers session fmldemo txdemo \
+           enqueue dequeue
 
 check: tuxconfig apisvr advsvr $(CLIENTS)
 	mkdir -p $(TMPDIR)
@@ -53,5 +54,6 @@ clean:
 	-tmipcrm -y 2>/dev/null
 	-rm -f ubbconfig tuxconfig apisvr advsvr $(CLIENTS) demo.h \
 	  demo.fml ULOG.* stdout stderr
+	-rm -rf QUE TLOG
 
 .PHONY: check clean

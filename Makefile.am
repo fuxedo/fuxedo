@@ -234,7 +234,9 @@ EXTRA_DIST = docs/api/gen.py docs/api/api.css docs/api/index.html \
 	docs/api/examples/advsvr.c docs/api/examples/tpcall.c \
 	docs/api/examples/acall.c docs/api/examples/cancel.c \
 	docs/api/examples/buffers.c docs/api/examples/session.c \
-	docs/api/examples/fmldemo.c docs/api/examples/demo
+	docs/api/examples/fmldemo.c docs/api/examples/txdemo.c \
+	docs/api/examples/enqueue.c docs/api/examples/dequeue.c \
+	docs/api/examples/demo
 
 install-exec-hook:
 	(cd $(DESTDIR)${libdir}; $(LN_S) -f libfuxedo.so libtmib.so)

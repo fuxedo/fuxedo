@@ -52,8 +52,10 @@ static void forward_loop() {
                                     &data, &len, TPQWAIT);
     if (rc == -1) {
       tpfree(data);
-      if (tperrno == TPETIME) {
-        continue;  // TPQWAIT timed out; keep listening
+      bool empty = tperrno == TPEDIAGNOSTIC &&
+                   ctl.diagnostic == QMENOMSG;
+      if (empty || tperrno == TPETIME) {
+        continue;  // no message yet; keep listening
       }
       userlog("TMQFORWARD: dequeue from %s failed: %s", g_queue.c_str(),
               tpstrerror(tperrno));

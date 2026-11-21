@@ -53,7 +53,7 @@ int remote_fail(TPQCTL *ctl, const char *what, long diag) {
   if (diag == QMEINVAL) {
     TPERROR(TPEINVAL, "%s", what);
   } else if (diag == QMENOMSG) {
-    TPERROR(TPETIME, "%s", what);
+    TPERROR(TPEDIAGNOSTIC, "%s", what);
   } else if (diag == QMEBADQUEUE || diag == QMEBADMSGID) {
     TPERROR(TPENOENT, "%s", what);
   } else if (diag == QMETRAN) {
@@ -149,8 +149,10 @@ int exec_dequeue(const char *qspace, const char *qname, TPQCTL *ctl,
     auto result = fux::qm::dequeue(
         qspace, qname, ctl, ((flags & TPQPEEK) != 0) || stage, wait_ms);
     if (!result.found) {
+      // the platform reports an empty queue as TPEDIAGNOSTIC with
+      // QMENOMSG; TPETIME belongs to the wait deadline expiring
       ctl->diagnostic = QMENOMSG;
-      TPERROR(TPETIME, "no message available on queue %s", qname);
+      TPERROR(TPEDIAGNOSTIC, "no message available on queue %s", qname);
       return -1;
     }
     if (stage) {
@@ -338,7 +340,11 @@ int tpdequeue(char *qspace, char *qname, TPQCTL *ctl, char **data, long *len,
   for (;;) {
     int rc = tpdequeue_once(svc, qspace, qname, ctl, data, len, flags,
                             via_server);
-    if (rc == 0 || wait_ms == 0 || wait_ms == -1 || tperrno != TPETIME) {
+    // an empty queue reports TPEDIAGNOSTIC/QMENOMSG; that is the signal
+    // to keep waiting, never TPETIME (Oracle 12.2.2 pin)
+    bool empty = rc == -1 && tperrno == TPEDIAGNOSTIC &&
+                 ctl->diagnostic == QMENOMSG;
+    if (rc == 0 || !empty || wait_ms == 0 || wait_ms == -1) {
       fux::trace::event("} tpdequeue = %d", rc);
       return rc;
     }
@@ -346,8 +352,12 @@ int tpdequeue(char *qspace, char *qname, TPQCTL *ctl, char **data, long *len,
                    std::chrono::steady_clock::now().time_since_epoch())
                    .count();
     if (deadline > 0 && now >= deadline) {
-      fux::trace::event("} tpdequeue = %d", rc);
-      return rc;
+      // the wait deadline expired: that is what TPETIME is for
+      TPERROR(TPETIME, "no message available on queue %s within the wait "
+                       "deadline",
+              qname);
+      fux::trace::event("} tpdequeue = -1");
+      return -1;
     }
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }

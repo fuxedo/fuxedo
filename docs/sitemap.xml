@@ -28,6 +28,8 @@
   <url><loc>https://fuxedo.io/api/tpresume/</loc></url>
   <url><loc>https://fuxedo.io/api/tpcommit/</loc></url>
   <url><loc>https://fuxedo.io/api/tpabort/</loc></url>
+  <url><loc>https://fuxedo.io/api/tpenqueue/</loc></url>
+  <url><loc>https://fuxedo.io/api/tpdequeue/</loc></url>
   <url><loc>https://fuxedo.io/api/tpsvrinit/</loc></url>
   <url><loc>https://fuxedo.io/api/tpsvrdone/</loc></url>
   <url><loc>https://fuxedo.io/api/tpsvrthrinit/</loc></url>
