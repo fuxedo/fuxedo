@@ -25,7 +25,7 @@ tuxconfig: ubbconfig
 	tmloadcf -y $<
 
 server: server.c
-	buildserver -o $@ -f $< -s SERVICE_TPSUCCESS -s SERVICE_TPFAIL -v -f "-Wl,--no-as-needed"
+	buildserver -o $@ -f $< -s SERVICE_TPSUCCESS -s SERVICE_TPFAIL -s LENCHECK -s NULLSVC -s SWITCHSVC -v -f "-Wl,--no-as-needed"
 
 client: client.c
 	buildclient -o $@ -f $< -v -f "-Wl,--no-as-needed"

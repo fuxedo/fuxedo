@@ -25,6 +25,7 @@ dequeue
 enqueue
 txdemo
 conv
+prio
 tpcall
 acall
 cancel

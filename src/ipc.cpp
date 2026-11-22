@@ -326,6 +326,21 @@ bool qrecv_intr(int msqid, msg &data, long msgtype) {
   return true;
 }
 
+bool qrecv_wait(int msqid, msg &data, long msgtype, int flags) {
+  data.resize(queue_msgmax());
+  ssize_t n = msgrcv(msqid, data.buf(), queue_msgmax(), msgtype, flags);
+  if (n == -1) {
+    if (errno == EINTR) {
+      return false;
+    }
+    throw std::system_error(errno, std::system_category());
+  }
+  data.resize(n + sizeof(long));
+  FUX_PROBE2(qrecv, msqid, static_cast<long>(data.size()));
+  load_from_file(data, n);
+  return true;
+}
+
 void qdelete(int msqid) { msgctl(msqid, IPC_RMID, NULL); }
 
 void msg::set_data(char *data, long len) {

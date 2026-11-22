@@ -15,6 +15,10 @@ AM_CXXFLAGS = -g -Wall -Wextra -Werror $(gcov_flags) \
 AM_LDFLAGS = $(gcov_ldflags)
 
 include_HEADERS = include/atmi.h include/xatmi.h \
+                  include/Usysflds.h \
+                  include/Usignal.h \
+                  include/fml.h include/sqlca.h include/sqlcode.h \
+                  include/fml1632.h \
                   include/fml32.h \
                   include/userlog.h \
                   include/atmidefs.h \
@@ -29,8 +33,8 @@ lib_LTLIBRARIES = src/libfuxedo.la
 noinst_HEADERS = src/compat.h
 
 src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
-                           src/fml32.cpp src/expr.cpp \
-                           src/view32.cpp src/fv32.cpp \
+                           src/fml32.cpp src/fml16.cpp src/getopt.cpp src/expr.cpp \
+                           src/view32.cpp src/fv32.cpp src/buftypes.cpp \
                            src/server.cpp src/client.cpp src/ws.cpp src/xml.cpp \
                            src/mib.cpp src/ubb2mib.cpp src/cfg.cpp \
                            src/userlog.cpp \
@@ -44,7 +48,7 @@ src_libfuxedo_la_SOURCES = src/xatmi.cpp src/mem.cpp \
 
 src_libfuxedo_la_LDFLAGS = -lpthread
 
-bin_PROGRAMS = src/mkfldhdr32 src/viewc32 src/viewdis32 src/ud32 \
+bin_PROGRAMS = src/mkfldhdr32 src/mkfldhdr src/viewc32 src/viewc src/viewdis32 src/ud32 src/ud \
                src/crdl src/crlog src/dmloadcf src/dmunloadcf src/dmadmin \
                src/fux \
                src/tmipcrm \
@@ -114,15 +118,22 @@ src_tmshutdown_SOURCES = src/tmshutdown.cpp
 src_tmshutdown_LDADD = src/libfuxedo.la
 
 src_mkfldhdr32_SOURCES = src/mkfldhdr32.cpp
+src_mkfldhdr_SOURCES = src/mkfldhdr.cpp
+src_viewc_SOURCES = src/viewc32.cpp
+src_viewc_CPPFLAGS = -DVIEWC16_DEFAULTS
 src_mkfldhdr32_LDADD = src/libfuxedo.la
 
 src_viewc32_SOURCES = src/viewc32.cpp
 src_viewc32_LDADD = src/libfuxedo.la
+src_viewc_LDADD = src/libfuxedo.la
+src_mkfldhdr_LDADD = src/libfuxedo.la
 
 src_viewdis32_SOURCES = src/viewdis32.cpp
 src_viewdis32_LDADD = src/libfuxedo.la
 
 src_ud32_SOURCES = src/ud32.cpp
+src_ud_SOURCES = src/ud16.cpp
+src_ud_LDADD = src/libfuxedo.la
 src_ud32_LDADD = src/libfuxedo.la
 
 src_crdl_SOURCES = src/crdl.cpp
@@ -146,17 +157,24 @@ src_tmipcrm_LDADD = src/libfuxedo.la
 udataobjdir = @prefix@/udataobj
 udataobj_DATA = RM include/tpadm
 
-TESTS = tests/impl/routing tests/compat/xatmi tests/compat/fml32 tests/compat/expr tests/compat/view32 tests/compat/hardening tests/compat/flags tests/compat/xmlfml tests/impl/mib tests/impl/dmlink tests/impl/ipcq tests/compat/base64 tests/impl/userlog tests/impl/trx tests/impl/qm tests/impl/cfg tests/impl/tlog tests/impl/qmtx
+TESTS = tests/impl/routing tests/compat/xatmi tests/compat/fml32 tests/compat/expr tests/compat/view32 tests/compat/hardening tests/compat/flags tests/compat/xmlfml tests/impl/mib tests/impl/dmlink tests/impl/ipcq tests/compat/base64 tests/impl/userlog tests/impl/trx tests/impl/qm tests/impl/cfg tests/impl/tlog tests/impl/qmtx tests/compat/fml16 tests/compat/view16
 check_PROGRAMS = $(TESTS)
 
 AM_TESTS_ENVIRONMENT = FLDTBLDIR32=.:src:tests FIELDTBLS32=dummy,fields \
-                       VIEWDIR32=tests/compat VIEWFILES32=view32test.V
+                       FLDTBLDIR=.:src:tests FIELDTBLS=dummy,fields \
+                       VIEWDIR32=tests/compat VIEWFILES32=view32test.V \
+                       VIEWDIR=tests/compat VIEWFILES=view16test.V
 
-BUILT_SOURCES = tests/compat/view32test.h tests/compat/view32test.V
-CLEANFILES = tests/compat/view32test.h tests/compat/view32test.V
+BUILT_SOURCES = tests/compat/view32test.h tests/compat/view32test.V \
+                tests/compat/view16test.h tests/compat/view16test.V
+CLEANFILES = tests/compat/view32test.h tests/compat/view32test.V \
+             tests/compat/view16test.h tests/compat/view16test.V
 
 tests/compat/view32test.h tests/compat/view32test.V: $(top_srcdir)/tests/compat/view32test.v $(top_builddir)/src/viewc32$(EXEEXT)
 	cd tests/compat && FLDTBLDIR32=$(abs_top_srcdir)/tests FIELDTBLS32=fields $(abs_top_builddir)/src/viewc32 $(abs_top_srcdir)/tests/compat/view32test.v
+
+tests/compat/view16test.h tests/compat/view16test.V: $(top_srcdir)/tests/compat/view16test.v $(top_builddir)/src/viewc$(EXEEXT)
+	cd tests/compat && $(abs_top_builddir)/src/viewc $(abs_top_srcdir)/tests/compat/view16test.v
 
 tests_impl_userlog_SOURCES = tests/impl/userlog.cpp tests/tests-main.cpp
 tests_impl_userlog_LDADD = src/libfuxedo.la
@@ -188,6 +206,13 @@ tests_compat_xmlfml_SOURCES = tests/compat/xmlfml.cpp tests/tests-main.cpp
 tests_compat_xmlfml_LDADD = src/libfuxedo.la
 tests_compat_view32_LDADD = src/libfuxedo.la
 tests_compat_view32_CPPFLAGS = -I$(top_builddir)/tests/compat
+
+tests_compat_fml16_SOURCES = tests/compat/fml16.cpp tests/tests-main.cpp
+tests_compat_fml16_LDADD = src/libfuxedo.la
+
+tests_compat_view16_SOURCES = tests/compat/view16.cpp tests/tests-main.cpp
+tests_compat_view16_LDADD = src/libfuxedo.la
+tests_compat_view16_CPPFLAGS = -I$(top_builddir)/tests/compat
 
 tests_impl_mib_SOURCES = tests/impl/mib.cpp tests/tests-main.cpp
 tests_impl_dmlink_SOURCES = tests/impl/dmlink.cpp tests/tests-main.cpp

@@ -1,7 +1,7 @@
 """Data-dependent routing (*ROUTING) tests.
 
 Vendor neutral: the same assertions were pinned against Oracle 12.2
-(runtime behavior in private/notes/routing-pins.md). Two groups offer
+runtime behavior. Two groups offer
 the same services; the request buffer's routing field decides which
 group serves the call. Values outside every range (and buffers missing
 the field) fail with TPESYSTEM on both platforms.

@@ -13,6 +13,7 @@
 #include "routing.h"
 #include "ubb2mib.h"
 #include "ubbreader.h"
+#include "view32.h"
 
 template <typename T>
 static long checked_get(T &dict, const std::string &key, long min, long max) {
@@ -198,16 +199,43 @@ void ubb2mib(ubbconfig &u, mib &m) {
                              " contains an invalid RANGES value");
     }
     // resolve the routing field now (the way the platform resolves it in
-    // the bulletin board at boot) so clients evaluate routing by id
-    auto fieldid = Fldid32(entry.field);
-    if (fieldid == BADFLDID) {
-      throw std::logic_error("Cannot map field name " +
-                             std::string(entry.field) +
-                             " to field identifier for criteria " +
-                             rtconf.first);
+    // the bulletin board at boot) so clients evaluate routing by id or
+    // struct offset. VIEW-buffer criteria resolve through the view
+    // registry (the 16-bit env names, like the rest of the VIEW flavor)
+    if (strncmp(entry.buftype, "VIEW", 4) == 0) {
+      const char *vname = entry.buftype[4] == ':' ? entry.buftype + 5 : "";
+      auto view = fux::view::get16(vname);
+      if (view == nullptr) {
+        throw std::logic_error("Cannot map VIEW buftype " +
+                               std::string(entry.buftype) +
+                               " for criteria " + rtconf.first);
+      }
+      bool found = false;
+      for (auto &m : view->members) {
+        if (m.cname == entry.field) {
+          entry.view_off = m.off;
+          entry.fldtype = m.type;
+          entry.fieldid = m.fldid;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        throw std::logic_error("Cannot map view field " +
+                               std::string(entry.field) +
+                               " for criteria " + rtconf.first);
+      }
+    } else {
+      auto fieldid = Fldid32(entry.field);
+      if (fieldid == BADFLDID) {
+        throw std::logic_error("Cannot map field name " +
+                               std::string(entry.field) +
+                               " to field identifier for criteria " +
+                               rtconf.first);
+      }
+      entry.fieldid = fieldid;
+      entry.fldtype = Fldtype32(fieldid);
     }
-    entry.fieldid = fieldid;
-    entry.fldtype = Fldtype32(fieldid);
     auto &slot = routings.at(routings->len);
     slot = entry;
     routings->len++;

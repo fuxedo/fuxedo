@@ -134,3 +134,39 @@ TEST_CASE("queue operations in transaction mode are rejected", "[qm]") {
   // domain-level tests instead. fux::tx::tx_active() guards the check so
   // standalone queue use works without a domain.
 }
+
+TEST_CASE("expired messages move to the failure queue", "[qm]") {
+  qm_test_dir qm;
+  TPQCTL ctl = {};
+  ctl.flags = TPQFAILUREQ | TPQEXPTIME_REL;
+  ctl.exp_time = 1;
+  strcpy(ctl.failurequeue, "ERRQ");
+  auto data = tpalloc(const_cast<char *>("STRING"), nullptr, 16);
+  strcpy(data, "expire me");
+  REQUIRE(tpenqueue(const_cast<char *>("QS1"), const_cast<char *>("TASKS"),
+                    &ctl, data, 0, TPNOFLAGS) == 0);
+  // without a failure queue the message simply disappears
+  TPQCTL ctl2 = {};
+  ctl2.flags = TPQEXPTIME_REL;
+  ctl2.exp_time = 1;
+  strcpy(data, "vanish");
+  REQUIRE(tpenqueue(const_cast<char *>("QS1"), const_cast<char *>("TASKS"),
+                    &ctl2, data, 0, TPNOFLAGS) == 0);
+  sleep(2);
+  // poking the home queue scans it and moves expired messages
+  TPQCTL poke = {};
+  long len = 16;
+  auto out = tpalloc(const_cast<char *>("STRING"), nullptr, 16);
+  REQUIRE(tpdequeue(const_cast<char *>("QS1"), const_cast<char *>("TASKS"),
+                    &poke, &out, &len, TPNOFLAGS) == -1);
+  REQUIRE(tperrno == TPEDIAGNOSTIC);
+  REQUIRE(poke.diagnostic == QMENOMSG);
+  // the failure queue is created on demand and holds the expired one
+  TPQCTL get = {};
+  long elen = 16;
+  REQUIRE(tpdequeue(const_cast<char *>("QS1"), const_cast<char *>("ERRQ"),
+                    &get, &out, &elen, TPNOFLAGS) == 0);
+  REQUIRE(std::string(out) == "expire me");
+  tpfree(data);
+  tpfree(out);
+}

@@ -1,4 +1,5 @@
 // Conversational server example: one CHAT service, advertised at
+#include <stdio.h>
 // buildserver time. The client connected with TPSENDONLY, so the
 // service must tprecv() before it may tpsend(). An empty message is
 // the polite end; tpdiscon shows up as TPEV_DISCONIMM.
@@ -30,4 +31,14 @@ void CHAT(TPSVCINFO *svcinfo) {
     }
   }
   tpreturn(TPSUCCESS, 0, NULL, 0, 0);
+}
+
+// PRIO: answers with the priority attribute of the invoking call,
+// surfaced through tpgprio() (the docs example for tpsprio/tpgprio)
+void PRIO(TPSVCINFO *svcinfo) {
+  // tpreturn data must be a tpalloc()'d buffer (or svcinfo->data), the
+  // library reads the buffer header at return time
+  char *reply = tpalloc("STRING", NULL, 32);
+  snprintf(reply, 32, "prio=%d", tpgprio());
+  tpreturn(TPSUCCESS, 0, reply, 0, 0);
 }

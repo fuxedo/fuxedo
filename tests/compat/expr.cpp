@@ -55,7 +55,7 @@ TEST_CASE("boolean expression conversions", "[fml32]") {
 
   auto VALUE = Fldid32(DECONST("VALUE"));
 
-  REQUIRE(Fchg32(fbfr, VALUE, 0, DECONST("000001"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, VALUE, 0, DECONST("000001"), 0) == 1);
 
   // if one side is string field it is converted to number
   REQUIRE(boolev(fbfr, "VALUE == '000001'"));
@@ -80,10 +80,10 @@ TEST_CASE("boolean expression occurances", "[fml32]") {
   auto NAME = Fldid32(DECONST("NAME"));
   auto VALUE = Fldid32(DECONST("VALUE"));
 
-  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("name1"), 0) != -1);
-  REQUIRE(Fchg32(fbfr, VALUE, 0, DECONST("000001"), 0) != -1);
-  REQUIRE(Fchg32(fbfr, NAME, 1, DECONST("name2"), 0) != -1);
-  REQUIRE(Fchg32(fbfr, VALUE, 2, DECONST("000002"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("name1"), 0) == 1);
+  REQUIRE(Fchg32(fbfr, VALUE, 0, DECONST("000001"), 0) == 1);
+  REQUIRE(Fchg32(fbfr, NAME, 1, DECONST("name2"), 0) == 1);
+  REQUIRE(Fchg32(fbfr, VALUE, 2, DECONST("000002"), 0) == 1);
 
   REQUIRE(boolev(fbfr, "NAME == 'name1'"));
 
@@ -105,17 +105,17 @@ TEST_CASE("boolean expression '?' subscript", "[fml32]") {
   auto NAME = Fldid32(DECONST("NAME"));
   auto SALARY = Fldid32(DECONST("SALARY"));
 
-  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("name1"), 0) != -1);
-  REQUIRE(Fchg32(fbfr, NAME, 1, DECONST("name2"), 0) != -1);
-  REQUIRE(Fchg32(fbfr, NAME, 2, DECONST("name3"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("name1"), 0) == 1);
+  REQUIRE(Fchg32(fbfr, NAME, 1, DECONST("name2"), 0) == 1);
+  REQUIRE(Fchg32(fbfr, NAME, 2, DECONST("name3"), 0) == 1);
 
   float salary;
   salary = 100.0;
-  REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) != -1);
+  REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) == 1);
   salary = 200.0;
-  REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) != -1);
+  REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) == 1);
   salary = 300.0;
-  REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) != -1);
+  REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) == 1);
 
   REQUIRE(boolev(fbfr, "NAME[?] == 'name1'"));
 
@@ -148,9 +148,9 @@ TEST_CASE("boolean expression regex", "[fml32]") {
 
   auto NAME = Fldid32(DECONST("NAME"));
 
-  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("foo"), 0) != -1);
-  REQUIRE(Fchg32(fbfr, NAME, 1, DECONST("bar"), 0) != -1);
-  REQUIRE(Fchg32(fbfr, NAME, 2, DECONST("foobar"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("foo"), 0) == 1);
+  REQUIRE(Fchg32(fbfr, NAME, 1, DECONST("bar"), 0) == 1);
+  REQUIRE(Fchg32(fbfr, NAME, 2, DECONST("foobar"), 0) == 1);
 
   REQUIRE(boolev(fbfr, "NAME[0] %% 'foo'"));
   REQUIRE(!boolev(fbfr, "NAME[0] %% 'fooBAR'"));
@@ -166,7 +166,7 @@ TEST_CASE("boolean expression regex full string matching", "[fml32]") {
 
   auto NAME = Fldid32(DECONST("NAME"));
 
-  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("1234567890"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("1234567890"), 0) == 1);
 
   REQUIRE(boolev(fbfr, "NAME %% '[0-1].*'"));
   REQUIRE(!boolev(fbfr, "NAME !% '[0-1].*'"));
@@ -197,7 +197,7 @@ TEST_CASE("boolean expression unary", "[fml32]") {
 #endif
 
   auto NAME = Fldid32(DECONST("NAME"));
-  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("13"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, NAME, 0, DECONST("13"), 0) == 1);
 
   REQUIRE(boolev(fbfr, "!(!NAME)"));
 
@@ -230,7 +230,7 @@ TEST_CASE("boolean expression Ffloatev32", "[fml32]") {
 
   auto SALARY = Fldid32(DECONST("SALARY"));
   float salary = 100.0;
-  REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) != -1);
+  REQUIRE(Fchg32(fbfr, SALARY, 0, reinterpret_cast<char *>(&salary), 0) == 1);
 
   REQUIRE(numev(fbfr, "1+SALARY") == 101);
 
@@ -242,7 +242,7 @@ TEST_CASE("boolean expression Ffloatev32", "[fml32]") {
 
   auto AGE = Fldid32(DECONST("AGE"));
   long age = 18;
-  REQUIRE(Fchg32(fbfr, AGE, 0, reinterpret_cast<char *>(&age), 0) != -1);
+  REQUIRE(Fchg32(fbfr, AGE, 0, reinterpret_cast<char *>(&age), 0) == 1);
 
   REQUIRE(numev(fbfr, "AGE + 1") == 19);
 

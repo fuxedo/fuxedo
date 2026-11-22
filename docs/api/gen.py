@@ -26,7 +26,7 @@ GROUPS = [
     ("XATMI: session", ["tpinit", "tpterm"]),
     ("XATMI: errors", ["tperrno", "tpstrerror"]),
     ("XATMI: calls", ["tpcall", "tpacall", "tpgetrply", "tpcancel",
-                      "tpforward"]),
+                      "tpforward", "tpsprio", "tpgprio"]),
     ("XATMI: conversational", ["tpconnect", "tpsend", "tprecv",
                                "tpdiscon"]),
     ("XATMI: buffers", ["tpalloc", "tpfree", "tptypes", "tpexport",
@@ -319,6 +319,73 @@ C-style cleanup.</p>""",
         "versions": None,
         "example": ("apisvr.c", "tpforward"),
         "see_also": ["tpcall", "tpreturn"],
+    },
+    "tpsprio": {
+        "title": "set the priority attribute for subsequent calls",
+        "group": "XATMI: calls",
+        "synopsis": "int tpsprio(int prio, long flags);",
+        "description": """
+<p>tpsprio() sets the priority attribute that rides with the
+application's NEXT call (pinned live: after the call is sent, the
+value resets to the documented 50 default). The documentation describes it as a
+scheduling hint; pinned live against Oracle Tuxedo 12.2.2 and 22.1,
+it is not: requests are still dispatched in arrival order, and the
+only observable effect is the attribute itself, readable inside a
+service with tpgprio().</p>
+<p>The value is an opaque attribute: it is never range-checked (0,
+101, and negative values are all accepted), and it has no effect on
+the caller's own waits.</p>""",
+        "args": [
+            ("prio", "The attribute value. Not range-checked: any int "
+                     "is accepted, including 0 and negatives."),
+            ("flags", "TPABSOLUTE stores prio as-is; 0 (relative) "
+                      "adjusts the current value by prio. Any other "
+                      "flag fails with TPEINVAL."),
+        ],
+        "flags": [
+            ("TPABSOLUTE", "Store the value as-is."),
+            ("0", "Relative: adjust the current value (default base "
+                  "50)."),
+        ],
+        "flags_note": "Any other flag fails with TPEINVAL; that is "
+                      "the only validation this call performs.",
+        "errors": [
+            ("TPEINVAL", "flags is neither 0 nor TPABSOLUTE."),
+        ],
+        "notes": """
+<p><strong>What actually works.</strong> Pinned against both Oracle
+Tuxedo 12.2.2 and 22.1 on a live domain: tpsprio() never changes
+dispatch order (a full request queue is still drained FIFO), the
+value applies to the next call only, and client-side tpgprio() reads
+-1 there regardless of what was set.
+What does travel is the attribute: tpgprio() inside a service returns
+the caller's priority for that call, or the documented default 50
+when the caller never set one. fuxedo implements exactly that: the
+API contract is kept, the scheduling claim is a no-op.</p>""",
+        "versions": None,
+        "example": ("prio.c", "tpsprio"),
+        "see_also": ["tpgprio", "tpcall"],
+    },
+    "tpgprio": {
+        "title": "read the priority attribute",
+        "group": "XATMI: calls",
+        "synopsis": "int tpgprio(void);",
+        "description": """
+<p>tpgprio() reads the priority attribute. Where it reads from
+depends on who is calling (pinned against Oracle Tuxedo 12.2.2 and
+22.1):</p>
+<p><strong>In a service:</strong> returns the priority the caller set
+with tpsprio() for this call, or 50 when the caller never set one.
+This is the one place the value is reliably observable.</p>
+<p><strong>In a client:</strong> Oracle reads -1 regardless;
+fuxedo returns the value set by the last tpsprio() on the thread.</p>""",
+        "args": [],
+        "flags": None,
+        "errors": [],
+        "notes": None,
+        "versions": None,
+        "example": ("prio.c", "tpgprio"),
+        "see_also": ["tpsprio", "tpcall"],
     },
     "tpconnect": {
         "title": "open a conversation with a service",
@@ -1278,11 +1345,25 @@ able to occur multiple times. A field id packs a type and a number;
 <code>Fldtype32()</code> and <code>Fldno32()</code> decode it and
 <code>Fmkfldid32()</code> builds one. Field names come from field
 tables compiled with <code>mkfldhdr32</code>.</p>
-<p>Every call in this group takes a <code>FBFR32 *</code>, returns 0 or
-a count on success and -1 on error, and reports the failure in
-<code>Ferror32</code> (render it with <code>Fstrerror32()</code>).
-Occurrence counts (<code>FLDOCC32</code>) are zero-based; -1 means all
-occurrences where a call accepts it.</p>
+<p>Every call in this group takes a <code>FBFR32 *</code> and reports
+failure as -1 (or NULL on the calls that return pointers), with the
+reason in <code>Ferror32</code> (render it with
+<code>Fstrerror32()</code>). On success each call answers its own
+value: 1 for most adders, changers, and readers, a count for
+<code>Foccur32</code>, a size for <code>Fsizeof32</code>,
+<code>Fneeded32</code>, and <code>Flen32</code>, and 1-or-0 for
+<code>Fnext32</code> as it walks the buffer.</p>
+<p><strong>The success value is not a boolean.</strong> Oracle has
+answered both 0 and 1 for the same calls across functions and
+releases, and the documentation has been quiet about which; a lot of
+shipped code checks <code>== 0</code>, other code checks
+<code>== 1</code>, and both keep working because each call returns
+exactly what the current platform returns. Fuxedo matches that ABI per
+call. For new code the only portable contract is <code>!= -1</code>
+(or a NULL check on pointer-returning calls) — never write
+<code>if (Fadd32(...))</code>, a successful 1 reads as failure.</p>
+<p>Occurrence counts (<code>FLDOCC32</code>) are zero-based; -1 means
+all occurrences where a call accepts it.</p>
 <p>In ATMI programs the buffers come from <code>tpalloc("FML32", ...)</code>
 and are released with <code>tpfree()</code>. Outside ATMI, libfml32
 allocates with <code>Falloc32()</code>/<code>Ffree32()</code> and
@@ -1364,7 +1445,11 @@ the code later edits the same field.</p>""",
             ("FNOSPACE", "No room; see Fneeded32()."),
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
-        "notes": None,
+        "notes": """
+<p><strong>Return value.</strong> 1 on success, -1 on error, with the reason
+in Ferror32. The portable check is <code>!= -1</code>; see the
+<a href="/api/fml32/">FML32 model</a> for why a boolean test is
+wrong here.</p>""",
         "versions": None,
         "example": ("fmldemo.c", "Fadd32"),
         "see_also": ["Fchg32", "Fdel32", "Fnext32"],
@@ -1430,7 +1515,11 @@ when the occurrence does not exist.</p>""",
             ("FEINVAL", "Bad field id."),
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
-        "notes": None,
+        "notes": """
+<p><strong>Return value.</strong> 1 on success, -1 on error, with the reason
+in Ferror32. The portable check is <code>!= -1</code>; see the
+<a href="/api/fml32/">FML32 model</a> for why a boolean test is
+wrong here.</p>""",
         "versions": None,
         "example": ("fmldemo.c", "Fget32"),
         "see_also": ["Fnext32", "Flen32", "Fchg32"],
@@ -1455,7 +1544,11 @@ equivalent for a single occurrence.</p>""",
             ("FNOTPRES", "The field or occurrence is not present."),
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
-        "notes": None,
+        "notes": """
+<p><strong>Return value.</strong> 1 on success, -1 on error, with the reason
+in Ferror32. The portable check is <code>!= -1</code>; see the
+<a href="/api/fml32/">FML32 model</a> for why a boolean test is
+wrong here.</p>""",
         "versions": None,
         "example": ("fmldemo.c", "Fdel32"),
         "see_also": ["Fchg32", "Fadd32"],
@@ -1487,7 +1580,11 @@ to the buffer size before each call.</p>""",
                          "receives the needed size."),
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
-        "notes": None,
+        "notes": """
+<p><strong>Return value.</strong> 1 when a field was produced, 0 when
+the walk is done (Ferror32 stays clear), -1 on error. A walk that
+tests <code>!= -1</code> instead of <code>== 1</code> spins forever at
+the end of the buffer.</p>""",
         "versions": None,
         "example": ("fmldemo.c", "Fnext32"),
         "see_also": ["Fget32", "Fprint32"],
@@ -1507,7 +1604,11 @@ round-tripping.</p>""",
         "errors": [
             ("FNOTFLD", "fbfr is not an FML32 buffer."),
         ],
-        "notes": None,
+        "notes": """
+<p><strong>Return value.</strong> 1 on success, -1 on error, with the reason
+in Ferror32. The portable check is <code>!= -1</code>; see the
+<a href="/api/fml32/">FML32 model</a> for why a boolean test is
+wrong here.</p>""",
         "versions": None,
         "example": ("fmldemo.c", "Fprint32"),
         "see_also": ["Ffprint32", "Fwrite32", "Fread32"],

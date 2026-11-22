@@ -24,6 +24,7 @@ check:
 	make -C qsample
 	make -C bbl
 	make -C flags
+	make -C xafail
 
 # The subset that also passes against real Oracle Tuxedo installations
 # (run by CI with TUXDIR pointing at an Oracle home). build and qmtx

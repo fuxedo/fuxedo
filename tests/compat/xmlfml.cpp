@@ -52,11 +52,11 @@ TEST_CASE("tpxmltofml32 maps elements to typed fields", "[xmlfml]") {
   free(name);
   long dept = 0;
   REQUIRE(Fget32(f.p, Fldid32(const_cast<char *>("DEPT")), 0,
-                 reinterpret_cast<char *>(&dept), nullptr) != -1);
+                 reinterpret_cast<char *>(&dept), nullptr) == 1);
   REQUIRE(dept == 7);
   float salary = 0;
   REQUIRE(Fget32(f.p, Fldid32(const_cast<char *>("SALARY")), 0,
-                 reinterpret_cast<char *>(&salary), nullptr) != -1);
+                 reinterpret_cast<char *>(&salary), nullptr) == 1);
   REQUIRE(salary == Approx(12.5f));
 }
 
@@ -116,10 +116,10 @@ TEST_CASE("tpfml32toxml emits the platform shape", "[xmlfml]") {
   REQUIRE(g != nullptr);
   const char *name = "fux&edo";
   REQUIRE(Fadd32(g, Fldid32(const_cast<char *>("NAME")),
-                 const_cast<char *>(name), 0) != -1);
+                 const_cast<char *>(name), 0) == 1);
   long dept = 42;
   REQUIRE(Fadd32(g, Fldid32(const_cast<char *>("DEPT")),
-                 reinterpret_cast<char *>(&dept), 0) != -1);
+                 reinterpret_cast<char *>(&dept), 0) == 1);
   auto out = to_xml(g);
   // fields come out in FML32 field-id order, like Fnext32
   REQUIRE(out ==

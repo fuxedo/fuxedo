@@ -643,10 +643,50 @@ int tx_set_transaction_timeout(TRANSACTION_TIMEOUT timeout) {
 // Call TM
 
 int tpacall_group(int grpno, char *svc, char *data, long len, long flags);
+// the TM operation itself, shared by the .TM service and the local
+// branch drive below
+static int tm_op(int func, XID *xid, int rmid, long flags) {
+  int ret;
+  switch (func) {
+    case fux::tm::prepare:
+      FUX_PROBE3(xa__prepare, fux::to_string(xid).c_str(), rmid, flags);
+      ret = xasw->xa_prepare_entry(xid, rmid, flags);
+      FUX_PROBE1(xa__prepare_return, ret);
+      return ret;
+    case fux::tm::commit:
+      FUX_PROBE3(xa__commit, fux::to_string(xid).c_str(), rmid, flags);
+      ret = xasw->xa_commit_entry(xid, rmid, flags);
+      FUX_PROBE1(xa__commit_return, ret);
+      return ret;
+    case fux::tm::rollback:
+      FUX_PROBE3(xa__rollback, fux::to_string(xid).c_str(), rmid, flags);
+      ret = xasw->xa_rollback_entry(xid, rmid, flags);
+      FUX_PROBE1(xa__rollback_return, ret);
+      return ret;
+    default:
+      return XAER_INVAL;
+  }
+}
+
 void command(std::vector<branch> &branches, XID *xid, int command) {
   fux::fml32buf buf;
 
+  // the local group's branch is driven in-process: the branch's
+  // xa_start ran on this process's connection, so prepare/commit must
+  // run here too. forwarding it to the TMS would ask a different
+  // session about a branch it never saw (the platform's TMS handles
+  // recovery and the branches of servers that have left)
   for (auto &p : branches) {
+    if (fux::is_server() && p.grpno == fux::tx::grpno) {
+      p.result = tm_op(command, xid, fux::tx::grpno, 0);
+      p.cd = -1;
+    }
+  }
+
+  for (auto &p : branches) {
+    if (p.cd == -1) {
+      continue;
+    }
     buf.put(TA_XAFUNC, 0, command);
     buf.put(TA_XID, 0, fux::to_string(xid));
     buf.put(TA_RMID, 0, p.grpno);
@@ -695,27 +735,7 @@ static void tm(fux::fml32buf &buf) {
   long flags = buf.get<long>(TA_FLAGS, 0);
 
   XID xid = fux::to_xid(xids);
-  int ret;
-  switch (func) {
-    case fux::tm::prepare:
-      FUX_PROBE3(xa__prepare, xids.c_str(), rmid, flags);
-      ret = xasw->xa_prepare_entry(&xid, rmid, flags);
-      FUX_PROBE1(xa__prepare_return, ret);
-      break;
-    case fux::tm::commit:
-      FUX_PROBE3(xa__commit, xids.c_str(), rmid, flags);
-      ret = xasw->xa_commit_entry(&xid, rmid, flags);
-      FUX_PROBE1(xa__commit_return, ret);
-      break;
-    case fux::tm::rollback:
-      FUX_PROBE3(xa__rollback, xids.c_str(), rmid, flags);
-      ret = xasw->xa_rollback_entry(&xid, rmid, flags);
-      FUX_PROBE1(xa__rollback_return, ret);
-      break;
-    default:
-      ret = XAER_INVAL;
-  }
-  buf.put(TA_XARET, 0, ret);
+  buf.put(TA_XARET, 0, tm_op(static_cast<int>(func), &xid, rmid, flags));
 }
 
 extern "C" void TM(TPSVCINFO *svcinfo) {

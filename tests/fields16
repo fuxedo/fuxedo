@@ -1,0 +1,10 @@
+# 16-bit field table for the VIEW16 compat suite
+VS16 110 short
+VL16 111 long
+VC16 112 char
+VF16 113 float
+VD16 114 double
+VSTR16 115 string
+VCA16 116 carray
+VNUMS16 117 short
+VNAMES16 118 string

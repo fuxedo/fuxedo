@@ -1,12 +1,39 @@
 #include <assert.h>
 #include <atmi.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 
+// a caught SIGTERM mid-wait must end the call with TPGOTSIG (the
+// platform behavior, pinned against Oracle 12.2.2); the Makefile
+// sends the signal a couple of seconds into the SLEEP call
+static void on_term(int sig) {
+  (void)sig;
+}
+
+static int gotsig_mode() {
+  struct sigaction act;
+  memset(&act, 0, sizeof(act));
+  act.sa_handler = on_term;
+  assert(sigaction(SIGTERM, &act, NULL) == 0);
+
+  char *buf = tpalloc("STRING", NULL, 6);
+  strcpy(buf, "HELLO");
+  long rlen = 6;
+  int rc = tpcall("SLEEP", buf, 0, &buf, &rlen, 0);
+  int err = tperrno;
+  printf("gotsig: tpcall rc=%d tperrno=%d\n", rc, err);
+  fflush(stdout);
+  return rc == -1 && err == TPGOTSIG ? 0 : 1;
+}
+
 int main(int argc, char *argv[]) {
+  if (argc > 1 && strcmp(argv[1], "gotsig") == 0) {
+    return gotsig_mode();
+  }
   char *sndbuf = tpalloc("STRING", NULL, 6);
   assert(sndbuf != NULL);
   strcpy(sndbuf, "HELLO");

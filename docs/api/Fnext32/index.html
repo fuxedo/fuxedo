@@ -65,6 +65,8 @@
 <li><a href="/api/tpgetrply/">tpgetrply</a></li>
 <li><a href="/api/tpcancel/">tpcancel</a></li>
 <li><a href="/api/tpforward/">tpforward</a></li>
+<li><a href="/api/tpsprio/">tpsprio</a></li>
+<li><a href="/api/tpgprio/">tpgprio</a></li>
 </ul>
 <h2>XATMI: conversational</h2>
 <ul>
@@ -164,6 +166,12 @@ to the buffer size before each call.</p>
 <tr><td>FNOTFLD</td><td>fbfr is not an FML32 buffer.</td></tr>
 </table>
 
+<h2>Notes</h2>
+
+<p><strong>Return value.</strong> 1 when a field was produced, 0 when
+the walk is done (Ferror32 stays clear), -1 on error. A walk that
+tests <code>!= -1</code> instead of <code>== 1</code> spins forever at
+the end of the buffer.</p>
 
 
 <h2>Example</h2>

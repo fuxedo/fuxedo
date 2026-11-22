@@ -185,7 +185,8 @@ struct service {
 };
 
 // one *ROUTING criteria; the field id and type are resolved by tmloadcf
-// so clients evaluate routing without loading field tables
+// so clients evaluate routing without loading field tables. VIEW-buffer
+// criteria carry a struct offset instead of a field id.
 struct routing_entry {
   char name[128];
   char field[64];
@@ -193,6 +194,7 @@ struct routing_entry {
   long fldtype = 0;
   char buftype[256];
   char ranges[2048];
+  long view_off = -1;  // >= 0: read the value at this struct offset
 };
 
 constexpr size_t maxrouting = 32;

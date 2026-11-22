@@ -6,13 +6,15 @@ export PATH:=$(TUXDIR)/bin:$(PATH)
 export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
 export TUXCONFIG:=$(CURDIR)/tuxconfig
 
-check: test-fml32 test-expr test-view32 test-client test-hardening test-flags tuxconfig
+check: test-fml32 test-expr test-view32 test-client test-hardening test-flags test-fml16 test-view16 tuxconfig
 	FLDTBLDIR32=../../tests FIELDTBLS32=fields ./test-fml32 -r console
 	FLDTBLDIR32=../../tests FIELDTBLS32=fields ./test-expr -r console
 	FLDTBLDIR32=../../tests FIELDTBLS32=fields VIEWDIR32=. VIEWFILES32=view32test.V ./test-view32 -r console
 	./test-client -r console
 	FLDTBLDIR32=../../tests FIELDTBLS32=fields VIEWDIR32=. VIEWFILES32=view32test.V ./test-hardening -r console
 	FLDTBLDIR32=../../tests FIELDTBLS32=fields ./test-flags -r console
+	FLDTBLDIR=../../tests FIELDTBLS=fields ./test-fml16 -r console
+	VIEWDIR=. VIEWFILES=view16test.V ./test-view16 -r console
 
 ubbconfig: ubbconfig.in
 	cat $< \
@@ -39,6 +41,20 @@ client.o: client.cpp
 view32test.h view32test.V: ../../tests/compat/view32test.v
 	FLDTBLDIR32=../../tests FIELDTBLS32=fields viewc32 -d . ../../tests/compat/view32test.v
 
+view16test.h view16test.V: ../../tests/compat/view16test.v
+	FLDTBLDIR=../../tests FIELDTBLS=fields16 viewc -d . ../../tests/compat/view16test.v
+
+fml16.o: ../../tests/compat/fml16.cpp
+	$(CXX) -c -o $@ $< $(CFLAGS)
+view16.o: ../../tests/compat/view16.cpp view16test.h
+	$(CXX) -c -o $@ $< $(CFLAGS) -I.
+
+test-fml16: fml16.o tests-main.o
+	CC="$(CXX)" buildclient -o $@ -f "tests-main.o fml16.o" -v -f "-Wl,--no-as-needed"
+
+test-view16: view16.o tests-main.o
+	CC="$(CXX)" buildclient -o $@ -f "tests-main.o view16.o" -v -f "-Wl,--no-as-needed"
+
 test-fml32: fml32.o tests-main.o
 	CC="$(CXX)" buildclient -o $@ -f "tests-main.o fml32.o" -v -f "-Wl,--no-as-needed"
 
@@ -64,4 +80,4 @@ test-flags: flags.o tests-main.o
 	CC="$(CXX)" buildclient -o $@ -f "tests-main.o flags.o" -v -f "-Wl,--no-as-needed"
 
 clean:
-	-rm -f *.o ubbconfig tuxconfig test-client ULOG.* stdout stderr access.* *.o test-fml32 test-expr test-view32 test-hardening test-flags view32test.h view32test.V
+	-rm -f *.o ubbconfig tuxconfig test-client ULOG.* stdout stderr access.* *.o test-fml32 test-expr test-view32 test-hardening test-flags test-fml16 test-view16 view32test.h view32test.V view16test.h view16test.V

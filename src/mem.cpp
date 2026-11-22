@@ -9,11 +9,13 @@
 #include "compat.h"
 #include "fbfr32.h"
 #include "misc.h"
+#include "buftypes.h"
+#include "view32.h"
 
 namespace fux::mem {
 
 struct tptype {
-  char type[8];
+  char type[16];
   char subtype[16];
   int default_size;
   void (*init)(void *mem, size_t size);
@@ -28,13 +30,18 @@ static tptype _tptypes[] = {
     tptype{"TPINIT", "*", TPINITNEED(0), nullptr, nullptr, nullptr, nullptr},
     tptype{"CARRAY", "*", 0, nullptr, nullptr, nullptr, nullptr},
     tptype{"STRING", "*", 512, nullptr, nullptr, nullptr, strused},
-    tptype{"FML32", "*", 512, fml32init, fml32reinit, fml32finit, fml32used},
-    tptype{"XML", "*", 512, nullptr, nullptr, nullptr, strused}};
+    tptype{"FML32", "*", 1024, fml32init, fml32reinit, fml32finit, fml32used},
+    tptype{"FML", "*", 1024, fml16init, fml16reinit, nullptr, fml16used},
+    tptype{"VIEW", "*", 1024, nullptr, nullptr, nullptr, view16used},
+    tptype{"VIEW32", "*", 1024, nullptr, nullptr, nullptr, view32used},
+    tptype{"X_OCTET", "*", 0, nullptr, nullptr, nullptr, nullptr},
+    tptype{"X_COMMON", "*", 1024, nullptr, nullptr, nullptr, view16used},
+    tptype{"XML", "*", 0, nullptr, nullptr, nullptr, strused}};
 
 struct tpmem {
   long size;
   char **owner;
-  char type[8];
+  char type[16];
   char subtype[16];
   char data[];
 };
@@ -44,12 +51,18 @@ static tpmem *memptr(char *ptr) {
 }
 
 static const tptype *typeptr(const char *type, const char *subtype) {
-  const auto &tptype = std::find_if(
-      std::cbegin(_tptypes), std::cend(_tptypes), [&](const auto &t) {
-        return (strncmp(t.type, type, sizeof(t.type)) == 0 &&
-                (subtype == nullptr || subtype[0] == '\0' ||
-                 strncmp(t.subtype, subtype, sizeof(t.subtype)) == 0));
-      });
+  auto matches = [&](const auto &t) {
+    if (strncmp(t.type, type, sizeof(t.type)) != 0) {
+      return false;
+    }
+    // the "*" entry is the wildcard for runtime-resolved subtypes
+    // (VIEW buffers resolve the name through the view registry)
+    return subtype == nullptr || subtype[0] == '\0' ||
+           strncmp(t.subtype, "*", sizeof(t.subtype)) == 0 ||
+           strncmp(t.subtype, subtype, sizeof(t.subtype)) == 0;
+  };
+  const auto &tptype = std::find_if(std::cbegin(_tptypes), std::cend(_tptypes),
+                                    matches);
   if (tptype == std::end(_tptypes)) {
     TPERROR(TPENOENT, "unknown type [%s] and subtype[%s]", type,
             subtype == nullptr ? "" : subtype);
@@ -69,7 +82,35 @@ char *tpalloc(char *type, char *subtype, long size) {
     return nullptr;
   }
 
+  // view-backed buffers (VIEW/VIEW32/X_COMMON) size against the view
+  // definition and must fit the allocation; both an unknown view name
+  // and a view larger than the request fail with TPEOS, pinned on
+  // Oracle 12.2.2
+  const bool viewtyped =
+      strncmp(tptype->type, "VIEW", sizeof(tptype->type)) == 0 ||
+      strncmp(tptype->type, "X_COM", 5) == 0;
+  long vsize = 0;
+  if (viewtyped && subtype != nullptr && subtype[0] != '\0') {
+    vsize = tptype->used == view32used
+                ? fux::view::view32_used(subtype, 0)
+                : fux::view::view_used(subtype, 0);
+    if (vsize == 0) {
+      TPERROR(TPEOS, "unknown VIEW %s", subtype);
+      return nullptr;
+    }
+  }
+
   size = size >= tptype->default_size ? size : tptype->default_size;
+  if (viewtyped && vsize > size) {
+    TPERROR(TPEOS, "VIEW %s does not fit", subtype);
+    return nullptr;
+  }
+  // types without a default size (CARRAY, X_OCTET, XML) require an
+  // explicit length, like the platform
+  if (size == 0) {
+    TPERROR(TPEINVAL, "size must be specified for %.8s", tptype->type);
+    return nullptr;
+  }
   auto mem = (tpmem *)malloc(sizeof(tpmem) + size);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-truncation"
@@ -150,15 +191,17 @@ long tptypes(char *ptr, char *type, char *subtype) {
     TPERROR(TPEINVAL, "Buffer not fielded");
     return -1;
   }
+  // the platform's type names are at most 8 characters (X_COMMON);
+  // callers size their buffers for 8, so that is what is handed back
   if (type != nullptr) {
-    std::copy_n(mem->type, sizeof(mem->type), type);
+    std::copy_n(mem->type, 8, type);
   }
   if (subtype != nullptr) {
     std::copy_n(mem->subtype, sizeof(mem->subtype), subtype);
   }
 
   fux::atmi::reset_tperrno();
-  return 0;
+  return mem->size;
 }
 
 int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags) {
@@ -258,7 +301,7 @@ int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags) {
     *olen = ilen;
   }
   fux::atmi::reset_tperrno();
-  return 0;
+  return 1;
 }
 
 int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags) {
@@ -303,7 +346,7 @@ int tpexport(char *ibuf, long ilen, char *ostr, long *olen, long flags) {
 
   *olen = needed;
   fux::atmi::reset_tperrno();
-  return 0;
+  return 1;
 }
 
 void setowner(char *ptr, char **owner) { memptr(ptr)->owner = owner; }

@@ -14,6 +14,7 @@ check: pump client tmsqm tuxconfig tlog
 	tmboot -y
 	sleep 3
 	./client
+	./client concurrent
 	tmshutdown -y
 	@crlog tlog | head -8
 

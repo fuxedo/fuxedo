@@ -13,7 +13,7 @@ check: qsvc client tuxconfig
 	-rm -rf QUE
 	-sleep 2
 	-mkdir -p QUE
-	printf 'qspacecreate QSPACE 47695 100 6 4 9 3 errque n 16\nqopen QSPACE\nqcreate STRING fifo none 2 30 80%% 0%% -\nqcreate RPLYQ fifo none 2 30 80%% 0%% -\n' | QMCONFIG=$(CURDIR)/QUE qmadmin
+	printf 'qspacecreate QSPACE 47695 100 6 4 9 3 errque n 16\nqopen QSPACE\nqcreate STRING fifo none 2 30 80%% 0%% -\nqcreate RPLYQ fifo none 2 30 80%% 0%% -\nqcreate NOFWD fifo none 2 30 80%% 0%% -\n' | QMCONFIG=$(CURDIR)/QUE qmadmin
 	tmboot -y
 	sleep 3
 	./client

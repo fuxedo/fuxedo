@@ -1,3 +1,4 @@
+#include <Uunix.h>
 #pragma once
 #include "atmidefs.h"
 #include "tx.h"
@@ -99,6 +100,9 @@ int tpbegin(unsigned long timeout, long flags);
 int tpabort(long flags);
 int tpcommit(long flags);
 int tpgetlev();
+int tpchkauth();
+int tpsprio(int prio, long flags);
+int tpgprio();
 int tpsuspend(TPTRANID *tranid, long flags);
 int tpresume(TPTRANID *tranid, long flags);
 int tpopen(void);

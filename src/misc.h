@@ -67,6 +67,9 @@ namespace fux::atmi {
 void set_tperrno(int err, const char *fmt, ...)
     __attribute__((format(printf, 2, 3)));
 void reset_tperrno();
+// the dispatch loop sets the per-request priority (tpsprio value,
+// 50 default) before a service runs, so tpgprio() reads it in-service
+void set_dispatch_prio(long prio);
 
 template <typename F>
 void exception_boundary(F &&f) noexcept {

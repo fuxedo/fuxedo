@@ -65,6 +65,8 @@
 <li><a href="/api/tpgetrply/">tpgetrply</a></li>
 <li><a href="/api/tpcancel/">tpcancel</a></li>
 <li><a href="/api/tpforward/">tpforward</a></li>
+<li><a href="/api/tpsprio/">tpsprio</a></li>
+<li><a href="/api/tpgprio/">tpgprio</a></li>
 </ul>
 <h2>XATMI: conversational</h2>
 <ul>
@@ -163,6 +165,12 @@ the code later edits the same field.</p>
 <tr><td>FNOTFLD</td><td>fbfr is not an FML32 buffer.</td></tr>
 </table>
 
+<h2>Notes</h2>
+
+<p><strong>Return value.</strong> 1 on success, -1 on error, with the reason
+in Ferror32. The portable check is <code>!= -1</code>; see the
+<a href="/api/fml32/">FML32 model</a> for why a boolean test is
+wrong here.</p>
 
 
 <h2>Example</h2>

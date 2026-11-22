@@ -60,7 +60,13 @@ the same claim: no source edits, rebuild and go.</p>
 <td>simpapp, xmlfmlapp, and qsample from the Oracle Tuxedo 12.2.2
 samples build with fuxedo buildclient/buildserver and boot from their
 own UBBCONFIG; simpapp and xmlfmlapp also run against Oracle 12.2.2
-itself with identical output.</td></tr>
+itself with identical output. The bankapp application compiles with
+fuxedo buildserver including the esqlc precompile step, boots from its
+own UBBCONFIG with 16-bit FML/VIEW buffers and VIEW-based routing, and
+serves its deposit and transfer services; the shipped bankapp variant
+targets the legacy Tuxedo/SQL database, so the database-backed
+end-to-end run uses the Oracle-database variant of the same
+sources.</td></tr>
 <tr><td>Book examples</td>
 <td>Every runnable example from <a
 href="https://aivarsk.com/tuxedo-python/">Oracle Tuxedo for

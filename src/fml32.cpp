@@ -223,7 +223,9 @@ long Fidxused32(FBFR32 *fbfr) {
 
 int Findex32(FBFR32 *fbfr, FLDOCC32 intvl __attribute__((unused))) {
   FBFR32_CHECK(-1, fbfr);
-  return 0;
+  // pinned on Oracle 12.2.2: indexing a buffer answers 1; fuxedo
+  // keeps buffers unindexed, which is a valid indexed state
+  return 1;
 }
 
 int Funindex32(FBFR32 *fbfr) {
@@ -233,7 +235,8 @@ int Funindex32(FBFR32 *fbfr) {
 
 int Frstrindex32(FBFR32 *fbfr, FLDOCC32 numidx __attribute__((unused))) {
   FBFR32_CHECK(-1, fbfr);
-  return 0;
+  // pinned on Oracle 12.2.2: see Findex32
+  return 1;
 }
 
 int Fchg32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *value,
@@ -574,7 +577,7 @@ int CFget32(FBFR32 *fbfr, FLDID32 fieldid, FLDOCC32 oc, char *buf,
     return -1;
   }
   std::copy_n(res, *len, buf);
-  return 0;
+  return 1;
 }
 
 int Fextread32(FBFR32 *fbfr, FILE *iop) {

@@ -29,5 +29,9 @@ int tpsvrinit(int argc, char *argv[]) {
          tperrno == TPENOSECONDARYRQ);
   assert(tpadvertisex("SING", SERVICE, TPSINGLETON) != -1);
   assert(tpunadvertise("SING") != -1);
+  // re-advertising a live name with the SAME function is idempotent
+  // (pinned against Oracle 12.2.2); a different
+  // function fails with TPEMATCH (asserted above)
+  assert(tpadvertise("SERVICE", SERVICE) != -1);
   return 0;
 }

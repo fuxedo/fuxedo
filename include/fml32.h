@@ -18,22 +18,42 @@ typedef struct Fbfr32 FBFR32;
 #define FLD_PTR 9
 #define FLD_FML32 10
 
+#ifndef BADFLDID
 #define BADFLDID ((FLDID32)0)
+#endif
+#ifndef FIRSTFLDID
 #define FIRSTFLDID ((FLDID32)0)
+#endif
 
+#ifndef FALIGNERR
 #define FALIGNERR 1
+#endif
 #define FNOTFLD 2
+#ifndef FNOSPACE
 #define FNOSPACE 3
+#endif
+#ifndef FNOTPRES
 #define FNOTPRES 4
+#endif
+#ifndef FBADFLD
 #define FBADFLD 5
+#endif
+#ifndef FTYPERR
 #define FTYPERR 6
+#endif
 #define FEUNIX 7
 #define FBADNAME 8
+#ifndef FMALLOC
 #define FMALLOC 9
+#endif
+#ifndef FSYNTAX
 #define FSYNTAX 10
+#endif
 #define FFTOPEN 11
 #define FFTSYNTAX 12
+#ifndef FEINVAL
 #define FEINVAL 13
+#endif
 #define FBADTBL 14
 #define FBADVIEW 15
 #define FVFSYNTAX 16

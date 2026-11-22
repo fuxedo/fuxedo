@@ -17,6 +17,8 @@
   <url><loc>https://fuxedo.io/api/tpgetrply/</loc></url>
   <url><loc>https://fuxedo.io/api/tpcancel/</loc></url>
   <url><loc>https://fuxedo.io/api/tpforward/</loc></url>
+  <url><loc>https://fuxedo.io/api/tpsprio/</loc></url>
+  <url><loc>https://fuxedo.io/api/tpgprio/</loc></url>
   <url><loc>https://fuxedo.io/api/tpconnect/</loc></url>
   <url><loc>https://fuxedo.io/api/tpsend/</loc></url>
   <url><loc>https://fuxedo.io/api/tprecv/</loc></url>

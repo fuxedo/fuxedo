@@ -18,7 +18,7 @@ export FIELDTBLS32 := demo
 export TMPDIR := $(CURDIR)/.tmp
 
 CLIENTS := tpcall acall cancel buffers session fmldemo txdemo \
-           enqueue dequeue conv
+           enqueue dequeue conv prio
 
 check: tuxconfig apisvr advsvr convsvr $(CLIENTS)
 	mkdir -p $(TMPDIR)
@@ -44,7 +44,7 @@ advsvr: advsvr.c
 	buildserver -o $@ -f $< -s GREET -v -f "-Wl,--no-as-needed"
 
 convsvr: convsvr.c
-	buildserver -o $@ -f $< -s CHAT -v -f "-Wl,--no-as-needed"
+	buildserver -o $@ -f $< -s CHAT -s PRIO -v -f "-Wl,--no-as-needed"
 
 fmldemo: fmldemo.c demo.h
 	buildclient -o $@ -f $< -v -f "-I. -Wl,--no-as-needed"

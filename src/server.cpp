@@ -282,6 +282,17 @@ struct server_thread {
   fux::ipc::msg req;
   fux::ipc::msg res;
   char *atmibuf;
+
+  // import the request payload, or mark the request bufferless: the
+  // service then sees svcinfo->data == NULL and len 0 (pinned against
+  // Oracle 12.2.2)
+  void load_request() {
+    if (static_cast<long>(req.size_data()) > fux::mem::headersize()) {
+      req.get_data(&atmibuf);
+    } else {
+      atmibuf = nullptr;
+    }
+  }
   bool reply_to_shutdown;
   jmp_buf tpreturn_env;
 
@@ -478,11 +489,23 @@ struct server_thread {
       ::tx_rollback();
       fux::tx::clear_own_begin();
       rval = TPESVCERR;
-    } else if (fux::tx::transactional() &&
-               !fux::tx_end(rval == TPMINVAL)) {
-      // the transaction outcome failed (commit aborted / rollback
-      // error): the caller learns the transaction did not succeed
-      rval = TPEABORT;
+    } else if (fux::tx::transactional()) {
+      // AUTOTRAN (or the caller's transaction left open): end the
+      // branch, then drive the two-phase outcome the way tx_commit
+      // does - xa_end alone leaves the transaction uncommitted. Only
+      // a transaction this server began itself is driven here; one
+      // joined from the caller is committed by the caller's tpcommit
+      bool ok = fux::tx_end(rval == TPMINVAL);
+      if (ok && rval == TPMINVAL && fux::tx::own_begin()) {
+        auto xid = fux::tx::current_xid();
+        int drc = fux::tm::drive(&xid);
+        ok = drc != 0;
+      }
+      if (!ok) {
+        // the transaction outcome failed (commit aborted / rollback
+        // error): the caller learns the transaction did not succeed
+        rval = TPEABORT;
+      }
     }
     reply(rval, rcode, data, len, flags);
     longjmp(tpreturn_env, 1);
@@ -510,9 +533,11 @@ static void execute(server_thread *tp) {
   }
   tpsvcinfo.data = tp->atmibuf;
   tpsvcinfo.flags = tp->req->flags;
-  // the logical length the caller sent, carried by the wire export
-  tpsvcinfo.len = static_cast<long>(tp->req.size_data()) -
-                  static_cast<long>(fux::mem::headersize());
+  // the logical length the caller sent, carried by the wire export;
+  // a bufferless request has none
+  tpsvcinfo.len = std::max(
+      0L, static_cast<long>(tp->req.size_data()) -
+              static_cast<long>(fux::mem::headersize()));
   tpsvcinfo.cd = tp->req->cd;
   tpsvcinfo.cltid.clientdata[0] = tp->req->caller;
 
@@ -548,7 +573,9 @@ static void execute(server_thread *tp) {
                       tpsvcinfo.flags, tpsvcinfo.len);
     auto it = main_ptr->advertisements.find(tpsvcinfo.name);
     FUX_PROBE3(service__entry, tpsvcinfo.name, tpsvcinfo.len, tpsvcinfo.flags);
+    fux::atmi::set_dispatch_prio(tp->req->priority);
     it->second(&tpsvcinfo);
+    fux::atmi::set_dispatch_prio(-1);
   }
   fux::trace::event("} tpservice");
 }
@@ -588,7 +615,7 @@ static void dispatch() {
       if (interrupted) {
       } else {
         thread_ptr->prepare();
-        thread_ptr->req.get_data(&thread_ptr->atmibuf);
+        thread_ptr->load_request();
         tpsvcinfo.data = thread_ptr->atmibuf;
         if (strcmp(thread_ptr->req->servicename, ".stop") == 0) {
           fux::fml32buf buf(&tpsvcinfo);
@@ -597,7 +624,7 @@ static void dispatch() {
           if (main_ptr->handle(thread_ptr->req->mtype, buf)) {
             if (thread_ptr.get() != main_thread_ptr) {
               main_thread_ptr->req = thread_ptr->req;
-              main_thread_ptr->req.get_data(&main_thread_ptr->atmibuf);
+              main_thread_ptr->load_request();
             }
             main_thread_ptr->reply_to_shutdown = true;
             continue;
@@ -626,7 +653,7 @@ static void dispatch() {
       while (main_ptr->pop_pending(handed)) {
         thread_ptr->req = std::move(handed);
         thread_ptr->prepare();
-        thread_ptr->req.get_data(&thread_ptr->atmibuf);
+        thread_ptr->load_request();
         execute(thread_ptr.get());
       }
       continue;
@@ -766,6 +793,13 @@ int _tmstartserver(int argc, char **argv, struct tmsvrargs_t *tmsvrargs) {
   // transaction machinery sees a plain non-RM server
   fux::glob::xasw = tmsvrargs->xa_switch != nullptr ? tmsvrargs->xa_switch
                                                     : &tmnull_switch;
+
+  // the service init's getopt(3) loop starts at the application
+  // argument region: just past the "--" separator, matching the
+  // platform (its server main consumes framework options first and
+  // leaves optind there; see src/getopt.cpp for the POSIX flavor the
+  // platform's server library interposes)
+  optind = sep < argc && strcmp(argv[sep], "--") == 0 ? sep + 1 : 1;
 
   if (int n = tmsvrargs->svrinit(argc, argv); n != 0) {
     userlog("tpsvrinit() = %d", n);

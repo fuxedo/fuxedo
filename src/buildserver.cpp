@@ -156,13 +156,20 @@ int main(int argc, char *argv[]) {
   cmd.push_back(std::string("-I") + tuxdir + "/include");
   cmd.insert(cmd.end(), firstfiles.begin(), firstfiles.end());
   cmd.push_back(std::string("-L") + tuxdir + "/lib");
-  if (!rmname.empty()) {
-    cmd.push_back(rm->second.lflags);
-  }
   cmd.push_back("-lfuxedo");
   cmd.push_back("-lpthread");
   cmd.push_back("-o");
   cmd.push_back(outfile);
+  // RM libraries after the fuxedo library: the switch symbols (xaosw
+  // and friends) are weak references inside libfuxedo and must be
+  // resolved by the resource-manager libraries on this link line.
+  // --no-as-needed keeps them in DT_NEEDED: as-needed would drop a
+  // library that only weak references point at
+  if (!rmname.empty()) {
+    cmd.push_back("-Wl,--no-as-needed");
+    cmd.push_back(rm->second.lflags);
+    cmd.push_back("-Wl,--as-needed");
+  }
   cmd.insert(cmd.end(), lastfiles.begin(), lastfiles.end());
 
   auto command = join(cmd, " ") + " " + cflags;

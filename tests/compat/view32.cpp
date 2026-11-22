@@ -155,7 +155,7 @@ TEST_CASE("Fvstof32 FCONCAT appends to the buffer") {
   CHECK(Foccur32(fb, id("VSHORT")) == 2);
   short s = 0;
   FLDLEN32 len = sizeof(s);
-  REQUIRE(Fget32(fb, id("VSHORT"), 1, reinterpret_cast<char *>(&s), &len) != -1);
+  REQUIRE(Fget32(fb, id("VSHORT"), 1, reinterpret_cast<char *>(&s), &len) == 1);
   CHECK(s == 4);
   Ffree32(fb);
 }
@@ -184,10 +184,10 @@ TEST_CASE("Fvftos32 transfers occurrences and reports overflow in the ACM") {
   auto *fb = alloc();
   short vals[] = {11, 22, 33, 44};
   for (auto v : vals) {
-    REQUIRE(Fadd32(fb, id("VNUMS"), reinterpret_cast<char *>(&v), 0) != -1);
+    REQUIRE(Fadd32(fb, id("VNUMS"), reinterpret_cast<char *>(&v), 0) == 1);
   }
-  REQUIRE(Fadd32(fb, id("VNAMES"), const_cast<char *>("hello"), 0) != -1);
-  REQUIRE(Fadd32(fb, id("VNAMES"), const_cast<char *>("a much longer string"), 0) != -1);
+  REQUIRE(Fadd32(fb, id("VNAMES"), const_cast<char *>("hello"), 0) == 1);
+  REQUIRE(Fadd32(fb, id("VNAMES"), const_cast<char *>("a much longer string"), 0) == 1);
 
   struct v_cl v;
   REQUIRE(Fvftos32(fb, reinterpret_cast<char *>(&v), const_cast<char *>("v_cl")) == 1);
@@ -211,7 +211,7 @@ TEST_CASE("Fvftos32 transfers occurrences and reports overflow in the ACM") {
 TEST_CASE("Fvftos32 fills missing members with NULL values") {
   auto *fb = alloc();
   long l = 42;
-  REQUIRE(Fadd32(fb, id("VLONG"), reinterpret_cast<char *>(&l), 0) != -1);
+  REQUIRE(Fadd32(fb, id("VLONG"), reinterpret_cast<char *>(&l), 0) == 1);
 
   struct v_all v;
   REQUIRE(Fvftos32(fb, reinterpret_cast<char *>(&v), const_cast<char *>("v_all")) == 1);
@@ -270,7 +270,7 @@ TEST_CASE("direction flags restrict the transfer") {
 
   // btos is buffer-to-structure only, ftos structure-to-buffer only
   long l = 100;
-  REQUIRE(Fadd32(fb, id("VEAGE"), reinterpret_cast<char *>(&l), 0) != -1);
+  REQUIRE(Fadd32(fb, id("VEAGE"), reinterpret_cast<char *>(&l), 0) == 1);
   struct v_dir out;
   REQUIRE(Fvsinit32(reinterpret_cast<char *>(&out), const_cast<char *>("v_dir")) == 1);
   REQUIRE(Fvftos32(fb, reinterpret_cast<char *>(&out),
@@ -344,7 +344,7 @@ TEST_CASE("types are converted between the buffer and the structure") {
   // float field converted to a long member
   Fdelall32(fb, id("VSALARY"));
   float fl = 123.5f;
-  REQUIRE(Fadd32(fb, id("VSALARY"), reinterpret_cast<char *>(&fl), 0) != -1);
+  REQUIRE(Fadd32(fb, id("VSALARY"), reinterpret_cast<char *>(&fl), 0) == 1);
   char buf[sizeof(struct v_conv)];
   REQUIRE(Fvftos32(fb, buf, const_cast<char *>("v_conv")) == 1);
   auto *back = reinterpret_cast<struct v_conv *>(buf);

@@ -245,7 +245,11 @@ bool visible(const std::string &qspace, const fs::path &qdir,
   if (m.deqtime > t) {
     return false;
   }
-  if (m.exptime != 0 && m.exptime <= t) {
+  // an expired message moves to its failure queue - unless it already
+  // sits there (the move keeps the original expiry, which must not
+  // retrigger on the failure queue itself)
+  if (m.exptime != 0 && m.exptime <= t &&
+      qdir.filename() != m.failureq) {
     move_to_failureq(qspace, qdir, m);
     fsync_dir(qdir);
     return false;

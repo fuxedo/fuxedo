@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <atmi.h>
 
 static int count(const char *qname) {
@@ -55,7 +57,65 @@ static void drain(const char *qname) {
   }
 }
 
-int main() {
+// two overlapping transactions through the multithreaded pump (their
+// each side seeds, calls PUMP in its own transaction,
+// and commits; the concurrent dispatches on different threads must
+// keep the resource-manager branches apart
+static int concurrent_side() {
+  if (tpinit((TPINIT *)NULL) == -1) {
+    return 10;
+  }
+  // each side's pump call runs its own transaction on the
+  // multithreaded server; the two dispatches overlap
+  const char *r = pump("commit");
+  int ok = r != NULL && strcmp(r, "COMMITTED") == 0;
+  tpterm();
+  return ok ? 0 : 11;
+}
+
+static int concurrent_mode() {
+  drain("IN");
+  drain("OUT");
+  seed("work-a");
+  seed("work-b");
+  pid_t pid = fork();
+  if (pid == 0) {
+    _exit(concurrent_side());
+  }
+  int a = concurrent_side();
+  int st = 0;
+  waitpid(pid, &st, 0);
+  int b = WIFEXITED(st) ? WEXITSTATUS(st) : 20;
+  if (a != 0 || b != 0) {
+    fprintf(stderr, "concurrent sides failed A=%d B=%d\n", a, b);
+    return 4;
+  }
+  // exact accounting: drain OUT and IN, counting every message
+  int out = 0;
+  for (;;) {
+    TPQCTL ctl = {};
+    char *msg = tpalloc((char *)"STRING", NULL, 64);
+    long len = 64;
+    int rc = tpdequeue((char *)"QS", (char *)"OUT", &ctl, (char **)&msg, &len,
+                       TPNOFLAGS);
+    tpfree(msg);
+    if (rc == -1) {
+      break;
+    }
+    out++;
+  }
+  if (out != 2 || count("IN") != 0) {
+    fprintf(stderr, "concurrency state OUT=%d IN=%d\n", out, count("IN"));
+    return 5;
+  }
+  printf("dispatch-thread concurrency OK\n");
+  return 0;
+}
+
+int main(int argc, char **argv) {
+  if (argc > 1 && strcmp(argv[1], "concurrent") == 0) {
+    return concurrent_mode();
+  }
   if (tpinit((TPINIT *)NULL) == -1) {
     fprintf(stderr, "tpinit failed\n");
     return 1;

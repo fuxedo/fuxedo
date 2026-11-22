@@ -2,6 +2,7 @@
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
 #include <clara.hpp>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -45,6 +46,35 @@ int main(int argc, char *argv[]) {
   auto cc = fux::util::getenv("CC", "cc");
   auto cflags = fux::util::getenv("CFLAGS", "");
 
+  std::vector<std::string> rmflags;
+  if (!rmname.empty()) {
+    // resolve the resource manager's link line from the RM file the
+    // same way the platform's buildclient does: rmname:switch:lflags
+    std::ifstream rm(tuxdir + "/udataobj/RM");
+    std::string line;
+    bool found = false;
+    while (std::getline(rm, line)) {
+      if (line.empty() || line[0] == '#') {
+        continue;
+      }
+      auto sep1 = line.find(':');
+      auto sep2 = line.find(':', sep1 == std::string::npos ? 0 : sep1 + 1);
+      if (sep1 == std::string::npos || line.compare(0, sep1, rmname) != 0) {
+        continue;
+      }
+      if (sep2 != std::string::npos) {
+        rmflags.push_back(line.substr(sep2 + 1));
+      }
+      found = true;
+      break;
+    }
+    if (!found) {
+      std::cerr << "buildclient: unknown resource manager " << rmname
+                << std::endl;
+      return -1;
+    }
+  }
+
   std::vector<std::string> cmd;
   cmd.push_back(cc);
   cmd.push_back(std::string("-I") + tuxdir + "/include");
@@ -52,6 +82,7 @@ int main(int argc, char *argv[]) {
   cmd.push_back(std::string("-L") + tuxdir + "/lib");
   cmd.push_back("-lfuxedo");
   cmd.push_back("-lpthread");
+  cmd.insert(cmd.end(), rmflags.begin(), rmflags.end());
   cmd.push_back("-o");
   cmd.push_back(outfile);
   cmd.insert(cmd.end(), lastfiles.begin(), lastfiles.end());

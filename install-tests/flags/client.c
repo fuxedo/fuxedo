@@ -257,8 +257,7 @@ static void conv_matrix() {
 }
 
 static void demarcation_matrix() {
-  int fails0 = g_fail;
-  if (tpbegin(30, 0) != 1) {
+  int fails0 = g_fail;  if (tpbegin(30, 0) != 1) {
     userlog(":TEST: FAIL tpbegin(30,0) rc tperrno=%d, want 1", tperrno);
     g_fail++;
   } else {
@@ -284,6 +283,65 @@ static void demarcation_matrix() {
   }
 }
 
+static void priority_matrix() {
+  int fails0 = g_fail;
+  // pinned against Oracle 12.2.2 (tmp/flagprobe/prio): the flag word
+  // is validated (anything but 0/TPABSOLUTE is TPEINVAL), any priority
+  // value is accepted, and the value has no scheduling effect.
+  // Oracle's client-side tpgprio() reads -1 regardless, so the
+  // read-back is fuxedo-side, gated at runtime.
+  if (tpsprio(1, TPNOBLOCK) != -1 || tperrno != TPEINVAL) {
+    userlog(":TEST: FAIL tpsprio bad flags tperrno=%d", tperrno);
+    g_fail++;
+  }
+  if (tpsprio(0, TPABSOLUTE) == -1) {
+    userlog(":TEST: FAIL tpsprio(0) rejected");
+    g_fail++;
+  }
+  if (tpsprio(101, TPABSOLUTE) == -1) {
+    userlog(":TEST: FAIL tpsprio(101) rejected");
+    g_fail++;
+  }
+  if (tpsprio(-7, TPABSOLUTE) == -1) {
+    userlog(":TEST: FAIL tpsprio(-7) rejected");
+    g_fail++;
+  }
+  int now = tpgprio();
+  if (now != -1 && now != -7) {
+    userlog(":TEST: FAIL tpgprio read-back got %d", now);
+    g_fail++;
+  }
+  // the priority attribute rides the call: tpgprio() inside the
+  // service returns the caller's value (pinned on both platforms);
+  // an unset caller reads the documented 50
+  char *pb = tpalloc("STRING", NULL, 8);
+  strcpy(pb, "x");
+  long pl = 8;
+  tpsprio(77, TPABSOLUTE);
+  if (tpcall("PRIO", pb, 0, &pb, &pl, 0) == -1) {
+    userlog(":TEST: FAIL PRIO call %d", tperrno);
+    g_fail++;
+  }
+  // one-shot semantics (pinned live): the value applies to the NEXT
+  // call only, so a fresh call without tpsprio reads the 50 default
+  // in the service
+  pl = 8;
+  if (tpcall("PRIO", pb, 0, &pb, &pl, 0) == -1) {
+    userlog(":TEST: FAIL PRIO reset call %d", tperrno);
+    g_fail++;
+  }
+  // an explicit value overrides the default for its call
+  tpsprio(60, TPABSOLUTE);
+  pl = 8;
+  if (tpcall("PRIO", pb, 0, &pb, &pl, 0) == -1) {
+    userlog(":TEST: FAIL PRIO default call %d", tperrno);
+    g_fail++;
+  }
+  if (g_fail == fails0) {
+    userlog(":TEST: priority matrix done");
+  }
+}
+
 int main() {
   if (tpinit(NULL) == -1) {
     fprintf(stderr, "tpinit failed %d\n", tperrno);
@@ -294,6 +352,7 @@ int main() {
   tpgetrply_matrix();
   conv_matrix();
   demarcation_matrix();
+  priority_matrix();
   tpterm();
   if (g_fail == 0) {
     userlog(":TEST: FLAGMATRIX OK");

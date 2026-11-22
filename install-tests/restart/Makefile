@@ -31,6 +31,26 @@ check: restartme client tuxconfig
 	tmshutdown -y
 	# a clean shutdown must not trigger a restart
 	! grep -E -q '[!:]BBL\..*: Restarting restartme -g 1 -i 1, generation 4' ULOG.*
+	# stage matrix (pinned live): an external SIGTERM (not
+	# tmshutdown's) is a death the BBL must restart; dying DURING
+	# tmshutdown must not produce a restart either. Fresh BB for this
+	# phase: the MAXGEN sliding window from the kill -9 matrix above is
+	# still armed within GRACE seconds.
+	tmshutdown -y 2>/dev/null || true
+	-tmipcrm -y
+	-sleep 2
+	tmloadcf -y ubbconfig
+	tmboot -y
+	sleep 3
+	kill -TERM `pgrep -x restartme | head -1`
+	sh waitup.sh
+	./client
+	grep -E -q '[!:]BBL\..*: Restarting restartme -g 1 -i 1, generation 2' ULOG.*
+	marks=`grep -c 'Restarting restartme' ULOG.*`; \
+	tmshutdown -y 2>/dev/null & sd=$$!; sleep 1; kill -9 `pgrep -x restartme | head -1` 2>/dev/null; wait $$sd; \
+	! pgrep -x restartme > /dev/null; \
+	test `grep -c 'Restarting restartme' ULOG.*` -eq $$marks
+	tmshutdown -y 2>/dev/null || true
 
 ubbconfig: ubbconfig.in
 	cat $< \

@@ -91,6 +91,12 @@ std::vector<viewdef> read_file(std::istream &in);
 // the view cannot be found. The returned object is a mutable per-process
 // copy: Fvopt32 changes live in it until eviction or refresh().
 std::shared_ptr<viewdef> get(const std::string &name);
+// the same registry fed by the 16-bit env names (VIEWFILES/VIEWDIR),
+// used by the "VIEW" typed-buffer flavor
+std::shared_ptr<viewdef> get16(const std::string &name);
+// struct size for a 16-bit view name, or the fallback when unknown
+long view_used(const char *subtype, long fallback);
+long view32_used(const char *subtype, long fallback);
 void refresh();
 
 // Conversion engine operating on an attached Fbfr32.

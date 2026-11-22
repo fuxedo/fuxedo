@@ -34,6 +34,7 @@ trap 'tmshutdown -y 2>/dev/null; exit 1' EXIT HUP INT TERM
 ./tpcall GREETX "hello there"
 ./fmldemo
 ./conv
+./prio
 
 # /Q examples: the queues were created before the boot above
 ./enqueue

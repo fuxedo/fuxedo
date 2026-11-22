@@ -103,7 +103,7 @@ struct Fbfr32 {
     len_ = 0;
 
     memset(offsets_, 0, sizeof(offsets_));
-    return 0;
+    return 1;
   }
   void reinit(FLDLEN32 buflen) { size_ = buflen - min_size(); }
   void finit() {}
@@ -124,7 +124,7 @@ struct Fbfr32 {
     len_ = src->len_;
     std::copy_n(src->offsets_, max_offset_, offsets_);
     std::copy_n(src->data_, src->len_, data_);
-    return 0;
+    return 1;
   }
 
   int write(FILE *iop) {
@@ -134,7 +134,7 @@ struct Fbfr32 {
       FERROR(FEUNIX, "");
       return -1;
     }
-    return 0;
+    return 1;
   }
 
   int read(FILE *iop) {
@@ -154,7 +154,7 @@ struct Fbfr32 {
       FERROR(FEUNIX, "");
       return -1;
     }
-    return 0;
+    return 1;
   }
 
   int chg(FLDID32 fieldid, FLDOCC32 oc, char *value, FLDLEN32 flen) {
@@ -250,7 +250,7 @@ struct Fbfr32 {
     }
 
     shift(type, need);
-    return 0;
+    return 1;
   }
 
   FLDOCC32 findocc(FLDID32 fieldid, char *value, FLDLEN32 len) {
@@ -466,7 +466,7 @@ struct Fbfr32 {
     if (indent == 0) {
       fputc('\n', iop);
     }
-    return 0;
+    return 1;
   }
 
   int del(FLDID32 fieldid, FLDOCC32 oc) {
@@ -495,7 +495,7 @@ struct Fbfr32 {
       next = next_(next);
     }
     erase(field, next);
-    return 0;
+    return 1;
   }
 
   int get(FLDID32 fieldid, FLDOCC32 oc, char *loc, FLDLEN32 *maxlen) {
@@ -536,7 +536,7 @@ struct Fbfr32 {
       }
       return 0;
     });
-    return 0;
+    return 1;
   }
 
   int projcpy(FBFR32 *src, FLDID32 *fieldid) {
@@ -545,8 +545,11 @@ struct Fbfr32 {
 
     return src->iterate([&](auto it, auto) {
       if (std::find(fieldid, badfld, it->fieldid) != badfld) {
+        // chg() answers 1 on success; the walk protocol wants 0
         return chg(it->fieldid, occur(it->fieldid), src->fvalue(it),
-                   src->flength(it));
+                   src->flength(it)) == -1
+                   ? -1
+                   : 0;
       }
       return 0;
     });
@@ -566,14 +569,18 @@ struct Fbfr32 {
 
   int update(FBFR32 *src) {
     return src->iterate([&](auto it, auto oc) {
-      return chg(it->fieldid, oc, src->fvalue(it), src->flength(it));
+      return chg(it->fieldid, oc, src->fvalue(it), src->flength(it)) == -1
+                 ? -1
+                 : 0;
     });
   }
 
   int ojoin(FBFR32 *src) {
     return src->iterate([&](auto it, auto oc) {
       if (pres(it->fieldid, oc)) {
-        return chg(it->fieldid, oc, src->fvalue(it), src->flength(it));
+        return chg(it->fieldid, oc, src->fvalue(it), src->flength(it)) == -1
+                   ? -1
+                   : 0;
       }
       return 0;
     });
@@ -603,7 +610,7 @@ struct Fbfr32 {
         it = next_(it);
       }
     }
-    return 0;
+    return 1;
   }
 
   int join(FBFR32 *src) {
@@ -618,7 +625,9 @@ struct Fbfr32 {
 
     return src->iterate([&](auto it, auto oc) {
       if (pres(it->fieldid, oc)) {
-        return chg(it->fieldid, oc, src->fvalue(it), src->flength(it));
+        return chg(it->fieldid, oc, src->fvalue(it), src->flength(it)) == -1
+                   ? -1
+                   : 0;
       }
       return 0;
     });
@@ -632,7 +641,9 @@ struct Fbfr32 {
 
     return src->iterate([&](auto it, auto) {
       return chg(it->fieldid, occur(it->fieldid), src->fvalue(it),
-                 src->flength(it));
+                 src->flength(it)) == -1
+                 ? -1
+                 : 0;
     });
   }
 

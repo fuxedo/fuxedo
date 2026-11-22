@@ -60,6 +60,16 @@ extern int *Uunixerr_addr(void);
 #define Uunixerr (*Uunixerr_addr())
 
 extern void Uunix_err(const char *opname);
+
+/* the classic samples read the last unix error number through
+ * Uunixerr; fuxedo surfaces errno, which is what the value meant */
+#include <errno.h>
+#ifndef Uunixerr
+#define Uunixerr (errno)
+#endif
+
+/* getopt exposure the K&R-era headers provided */
+#include <getopt.h>
 extern const char *Uunixmsg[];
 extern char *Ustrerror(int err);
 

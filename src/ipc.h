@@ -70,6 +70,10 @@ struct msgmem : msgbase {
   long rcode;
   long revent;  // conversational events (TPEV_*), 0 for plain traffic
   pid_t caller;  // originating client, surfaced as svcinfo->cltid
+  // the caller's tpsprio() value (50 when unset); readable in the
+  // service through tpgprio() - it does NOT affect dispatch order
+  // (pinned against Oracle 12.2.2 and 22.1)
+  long priority;
   char data[0];
 };
 
@@ -113,6 +117,11 @@ void qrecv(int msqid, msg &data, long msgtype, int flags);
 // Blocking receive that returns false instead of throwing when interrupted
 // by a signal (EINTR). Used by server dispatch loops.
 bool qrecv_intr(int msqid, msg &data, long msgtype);
+// Client-wait variant: like qrecv (honors flags) but returns false on
+// EINTR so the caller can answer TPGOTSIG; with TPSIGRSTRT the caller
+// retries. This is how the platform surfaces caught signals that arrive
+// mid-wait (pinned against Oracle 12.2.2).
+bool qrecv_wait(int msqid, msg &data, long msgtype, int flags);
 void qdelete(int msqid);
 
 }  // namespace ipc

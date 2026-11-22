@@ -326,7 +326,7 @@ bool resolve(std::vector<viewdef> &views, bool no_fml,
                              " not found, member " + m.cname + " not mapped");
         }
       }
-      if (fldids.count(m.fldid) != 0) {
+      if (!no_fml && fldids.count(m.fldid) != 0) {
         errors.push_back("view " + v.name + ": field " +
                          (m.fbname.empty() ? std::string("-") : m.fbname) +
                          " mapped more than once");
@@ -605,6 +605,10 @@ namespace {
 
 class registry {
  public:
+  registry() = default;
+  registry(const char *files_env, const char *dirs_env)
+      : viewfiles_env_(files_env), viewdir_env_(dirs_env) {}
+
   std::shared_ptr<viewdef> find(const std::string &name) {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = views_.find(name);
@@ -636,9 +640,13 @@ class registry {
 
  private:
   bool load(const std::string & /*wanted*/) {
+    return load_from(viewfiles_env_, viewdir_env_);
+  }
+
+  bool load_from(const char *files_env, const char *dirs_env) {
     file_found_ = false;
-    auto files = fux::split(fux::util::getenv("VIEWFILES32", ""), ",");
-    auto dirs = fux::split(fux::util::getenv("VIEWDIR32", ""), ":");
+    auto files = fux::split(fux::util::getenv(files_env, ""), ",");
+    auto dirs = fux::split(fux::util::getenv(dirs_env, ""), ":");
     if (dirs.empty()) {
       dirs.push_back(".");
     }
@@ -696,6 +704,8 @@ class registry {
     }
   }
 
+  const char *viewfiles_env_ = "VIEWFILES32";
+  const char *viewdir_env_ = "VIEWDIR32";
   std::mutex mutex_;
   bool file_found_ = false;
   std::unordered_map<std::string,
@@ -711,6 +721,37 @@ registry g_registry;
 
 std::shared_ptr<viewdef> get(const std::string &name) {
   return g_registry.find(name);
+}
+
+namespace {
+registry g_registry16("VIEWFILES", "VIEWDIR");
+}  // namespace
+
+std::shared_ptr<viewdef> get16(const std::string &name) {
+  return g_registry16.find(name);
+}
+
+long view_used(const char *subtype, long fallback) {
+  if (subtype == nullptr || subtype[0] == '\0') {
+    return fallback;
+  }
+  auto v = get16(subtype);
+  if (v == nullptr) {
+    return fallback;
+  }
+  return v->vsize;
+}
+
+// VIEW32 buffers resolve against the 32-bit view registry
+long view32_used(const char *subtype, long fallback) {
+  if (subtype == nullptr || subtype[0] == '\0') {
+    return fallback;
+  }
+  auto v = get(subtype);
+  if (v == nullptr) {
+    return fallback;
+  }
+  return v->vsize;
 }
 
 void refresh() { g_registry.refresh(); }

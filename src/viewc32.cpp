@@ -228,6 +228,9 @@ static int process_file(const std::string &file, bool no_fml,
 int main(int argc, char *argv[]) {
   bool show_help = false;
   bool no_fml = false;
+#ifdef VIEWC16_DEFAULTS
+  no_fml = true;
+#endif
 
   std::string output_directory = ".";
   std::vector<std::string> files;

@@ -35,6 +35,16 @@
 #include "ws.h"
 #include "xml.h"
 
+namespace {
+// Service priority is API surface without scheduling effect: the
+// platform accepts the calls, validates the flag word, and lets the
+// value be read back, but dispatch order is unaffected. Pinned against
+// Oracle 12.2.2 (tmp/flagprobe/prio): any priority value (0, 101,
+// negative) with flags 0 or TPABSOLUTE succeeds; any other flag is
+// TPEINVAL; client-side tpgprio() reads -1 there.
+thread_local long g_prio = -1;
+}  // namespace
+
 namespace fux {
 bool is_server();
 
@@ -96,39 +106,65 @@ int client::routed_group(const char *svc, char *data) {
         !fux::routing::buftype_matches(e.buftype, type, subtype)) {
       continue;
     }
-    if (strcmp(type, "FML32") != 0) {
-      return -1;  // only FML32 buffers carry routing fields for now
-    }
-    auto fb = reinterpret_cast<FBFR32 *>(data);
     std::string value;
     fux::routing::field_kind kind = fux::routing::field_kind::string;
-    if (e.fldtype == FLD_SHORT || e.fldtype == FLD_LONG) {
-      long v = 0;
-      if (Fget32(fb, static_cast<FLDID32>(e.fieldid), 0, reinterpret_cast<char *>(&v), 0) == -1) {
-        TPERROR(TPESYSTEM, "Routing field %s null", e.field);
-        return -2;
+    if (e.view_off >= 0) {
+      // VIEW-buffer criteria: the value sits at a struct offset
+      auto *base = data + e.view_off;
+      if (e.fldtype == FLD_SHORT) {
+        value = std::to_string(*reinterpret_cast<short *>(base));
+        kind = fux::routing::field_kind::integer;
+      } else if (e.fldtype == FLD_LONG) {
+        value = std::to_string(*reinterpret_cast<long *>(base));
+        kind = fux::routing::field_kind::integer;
+      } else if (e.fldtype == FLD_FLOAT) {
+        value = std::to_string(*reinterpret_cast<float *>(base));
+        kind = fux::routing::field_kind::floating;
+      } else if (e.fldtype == FLD_DOUBLE) {
+        value = std::to_string(*reinterpret_cast<double *>(base));
+        kind = fux::routing::field_kind::floating;
+      } else if (e.fldtype == FLD_CHAR) {
+        value = std::to_string(static_cast<unsigned char>(*base));
+        kind = fux::routing::field_kind::integer;
+      } else {
+        value = base;
       }
-      value = std::to_string(v);
-      kind = fux::routing::field_kind::integer;
-    } else if (e.fldtype == FLD_FLOAT || e.fldtype == FLD_DOUBLE) {
-      double v = 0;
-      if (Fget32(fb, static_cast<FLDID32>(e.fieldid), 0, reinterpret_cast<char *>(&v), 0) == -1) {
-        TPERROR(TPESYSTEM, "Routing field %s null", e.field);
-        return -2;
-      }
-      value = std::to_string(v);
-      kind = fux::routing::field_kind::floating;
-    } else if (e.fldtype == FLD_STRING || e.fldtype == FLD_CHAR) {
-      char buf[256] = {};
-      FLDLEN32 len = sizeof(buf);
-      if (Fget32(fb, static_cast<FLDID32>(e.fieldid), 0, buf, &len) == -1) {
-        TPERROR(TPESYSTEM, "Routing field %s null", e.field);
-        return -2;
-      }
-      value.assign(buf, strnlen(buf, sizeof(buf)));
     } else {
-      TPERROR(TPESYSTEM, "Routing field %s has unsupported type", e.field);
-      return -2;
+      if (strcmp(type, "FML32") != 0) {
+        return -1;  // only FML32 buffers carry routing fields for now
+      }
+      auto fb = reinterpret_cast<FBFR32 *>(data);
+      if (e.fldtype == FLD_SHORT || e.fldtype == FLD_LONG) {
+        long v = 0;
+        if (Fget32(fb, static_cast<FLDID32>(e.fieldid), 0,
+                   reinterpret_cast<char *>(&v), 0) == -1) {
+          TPERROR(TPESYSTEM, "Routing field %s null", e.field);
+          return -2;
+        }
+        value = std::to_string(v);
+        kind = fux::routing::field_kind::integer;
+      } else if (e.fldtype == FLD_FLOAT || e.fldtype == FLD_DOUBLE) {
+        double v = 0;
+        if (Fget32(fb, static_cast<FLDID32>(e.fieldid), 0,
+                   reinterpret_cast<char *>(&v), 0) == -1) {
+          TPERROR(TPESYSTEM, "Routing field %s null", e.field);
+          return -2;
+        }
+        value = std::to_string(v);
+        kind = fux::routing::field_kind::floating;
+      } else if (e.fldtype == FLD_STRING || e.fldtype == FLD_CHAR) {
+        char buf[256] = {};
+        FLDLEN32 len = sizeof(buf);
+        if (Fget32(fb, static_cast<FLDID32>(e.fieldid), 0, buf, &len) ==
+            -1) {
+          TPERROR(TPESYSTEM, "Routing field %s null", e.field);
+          return -2;
+        }
+        value.assign(buf, strnlen(buf, sizeof(buf)));
+      } else {
+        TPERROR(TPESYSTEM, "Routing field %s has unsupported type", e.field);
+        return -2;
+      }
     }
     auto ranges = fux::routing::parse_ranges(e.ranges);
     auto *hit = fux::routing::match(ranges, value, kind);
@@ -267,6 +303,11 @@ int client::tpacall_queue(queue_entry target, const char *svc, char *data,
     rq->flags = 0;
     rq->gttid = fux::bad_gttid;
   }
+  // the priority attribute rides with the call and is readable in the
+  // service via tpgprio(); 50 is the documented default (pinned). the
+  // docs: the value applies to the NEXT call, so it is spent here
+  rq->priority = g_prio >= 0 ? g_prio : 50;
+  g_prio = -1;
 
   if (fux::ipc::qsend(target.msqid, rq, next_blocktime(), to_flags(flags))) {
     fux::atmi::reset_tperrno();
@@ -339,8 +380,17 @@ int client::tpgetrply(int *cd, char **data, long *len, long flags) {
       try {
         if (flags & TPNOBLOCK) {
           fux::ipc::qrecv(rpid, res, -fux::ipc::reply_limit, IPC_NOWAIT);
-        } else {
+        } else if (flags & TPSIGRSTRT) {
+          // restartable wait: a caught signal just re-arms the wait
           fux::ipc::qrecv(rpid, res, -fux::ipc::reply_limit, 0);
+        } else {
+          // a caught signal ends the wait with TPGOTSIG (pinned
+          // against Oracle 12.2.2)
+          if (!fux::ipc::qrecv_wait(rpid, res, -fux::ipc::reply_limit, 0)) {
+            mibcon_.accessers().at(client_).rpid_timeout = INVALID_TIME;
+            TPERROR(TPGOTSIG, "Wait interrupted by signal");
+            return -1;
+          }
         }
       } catch (const std::system_error &) {
         mibcon_.accessers().at(client_).rpid_timeout = INVALID_TIME;
@@ -403,9 +453,33 @@ int client::tpgetrply(int *cd, char **data, long *len, long flags) {
         return -1;
       }
       tpfree(tmp);
-    } else {
+    } else if (static_cast<long>(res.size_data()) >
+               fux::mem::headersize()) {
+      if (flags & TPNOCHANGE) {
+        // the wire payload starts with the type/subtype pair; a
+        // mismatch against the caller's buffer is TPEOTYPE and the
+        // buffer is left alone (pinned against Oracle 12.2.2)
+        char rtype[8] = {};
+        char rsub[16] = {};
+        std::copy_n(res->data, sizeof(rtype), rtype);
+        std::copy_n(res->data + sizeof(rtype), sizeof(rsub), rsub);
+        char ctype[8] = {};
+        char csub[16] = {};
+        if (tptypes(*data, ctype, csub) == -1) {
+          return -1;
+        }
+        if (strncmp(rtype, ctype, sizeof(rtype)) != 0 ||
+            strncmp(rsub, csub, sizeof(rsub)) != 0) {
+          TPERROR(TPEOTYPE, "Reply type %.8s/%.16s does not match the "
+                            "caller buffer %.8s/%.16s",
+                  rtype, rsub, ctype, csub);
+          return -1;
+        }
+      }
       res.get_data(data);
     }
+    // an empty reply (tpreturn with NULL data) leaves the caller's
+    // buffer pointer alone and reports len 0, like the platform
     tpurcode = res->rcode;
     *cd = res->cd;
     cds.release(*cd);
@@ -610,7 +684,14 @@ int client::tprecv(int cd, char **data, long *len, long flags, long *revent) {
 
   fux::ipc::msg res;
   try {
-    fux::ipc::qrecv(rpid, res, cd, (flags & TPNOBLOCK) ? IPC_NOWAIT : 0);
+    if (flags & TPNOBLOCK) {
+      fux::ipc::qrecv(rpid, res, cd, IPC_NOWAIT);
+    } else if (flags & TPSIGRSTRT) {
+      fux::ipc::qrecv(rpid, res, cd, 0);
+    } else if (!fux::ipc::qrecv_wait(rpid, res, cd, 0)) {
+      TPERROR(TPGOTSIG, "Wait interrupted by signal");
+      return -1;
+    }
   } catch (const std::system_error &) {
     TPERROR(TPEBLOCK, "No message available");
     return -1;
@@ -1023,6 +1104,13 @@ int tpsblktime(int blktime, long flags) {
       [&] { return getclient().tpsblktime(blktime, flags); }, -1);
 }
 
+int tpchkauth() {
+  // SECURITY USERAUTH/APPAUTH are not implemented; every domain is
+  // SECURITY NONE today, which the platform reports as TPNOAUTH
+  fux::atmi::reset_tperrno();
+  return TPNOAUTH;
+}
+
 int tpgblktime(long flags) {
   if (fux::ws::ws_naddr() != nullptr) {
     return fux::atmi::exception_boundary(
@@ -1031,6 +1119,36 @@ int tpgblktime(long flags) {
   return fux::atmi::exception_boundary(
       [&] { return getclient().tpgblktime(flags); }, -1);
 }
+
+int tpsprio(int prio, long flags) {
+  if (flags != 0 && flags != TPABSOLUTE) {
+    TPERROR(TPEINVAL, "Invalid flags passed to tpsprio");
+    return -1;
+  }
+  if (flags == TPABSOLUTE) {
+    g_prio = prio;
+  } else {
+    // relative: adjust from the current base, defaulting to the
+    // documented 50; the value has no scheduling effect either way
+    long base = g_prio == -1 ? 50 : g_prio;
+    g_prio = base + prio;
+  }
+  fux::atmi::reset_tperrno();
+  return 0;
+}
+
+int tpgprio() {
+  fux::atmi::reset_tperrno();
+  return static_cast<int>(g_prio);
+}
+
+namespace fux::atmi {
+// the dispatch loop sets the per-request priority before invoking a
+// service so tpgprio() inside the service reads the caller's value
+// (50 default, pinned); the longjmp past tpreturn lands back in the
+// dispatch loop, which resets it after the service frame
+void set_dispatch_prio(long prio) { g_prio = prio; }
+}  // namespace fux::atmi
 
 queue_entry get_queue(const char *svc) { return getclient().get_queue(svc); }
 

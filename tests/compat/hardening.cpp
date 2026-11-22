@@ -59,7 +59,7 @@ TEST_CASE("FML32 argument validation", "[hardening]") {
   // bad occurrence
   // a negative occurrence on Fchg32 appends (Fadd semantics), matching
   // the platform; Fdel32 with -1 fails (its Ferror is left unset there)
-  REQUIRE(Fchg32(fbfr, NAME, -1, DECONST("x"), 0) != -1);
+  REQUIRE(Fchg32(fbfr, NAME, -1, DECONST("x"), 0) == 1);
   REQUIRE(Foccur32(fbfr, NAME) == 1);
   REQUIRE(Fdel32(fbfr, NAME, -2) == -1);
 
@@ -77,7 +77,7 @@ TEST_CASE("FML32 argument validation", "[hardening]") {
   // Fchg32 with a null value deletes the occurrence and reports the
   // delete result (1 on success, pinned against Oracle 12.2)
   auto *fbfr2 = mkfbfr();
-  REQUIRE(Fadd32(fbfr2, NAME, DECONST("v"), 0) != -1);
+  REQUIRE(Fadd32(fbfr2, NAME, DECONST("v"), 0) == 1);
   REQUIRE(Fchg32(fbfr2, NAME, 0, nullptr, 0) == 1);
   REQUIRE(Foccur32(fbfr2, NAME) == 0);
   REQUIRE(Fchg32(fbfr2, NAME, 5, nullptr, 0) == -1);
@@ -101,7 +101,7 @@ TEST_CASE("FML32 argument validation", "[hardening]") {
   // type helpers
   // a type-0 (FLD_SHORT) field id is accepted by both platforms; only
   // the bare fieldid 0 is rejected (pinned against Oracle 12.2)
-  REQUIRE(Fadd32(fbfr, Fmkfldid32(0, 10), DECONST("1"), 0) != -1);
+  REQUIRE(Fadd32(fbfr, Fmkfldid32(0, 10), DECONST("1"), 0) == 1);
   REQUIRE(Fldid32(DECONST("no_such_field_anywhere")) == BADFLDID);
   REQUIRE(Fldno32(BADFLDID) == 0);
 
@@ -232,4 +232,21 @@ TEST_CASE("XATMI argument validation", "[hardening]") {
   REQUIRE(tpstrerror(TPELIMIT) != nullptr);
   REQUIRE(tpstrerror(TPEBLOCK) != nullptr);
   REQUIRE(tperrno == TPEINVAL);
+
+  // priority is API surface without scheduling effect (pinned against
+  // Oracle 12.2.2, tmp/flagprobe/prio): the flag word is validated
+  // (anything but 0/TPABSOLUTE is TPEINVAL) and any value is accepted
+  // - all only observable with a live session on Oracle; fuxedo
+  // validates flags eagerly, but the pins stay session-gated so this
+  // compiles and passes on both platforms.
+  if (tpbegin(30, 0) != -1) {
+    tpabort(0);
+    REQUIRE(tpsprio(1, TPNOBLOCK) == -1);
+    REQUIRE(tperrno == TPEINVAL);
+    REQUIRE(tpsprio(0, TPABSOLUTE) != -1);
+    REQUIRE(tpsprio(101, TPABSOLUTE) != -1);
+    REQUIRE(tpsprio(-7, TPABSOLUTE) != -1);
+    REQUIRE(tpsprio(10, 0) != -1);  // relative mode, flags 0
+    REQUIRE(tpsprio(60, TPABSOLUTE) != -1);
+  }
 }

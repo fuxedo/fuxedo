@@ -114,8 +114,17 @@ struct Fbfr32fields {
   }
 
   void load_fieldtbls32() {
+    // the 16-bit names apply when the 32-bit ones are absent: a
+    // 16-bit application (bankapp) exports FLDTBLDIR/FIELDTBLS only,
+    // and routing criteria resolution still needs the tables
     auto fieldtbls32 = getenv("FIELDTBLS32");
     auto fldtbldir32 = getenv("FLDTBLDIR32");
+    if (fieldtbls32 == nullptr) {
+      fieldtbls32 = getenv("FIELDTBLS");
+    }
+    if (fldtbldir32 == nullptr) {
+      fldtbldir32 = getenv("FLDTBLDIR");
+    }
 
     if (fieldtbls32 == nullptr || fldtbldir32 == nullptr) {
       return;

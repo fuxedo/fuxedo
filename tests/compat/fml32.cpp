@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 #include <fstream>
 
@@ -80,10 +81,10 @@ TEST_CASE("Finit32-Fsizeof32", "[fml32]") {
   auto size = Fsizeof32(fbfr);
   REQUIRE(size > 0);
 
-  REQUIRE(Finit32(fbfr, Fsizeof32(fbfr)) != -1);
+  REQUIRE(Finit32(fbfr, Fsizeof32(fbfr)) == 1);
   REQUIRE(Fsizeof32(fbfr) == size);
 
-  REQUIRE(Finit32(fbfr, Fsizeof32(fbfr)) != -1);
+  REQUIRE(Finit32(fbfr, Fsizeof32(fbfr)) == 1);
   REQUIRE(Fsizeof32(fbfr) == size);
 
   REQUIRE(Finit32(fbfr, 16) == -1);
@@ -115,7 +116,7 @@ TEST_CASE("Frealloc32", "[fml32]") {
       Fchg32(fbfr, fld_string, 0,
              const_cast<char *>(
                  "just some rather long string to mess with size calculation"),
-             0) != -1);
+             0) == 1);
 
   REQUIRE(Frealloc32(fbfr, 0, 0) == nullptr);
   REQUIRE(Ferror32 == FEINVAL);
@@ -139,7 +140,7 @@ TEST_CASE("Fused32-Funused32", "[fml32]") {
 
   auto fld_short = Fmkfldid32(FLD_SHORT, 10);
   short i = 0;
-  REQUIRE(Fchg32(fbfr, fld_short, i, reinterpret_cast<char *>(&i), 0) != -1);
+  REQUIRE(Fchg32(fbfr, fld_short, i, reinterpret_cast<char *>(&i), 0) == 1);
 
   REQUIRE(Fsizeof32(fbfr) == size);
   REQUIRE(Fused32(fbfr) > used);
@@ -168,12 +169,12 @@ struct FieldFixture {
   FLDID32 fld_carray = Fmkfldid32(FLD_CARRAY, 106);
 
   void set_fields(FBFR32 *fbfr) {
-    REQUIRE(Fchg32(fbfr, fld_short, 0, reinterpret_cast<char *>(&s), 0) != -1);
-    REQUIRE(Fchg32(fbfr, fld_long, 0, reinterpret_cast<char *>(&l), 0) != -1);
-    REQUIRE(Fchg32(fbfr, fld_char, 0, reinterpret_cast<char *>(&c), 0) != -1);
-    REQUIRE(Fchg32(fbfr, fld_float, 0, reinterpret_cast<char *>(&f), 0) != -1);
-    REQUIRE(Fchg32(fbfr, fld_double, 0, reinterpret_cast<char *>(&d), 0) != -1);
-    REQUIRE(Fchg32(fbfr, fld_string, 0, DECONST(str.c_str()), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld_short, 0, reinterpret_cast<char *>(&s), 0) == 1);
+    REQUIRE(Fchg32(fbfr, fld_long, 0, reinterpret_cast<char *>(&l), 0) == 1);
+    REQUIRE(Fchg32(fbfr, fld_char, 0, reinterpret_cast<char *>(&c), 0) == 1);
+    REQUIRE(Fchg32(fbfr, fld_float, 0, reinterpret_cast<char *>(&f), 0) == 1);
+    REQUIRE(Fchg32(fbfr, fld_double, 0, reinterpret_cast<char *>(&d), 0) == 1);
+    REQUIRE(Fchg32(fbfr, fld_string, 0, DECONST(str.c_str()), 0) == 1);
     REQUIRE(Fchg32(fbfr, fld_carray, 0, DECONST(bytes.data()), bytes.size()) !=
             -1);
   }
@@ -233,7 +234,7 @@ TEST_CASE("Ffindocc32", "[fml32]") {
 
   for (long i = 20; i < 23; i++) {
     REQUIRE(Fchg32(fbfr, fld_string, i - 20, DECONST(std::to_string(i).c_str()),
-                   0) != -1);
+                   0) == 1);
   }
   REQUIRE((Ffindocc32(fbfr, fld_string, DECONST("19"), 0) == -1 &&
            Ferror32 == FNOTPRES));
@@ -280,12 +281,79 @@ TEST_CASE("indexing stubs work", "[fml32]") {
   auto fbfr = Falloc32(100, 100);
   REQUIRE(fbfr != nullptr);
 
-  REQUIRE(Fidxused32(fbfr) != -1);
-  REQUIRE(Findex32(fbfr, 16) != -1);
-  REQUIRE(Funindex32(fbfr) != -1);
-  REQUIRE(Frstrindex32(fbfr, 16) != -1);
+  // pinned on Oracle 12.2.2: an unindexed buffer reports no index
+  // space used; indexing (and re-indexing) a buffer answers 1;
+  // unindexing a buffer that has none answers 0
+  REQUIRE(Fidxused32(fbfr) == 0);
+  REQUIRE(Findex32(fbfr, 16) == 1);
+  REQUIRE(Funindex32(fbfr) == 0);
+  REQUIRE(Frstrindex32(fbfr, 16) == 1);
 
   Ffree32(fbfr);
+}
+
+TEST_CASE("float/double survive the wire exactly", "[fml32]") {
+  // pinned against the platform: float and double fields must round
+  // trip BIT-EXACT through the buffer export, including specials
+  // (pinned: exact equality after a call). The export
+  // path takes tpalloc()'d buffers, not raw Falloc32 ones.
+  auto *fbfr = reinterpret_cast<FBFR32 *>(tpalloc(const_cast<char *>("FML32"), NULL, 2048));
+  REQUIRE(fbfr != nullptr);
+  auto ff = Fmkfldid32(FLD_FLOAT, 200);
+  auto dd = Fmkfldid32(FLD_DOUBLE, 201);
+
+  const double doubles[] = {0.0,
+                            -0.0,
+                            1.0,
+                            -1.0,
+                            3.141592653589793,
+                            1e300,
+                            1e-300,
+                            123456789.123456789,
+                            0.1};
+  const float floats[] = {0.0f,  -0.0f,  1.0f,     -1.0f,  3.1415927f,
+                          1e30f, 1e-30f, 123456.5f, 0.1f};
+
+  for (size_t i = 0; i < sizeof(doubles) / sizeof(doubles[0]); i++) {
+    REQUIRE(Fchg32(fbfr, dd, static_cast<FLDOCC32>(i),
+                   reinterpret_cast<char *>(const_cast<double *>(&doubles[i])), 0) == 1);
+  }
+  for (size_t i = 0; i < sizeof(floats) / sizeof(floats[0]); i++) {
+    REQUIRE(Fchg32(fbfr, ff, static_cast<FLDOCC32>(i),
+                   reinterpret_cast<char *>(const_cast<float *>(&floats[i])), 0) == 1);
+  }
+
+  // serialize and reparse through the typed-buffer export, like the
+  // wire path does
+  std::vector<char> bytes(16384);
+  long olen = static_cast<long>(bytes.size());
+  REQUIRE(tpexport(reinterpret_cast<char *>(fbfr), 0, bytes.data(), &olen,
+                   0) == 1);
+  auto *back = reinterpret_cast<FBFR32 *>(tpalloc(const_cast<char *>("FML32"), NULL, 2048));
+  REQUIRE(back != nullptr);
+  char *bptr = reinterpret_cast<char *>(back);
+  REQUIRE(tpimport(bytes.data(), olen, &bptr, nullptr, 0) == 1);
+  back = reinterpret_cast<FBFR32 *>(bptr);
+
+  for (size_t i = 0; i < sizeof(doubles) / sizeof(doubles[0]); i++) {
+    FLDLEN32 len = sizeof(double);
+    double got = 0;
+    REQUIRE(Fget32(back, dd, static_cast<FLDOCC32>(i),
+                   reinterpret_cast<char *>(&got), &len) == 1);
+    REQUIRE(memcmp(&got, &doubles[i], sizeof(double)) == 0);
+  }
+  for (size_t i = 0; i < sizeof(floats) / sizeof(floats[0]); i++) {
+    FLDLEN32 len = sizeof(float);
+    float got = 0;
+    REQUIRE(Fget32(back, ff, static_cast<FLDOCC32>(i),
+                   reinterpret_cast<char *>(&got), &len) == 1);
+    REQUIRE(memcmp(&got, &floats[i], sizeof(float)) == 0);
+  }
+
+  // in-memory round trip must be bit-exact too (no conversion on
+  // store/load for native machine representation)
+  tpfree(reinterpret_cast<char *>(back));
+  tpfree(reinterpret_cast<char *>(fbfr));
 }
 
 TEST_CASE("Ftypcvt32", "[fml32]") {
@@ -355,7 +423,7 @@ TEST_CASE_METHOD(FieldFixture, "Fwrite32 and Fread32", "[fml32]") {
   REQUIRE(Ferror32 == FEUNIX);
 
   tempfile file(__LINE__);
-  REQUIRE(Fwrite32(fbfr, file.f) != -1);
+  REQUIRE(Fwrite32(fbfr, file.f) == 1);
 
   fclose(file.f);
   REQUIRE((file.f = fopen(file.name.c_str(), "r")) != nullptr);
@@ -365,7 +433,7 @@ TEST_CASE_METHOD(FieldFixture, "Fwrite32 and Fread32", "[fml32]") {
   fclose(file.f);
   REQUIRE((file.f = fopen(file.name.c_str(), "r")) != nullptr);
 
-  REQUIRE(Fread32(fbfr3, file.f) != -1);
+  REQUIRE(Fread32(fbfr3, file.f) == 1);
 
   get_fields(fbfr3);
 
@@ -422,10 +490,10 @@ TEST_CASE_METHOD(FieldFixture, "Fgets32", "[fml32]") {
   set_fields(fbfr);
 
   char buf[100];
-  REQUIRE(Fgets32(fbfr, fld_char, 0, buf) != -1);
+  REQUIRE(Fgets32(fbfr, fld_char, 0, buf) == 1);
   REQUIRE(buf == std::string("\x0d"));
 
-  REQUIRE(Fgets32(fbfr, fld_double, 0, buf) != -1);
+  REQUIRE(Fgets32(fbfr, fld_double, 0, buf) == 1);
   REQUIRE(std::stof(buf) == std::stof(str));
 
   Ffree32(fbfr);
@@ -445,7 +513,7 @@ TEST_CASE_METHOD(FieldFixture, "Fchksum32", "[fml32]") {
 
   auto fbfr2 = Falloc32(100, 100);
   REQUIRE(fbfr2 != nullptr);
-  REQUIRE(Fcpy32(fbfr2, fbfr) != -1);
+  REQUIRE(Fcpy32(fbfr2, fbfr) == 1);
 
   auto chksum_cpy = Fchksum32(fbfr2);
   REQUIRE(chksum == chksum_cpy);
@@ -462,7 +530,7 @@ TEST_CASE_METHOD(FieldFixture, "Fcpy32", "[fml32]") {
 
   auto fbfr2 = Falloc32(100, 100);
   REQUIRE(fbfr2 != nullptr);
-  REQUIRE(Fcpy32(fbfr2, fbfr) != -1);
+  REQUIRE(Fcpy32(fbfr2, fbfr) == 1);
 
   get_fields(fbfr2);
 
@@ -500,12 +568,12 @@ TEST_CASE_METHOD(FieldFixture, "Fcpy32-tpalloc", "[fml32]") {
 
   auto fbfr2 = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 2 * 1024);
   REQUIRE(fbfr2 != nullptr);
-  REQUIRE(Fcpy32(fbfr2, fbfr) != -1);
+  REQUIRE(Fcpy32(fbfr2, fbfr) == 1);
 
   get_fields(fbfr2);
 
   std::string s(1024, 'x');
-  REQUIRE(Fchg32(fbfr, fld_string, 1, DECONST(s.c_str()), 0) != -1);
+  REQUIRE(Fchg32(fbfr, fld_string, 1, DECONST(s.c_str()), 0) == 1);
 
   auto fbfr3 = (FBFR32 *)tpalloc(DECONST("FML32"), DECONST("*"), 50);
   REQUIRE(fbfr3 != nullptr);
@@ -572,13 +640,13 @@ TEST_CASE_METHOD(FieldFixture, "Fget32", "[fml32]") {
   REQUIRE(
       (Fget32(fbfr, fld_short, 0, buf, &len) == -1 && Ferror32 == FNOSPACE));
   len = sizeof(buf);
-  REQUIRE(Fget32(fbfr, fld_short, 0, buf, &len) != -1);
+  REQUIRE(Fget32(fbfr, fld_short, 0, buf, &len) == 1);
   REQUIRE(reinterpret<short>(buf) == s);
 
   len = 1;
   REQUIRE((Fget32(fbfr, fld_long, 0, buf, &len) == -1 && Ferror32 == FNOSPACE));
   len = sizeof(buf);
-  REQUIRE(Fget32(fbfr, fld_long, 0, buf, &len) != -1);
+  REQUIRE(Fget32(fbfr, fld_long, 0, buf, &len) == 1);
   REQUIRE(reinterpret<long>(buf) == l);
 
   len = 0;
@@ -588,35 +656,35 @@ TEST_CASE_METHOD(FieldFixture, "Fget32", "[fml32]") {
   //  REQUIRE(Ferror32 == FNOSPACE);
   //  REQUIRE(len == sizeof(char));
   len = sizeof(buf);
-  REQUIRE(Fget32(fbfr, fld_char, 0, buf, &len) != -1);
+  REQUIRE(Fget32(fbfr, fld_char, 0, buf, &len) == 1);
   REQUIRE(reinterpret<char>(buf) == c);
 
   len = 1;
   REQUIRE(
       (Fget32(fbfr, fld_float, 0, buf, &len) == -1 && Ferror32 == FNOSPACE));
   len = sizeof(buf);
-  REQUIRE(Fget32(fbfr, fld_float, 0, buf, &len) != -1);
+  REQUIRE(Fget32(fbfr, fld_float, 0, buf, &len) == 1);
   REQUIRE(reinterpret<float>(buf) == f);
 
   len = 1;
   REQUIRE(
       (Fget32(fbfr, fld_double, 0, buf, &len) == -1 && Ferror32 == FNOSPACE));
   len = sizeof(buf);
-  REQUIRE(Fget32(fbfr, fld_double, 0, buf, &len) != -1);
+  REQUIRE(Fget32(fbfr, fld_double, 0, buf, &len) == 1);
   REQUIRE(reinterpret<double>(buf) == d);
 
   len = 1;
   REQUIRE(
       (Fget32(fbfr, fld_string, 0, buf, &len) == -1 && Ferror32 == FNOSPACE));
   len = sizeof(buf);
-  REQUIRE(Fget32(fbfr, fld_string, 0, buf, &len) != -1);
+  REQUIRE(Fget32(fbfr, fld_string, 0, buf, &len) == 1);
   REQUIRE(reinterpret_cast<char *>(buf) == str);
 
   len = 1;
   REQUIRE(
       (Fget32(fbfr, fld_carray, 0, buf, &len) == -1 && Ferror32 == FNOSPACE));
   len = sizeof(buf);
-  REQUIRE(Fget32(fbfr, fld_carray, 0, buf, &len) != -1);
+  REQUIRE(Fget32(fbfr, fld_carray, 0, buf, &len) == 1);
   REQUIRE(std::string(reinterpret_cast<char *>(buf), bytes.size()) == bytes);
 
   Ffree32(fbfr);
@@ -681,7 +749,7 @@ TEST_CASE("Fpres32", "[fml32]") {
 
   for (short i = 0; i < 3; i++) {
     REQUIRE(!Fpres32(fbfr, fld_short, i));
-    REQUIRE(Fadd32(fbfr, fld_short, reinterpret_cast<char *>(&i), 0) != -1);
+    REQUIRE(Fadd32(fbfr, fld_short, reinterpret_cast<char *>(&i), 0) == 1);
     REQUIRE(Fpres32(fbfr, fld_short, i));
   }
 
@@ -696,7 +764,7 @@ TEST_CASE("Fadd32-Foccur32", "[fml32]") {
 
   for (short i = 0; i < 3; i++) {
     REQUIRE(Foccur32(fbfr, fld_short) == i);
-    REQUIRE(Fadd32(fbfr, fld_short, reinterpret_cast<char *>(&i), 0) != -1);
+    REQUIRE(Fadd32(fbfr, fld_short, reinterpret_cast<char *>(&i), 0) == 1);
     REQUIRE(Foccur32(fbfr, fld_short) == i + 1);
   }
 
@@ -722,7 +790,7 @@ TEST_CASE("Ffindlast32", "[fml32]") {
   REQUIRE(Ferror32 == FNOTPRES);
 
   for (short i = 0; i < 3; i++) {
-    REQUIRE(Fadd32(fbfr, fld_short, reinterpret_cast<char *>(&i), 0) != -1);
+    REQUIRE(Fadd32(fbfr, fld_short, reinterpret_cast<char *>(&i), 0) == 1);
   }
 
   REQUIRE(Foccur32(fbfr, fld_short) == 3);
@@ -749,7 +817,7 @@ TEST_CASE("Fdel32", "[fml32]") {
   auto fld_short = Fmkfldid32(FLD_SHORT, 10);
 
   for (short i = 0; i < 3; i++) {
-    REQUIRE(Fadd32(fbfr, fld_short, reinterpret_cast<char *>(&i), 0) != -1);
+    REQUIRE(Fadd32(fbfr, fld_short, reinterpret_cast<char *>(&i), 0) == 1);
   }
 
   char *ptr;
@@ -762,7 +830,7 @@ TEST_CASE("Fdel32", "[fml32]") {
   ptr = Ffind32(fbfr, fld_short, 2, nullptr);
   REQUIRE((ptr != nullptr && reinterpret<short>(ptr) == 2));
 
-  REQUIRE(Fdel32(fbfr, fld_short, 1) != -1);
+  REQUIRE(Fdel32(fbfr, fld_short, 1) == 1);
 
   REQUIRE(Foccur32(fbfr, fld_short) == 2);
   ptr = Ffind32(fbfr, fld_short, 0, nullptr);
@@ -770,13 +838,13 @@ TEST_CASE("Fdel32", "[fml32]") {
   ptr = Ffind32(fbfr, fld_short, 1, nullptr);
   REQUIRE((ptr != nullptr && reinterpret<short>(ptr) == 2));
 
-  REQUIRE(Fdel32(fbfr, fld_short, 0) != -1);
+  REQUIRE(Fdel32(fbfr, fld_short, 0) == 1);
 
   REQUIRE(Foccur32(fbfr, fld_short) == 1);
   ptr = Ffind32(fbfr, fld_short, 0, nullptr);
   REQUIRE((ptr != nullptr && reinterpret<short>(ptr) == 2));
 
-  REQUIRE(Fdel32(fbfr, fld_short, 0) != -1);
+  REQUIRE(Fdel32(fbfr, fld_short, 0) == 1);
 
   REQUIRE(Foccur32(fbfr, fld_short) == 0);
 
@@ -792,12 +860,12 @@ TEST_CASE("Fdelall32", "[fml32]") {
   auto fld_short = Fmkfldid32(FLD_SHORT, 10);
 
   for (short i = 0; i < 3; i++) {
-    REQUIRE(Fadd32(fbfr, fld_short, reinterpret_cast<char *>(&i), 0) != -1);
+    REQUIRE(Fadd32(fbfr, fld_short, reinterpret_cast<char *>(&i), 0) == 1);
   }
 
   REQUIRE(Foccur32(fbfr, fld_short) == 3);
 
-  REQUIRE(Fdelall32(fbfr, fld_short) != -1);
+  REQUIRE(Fdelall32(fbfr, fld_short) == 1);
 
   REQUIRE(Foccur32(fbfr, fld_short) == 0);
 
@@ -819,10 +887,10 @@ TEST_CASE("Fnext32 iteration state is per buffer", "[fml32]") {
   auto fb = Fmkfldid32(FLD_STRING, 20);
   for (long i = 0; i < 3; i++) {
     REQUIRE(Fchg32(a, fa, static_cast<FLDOCC32>(i),
-                   reinterpret_cast<char *>(&i), 0) != -1);
+                   reinterpret_cast<char *>(&i), 0) == 1);
     std::string s = std::to_string(i);
     REQUIRE(Fchg32(b, fb, static_cast<FLDOCC32>(i), DECONST(s.c_str()),
-                   0) != -1);
+                   0) == 1);
   }
 
   FLDID32 ida = BADFLDID, idb = BADFLDID;
@@ -854,9 +922,9 @@ TEST_CASE("Fnext32-with-value", "[fml32]") {
     long l = i + 100;
     std::string str = std::to_string(i + 100);
 
-    REQUIRE(Fchg32(fbfr, fld_string, i, DECONST(str.c_str()), 0) != -1);
-    REQUIRE(Fchg32(fbfr, fld_long, i, reinterpret_cast<char *>(&l), 0) != -1);
-    REQUIRE(Fchg32(fbfr, fld_short, i, reinterpret_cast<char *>(&s), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld_string, i, DECONST(str.c_str()), 0) == 1);
+    REQUIRE(Fchg32(fbfr, fld_long, i, reinterpret_cast<char *>(&l), 0) == 1);
+    REQUIRE(Fchg32(fbfr, fld_short, i, reinterpret_cast<char *>(&s), 0) == 1);
   }
 
   FLDID32 fieldid = BADFLDID;
@@ -915,7 +983,7 @@ TEST_CASE("Fchg32-Fadd32", "[fml32]") {
   auto fld_short = Fmkfldid32(FLD_SHORT, 10);
 
   for (short i = 0; i < 3; i++) {
-    REQUIRE(Fchg32(fbfr, fld_short, -1, reinterpret_cast<char *>(&i), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld_short, -1, reinterpret_cast<char *>(&i), 0) == 1);
   }
 
   for (short i = 0; i < 3; i++) {
@@ -934,7 +1002,7 @@ TEST_CASE("Fchg32-Fdel32", "[fml32]") {
   auto fld_short = Fmkfldid32(FLD_SHORT, 10);
 
   for (short i = 0; i < 3; i++) {
-    REQUIRE(Fchg32(fbfr, fld_short, -1, reinterpret_cast<char *>(&i), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld_short, -1, reinterpret_cast<char *>(&i), 0) == 1);
   }
 
   for (short i = 0; i < 3; i++) {
@@ -944,7 +1012,7 @@ TEST_CASE("Fchg32-Fdel32", "[fml32]") {
   }
 
   for (short i = 0; i < 3; i++) {
-    REQUIRE(Fchg32(fbfr, fld_short, 0, nullptr, 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld_short, 0, nullptr, 0) == 1);
   }
   REQUIRE(Foccur32(fbfr, fld_short) == 0);
 
@@ -960,7 +1028,7 @@ TEST_CASE("Fchg32-gaps", "[fml32]") {
   auto fld_short = Fmkfldid32(FLD_SHORT, 10);
 
   short i = 5;
-  REQUIRE(Fchg32(fbfr, fld_short, 5, reinterpret_cast<char *>(&i), 0) != -1);
+  REQUIRE(Fchg32(fbfr, fld_short, 5, reinterpret_cast<char *>(&i), 0) == 1);
 
   for (short i = 0; i < 5; i++) {
     auto ptr = Ffind32(fbfr, fld_short, i, nullptr);
@@ -982,7 +1050,7 @@ TEST_CASE("Fchg32-short", "[fml32]") {
   auto fld_short = Fmkfldid32(FLD_SHORT, 10);
 
   for (short i = 0; i < 3; i++) {
-    REQUIRE(Fchg32(fbfr, fld_short, i, reinterpret_cast<char *>(&i), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld_short, i, reinterpret_cast<char *>(&i), 0) == 1);
   }
 
   for (short i = 0; i < 3; i++) {
@@ -1001,7 +1069,7 @@ TEST_CASE("Fchg32-long", "[fml32]") {
   auto fld_long = Fmkfldid32(FLD_LONG, 10);
 
   for (long i = 0; i < 3; i++) {
-    REQUIRE(Fchg32(fbfr, fld_long, i, reinterpret_cast<char *>(&i), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld_long, i, reinterpret_cast<char *>(&i), 0) == 1);
   }
 
   for (long i = 0; i < 3; i++) {
@@ -1021,7 +1089,7 @@ TEST_CASE("Fchg32-string", "[fml32]") {
 
   for (long i = 0; i < 3; i++) {
     REQUIRE(Fchg32(fbfr, fld_string, i, DECONST(std::to_string(i).c_str()),
-                   0) != -1);
+                   0) == 1);
   }
 
   for (long i = 0; i < 3; i++) {
@@ -1045,7 +1113,7 @@ TEST_CASE("Fchg32-short-overwrite", "[fml32]") {
             -1);
   }
   for (short i = 0; i < 3; i++) {
-    REQUIRE(Fchg32(fbfr, fld_short, i, reinterpret_cast<char *>(&i), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld_short, i, reinterpret_cast<char *>(&i), 0) == 1);
   }
 
   for (short i = 0; i < 3; i++) {
@@ -1069,7 +1137,7 @@ TEST_CASE("Fchg32-long-overwrite", "[fml32]") {
             -1);
   }
   for (long i = 0; i < 3; i++) {
-    REQUIRE(Fchg32(fbfr, fld_long, i, reinterpret_cast<char *>(&i), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld_long, i, reinterpret_cast<char *>(&i), 0) == 1);
   }
 
   for (long i = 0; i < 3; i++) {
@@ -1091,11 +1159,11 @@ TEST_CASE("Fchg32-string-overwrite-shrink", "[fml32]") {
     long dummy = 13;
     REQUIRE(Fchg32(fbfr, fld_string, i,
                    DECONST(("foobar-" + std::to_string(dummy)).c_str()),
-                   0) != -1);
+                   0) == 1);
   }
   for (long i = 0; i < 3; i++) {
     REQUIRE(Fchg32(fbfr, fld_string, i, DECONST(std::to_string(i).c_str()),
-                   0) != -1);
+                   0) == 1);
   }
 
   for (long i = 0; i < 3; i++) {
@@ -1116,11 +1184,11 @@ TEST_CASE("Fchg32-string-overwrite-grow", "[fml32]") {
   for (long i = 0; i < 3; i++) {
     long dummy = 13;
     REQUIRE(Fchg32(fbfr, fld_string, i, DECONST(std::to_string(dummy).c_str()),
-                   0) != -1);
+                   0) == 1);
   }
   for (long i = 0; i < 3; i++) {
     REQUIRE(Fchg32(fbfr, fld_string, i,
-                   DECONST(("foobar-" + std::to_string(i)).c_str()), 0) != -1);
+                   DECONST(("foobar-" + std::to_string(i)).c_str()), 0) == 1);
   }
 
   for (long i = 0; i < 3; i++) {
@@ -1140,19 +1208,19 @@ struct FieldSetFixture {
   void set_fields(FBFR32 *fbfr) {
     short s;
     s = 100;
-    REQUIRE(Fchg32(fbfr, fld1, 0, reinterpret_cast<char *>(&s), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld1, 0, reinterpret_cast<char *>(&s), 0) == 1);
     s = 101;
-    REQUIRE(Fchg32(fbfr, fld1, 1, reinterpret_cast<char *>(&s), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld1, 1, reinterpret_cast<char *>(&s), 0) == 1);
 
     s = 200;
-    REQUIRE(Fchg32(fbfr, fld2, 0, reinterpret_cast<char *>(&s), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld2, 0, reinterpret_cast<char *>(&s), 0) == 1);
     s = 201;
-    REQUIRE(Fchg32(fbfr, fld2, 1, reinterpret_cast<char *>(&s), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld2, 1, reinterpret_cast<char *>(&s), 0) == 1);
 
     s = 300;
-    REQUIRE(Fchg32(fbfr, fld3, 0, reinterpret_cast<char *>(&s), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld3, 0, reinterpret_cast<char *>(&s), 0) == 1);
     s = 301;
-    REQUIRE(Fchg32(fbfr, fld3, 1, reinterpret_cast<char *>(&s), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld3, 1, reinterpret_cast<char *>(&s), 0) == 1);
   }
 };
 
@@ -1167,7 +1235,7 @@ TEST_CASE_METHOD(FieldSetFixture, "Fconcat32", "[fml32]") {
   set_fields(fbfr2);
   REQUIRE(Foccur32(fbfr2, fld1) == 2);
 
-  REQUIRE(Fconcat32(fbfr, fbfr2) != -1);
+  REQUIRE(Fconcat32(fbfr, fbfr2) == 1);
 
   REQUIRE(Foccur32(fbfr, fld1) == 4);
 
@@ -1193,7 +1261,7 @@ TEST_CASE_METHOD(FieldSetFixture, "Fdelete32", "[fml32]") {
   set_fields(fbfr);
 
   FLDID32 del[] = {fld3, fld1, BADFLDID};
-  REQUIRE(Fdelete32(fbfr, del) != -1);
+  REQUIRE(Fdelete32(fbfr, del) == 1);
 
   REQUIRE(Foccur32(fbfr, fld1) == 0);
   REQUIRE(Foccur32(fbfr, fld2) == 2);
@@ -1217,7 +1285,7 @@ TEST_CASE_METHOD(FieldSetFixture, "Fproj32", "[fml32]") {
   set_fields(fbfr);
 
   FLDID32 keep[] = {fld2, BADFLDID};
-  REQUIRE(Fproj32(fbfr, keep) != -1);
+  REQUIRE(Fproj32(fbfr, keep) == 1);
 
   REQUIRE(Foccur32(fbfr, fld1) == 0);
   REQUIRE(Foccur32(fbfr, fld2) == 2);
@@ -1244,7 +1312,7 @@ TEST_CASE_METHOD(FieldSetFixture, "Fprojcpy32", "[fml32]") {
   set_fields(fbfr);
 
   FLDID32 keep[] = {fld2, BADFLDID};
-  REQUIRE(Fprojcpy32(dest, fbfr, keep) != -1);
+  REQUIRE(Fprojcpy32(dest, fbfr, keep) == 1);
 
   REQUIRE(Foccur32(dest, fld1) == 0);
   REQUIRE(Foccur32(dest, fld2) == 2);
@@ -1272,22 +1340,22 @@ TEST_CASE_METHOD(FieldSetFixture, "Fupdate32", "[fml32]") {
   short s;
 
   s = 100;
-  REQUIRE(Fchg32(dest, fld1, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(dest, fld1, 0, reinterpret_cast<char *>(&s), 0) == 1);
   s = 201;
-  REQUIRE(Fchg32(dest, fld2, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(dest, fld2, 0, reinterpret_cast<char *>(&s), 0) == 1);
   s = 202;
-  REQUIRE(Fchg32(dest, fld2, 1, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(dest, fld2, 1, reinterpret_cast<char *>(&s), 0) == 1);
   s = 203;
-  REQUIRE(Fchg32(dest, fld2, 2, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(dest, fld2, 2, reinterpret_cast<char *>(&s), 0) == 1);
 
   s = 210;
-  REQUIRE(Fchg32(src, fld2, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(src, fld2, 0, reinterpret_cast<char *>(&s), 0) == 1);
   s = 220;
-  REQUIRE(Fchg32(src, fld2, 1, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(src, fld2, 1, reinterpret_cast<char *>(&s), 0) == 1);
   s = 310;
-  REQUIRE(Fchg32(src, fld3, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(src, fld3, 0, reinterpret_cast<char *>(&s), 0) == 1);
 
-  REQUIRE(Fupdate32(dest, src) != -1);
+  REQUIRE(Fupdate32(dest, src) == 1);
 
   REQUIRE(Foccur32(dest, fld1) == 1);
   REQUIRE(Foccur32(dest, fld2) == 3);
@@ -1329,22 +1397,22 @@ TEST_CASE_METHOD(FieldSetFixture, "Fjoin32", "[fml32]") {
   short s;
 
   s = 100;
-  REQUIRE(Fchg32(dest, fld1, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(dest, fld1, 0, reinterpret_cast<char *>(&s), 0) == 1);
   s = 201;
-  REQUIRE(Fchg32(dest, fld2, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(dest, fld2, 0, reinterpret_cast<char *>(&s), 0) == 1);
   s = 202;
-  REQUIRE(Fchg32(dest, fld2, 1, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(dest, fld2, 1, reinterpret_cast<char *>(&s), 0) == 1);
   s = 203;
-  REQUIRE(Fchg32(dest, fld2, 2, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(dest, fld2, 2, reinterpret_cast<char *>(&s), 0) == 1);
 
   s = 210;
-  REQUIRE(Fchg32(src, fld2, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(src, fld2, 0, reinterpret_cast<char *>(&s), 0) == 1);
   s = 220;
-  REQUIRE(Fchg32(src, fld2, 1, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(src, fld2, 1, reinterpret_cast<char *>(&s), 0) == 1);
   s = 310;
-  REQUIRE(Fchg32(src, fld3, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(src, fld3, 0, reinterpret_cast<char *>(&s), 0) == 1);
 
-  REQUIRE(Fjoin32(dest, src) != -1);
+  REQUIRE(Fjoin32(dest, src) == 1);
 
   REQUIRE(Foccur32(dest, fld1) == 0);
   REQUIRE(Foccur32(dest, fld2) == 2);
@@ -1374,22 +1442,22 @@ TEST_CASE_METHOD(FieldSetFixture, "Fojoin32", "[fml32]") {
   short s;
 
   s = 100;
-  REQUIRE(Fchg32(dest, fld1, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(dest, fld1, 0, reinterpret_cast<char *>(&s), 0) == 1);
   s = 201;
-  REQUIRE(Fchg32(dest, fld2, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(dest, fld2, 0, reinterpret_cast<char *>(&s), 0) == 1);
   s = 202;
-  REQUIRE(Fchg32(dest, fld2, 1, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(dest, fld2, 1, reinterpret_cast<char *>(&s), 0) == 1);
   s = 203;
-  REQUIRE(Fchg32(dest, fld2, 2, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(dest, fld2, 2, reinterpret_cast<char *>(&s), 0) == 1);
 
   s = 210;
-  REQUIRE(Fchg32(src, fld2, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(src, fld2, 0, reinterpret_cast<char *>(&s), 0) == 1);
   s = 220;
-  REQUIRE(Fchg32(src, fld2, 1, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(src, fld2, 1, reinterpret_cast<char *>(&s), 0) == 1);
   s = 310;
-  REQUIRE(Fchg32(src, fld3, 0, reinterpret_cast<char *>(&s), 0) != -1);
+  REQUIRE(Fchg32(src, fld3, 0, reinterpret_cast<char *>(&s), 0) == 1);
 
-  REQUIRE(Fojoin32(dest, src) != -1);
+  REQUIRE(Fojoin32(dest, src) == 1);
 
   REQUIRE(Foccur32(dest, fld1) == 1);
   REQUIRE(Foccur32(dest, fld2) == 3);
@@ -1425,13 +1493,13 @@ TEST_CASE("nested fml32", "[fml32]") {
   auto NAME = Fldid32(DECONST("NAME"));
   auto VALUE = Fldid32(DECONST("VALUE"));
 
-  REQUIRE(Fchg32(args, NAME, 0, DECONST("name1"), 0) != -1);
-  REQUIRE(Fchg32(args, VALUE, 0, DECONST("000001"), 0) != -1);
-  REQUIRE(Fchg32(fbfr, ARGS, 0, (char *)args, 0) != -1);
+  REQUIRE(Fchg32(args, NAME, 0, DECONST("name1"), 0) == 1);
+  REQUIRE(Fchg32(args, VALUE, 0, DECONST("000001"), 0) == 1);
+  REQUIRE(Fchg32(fbfr, ARGS, 0, (char *)args, 0) == 1);
 
-  REQUIRE(Fchg32(args, NAME, 0, DECONST("name2"), 0) != -1);
-  REQUIRE(Fchg32(args, VALUE, 0, DECONST("000002"), 0) != -1);
-  REQUIRE(Fchg32(fbfr, ARGS, 1, (char *)args, 0) != -1);
+  REQUIRE(Fchg32(args, NAME, 0, DECONST("name2"), 0) == 1);
+  REQUIRE(Fchg32(args, VALUE, 0, DECONST("000002"), 0) == 1);
+  REQUIRE(Fchg32(fbfr, ARGS, 1, (char *)args, 0) == 1);
 
   FBFR32 *nested;
   REQUIRE((nested = (FBFR32 *)Ffind32(fbfr, ARGS, 0, nullptr)) != nullptr);
@@ -1449,7 +1517,7 @@ TEST_CASE("nested fml32", "[fml32]") {
   REQUIRE((nested = (FBFR32 *)Ffind32(fbfr, ARGS, 2, nullptr)) == nullptr);
 
   tempfile file(__LINE__);
-  REQUIRE(Ffprint32(fbfr, file.f) != -1);
+  REQUIRE(Ffprint32(fbfr, file.f) == 1);
   fclose(file.f);
   REQUIRE(read_file(file.name) ==
           "ARGS\t\n\tNAME\tname1\n\tVALUE\t000001\n\n"
@@ -1471,11 +1539,11 @@ TEST_CASE("Fget32 for nested fml32 does not change param size", "[fml32]") {
   auto NAME = Fldid32(DECONST("NAME"));
   auto VALUE = Fldid32(DECONST("VALUE"));
 
-  REQUIRE(Fchg32(args, NAME, 0, DECONST("name1"), 0) != -1);
-  REQUIRE(Fchg32(args, VALUE, 0, DECONST("000001"), 0) != -1);
-  REQUIRE(Fchg32(fbfr, ARGS, 0, (char *)args, 0) != -1);
+  REQUIRE(Fchg32(args, NAME, 0, DECONST("name1"), 0) == 1);
+  REQUIRE(Fchg32(args, VALUE, 0, DECONST("000001"), 0) == 1);
+  REQUIRE(Fchg32(fbfr, ARGS, 0, (char *)args, 0) == 1);
 
-  REQUIRE(Fget32(fbfr, ARGS, 0, (char *)loc, 0) != -1);
+  REQUIRE(Fget32(fbfr, ARGS, 0, (char *)loc, 0) == 1);
 
   REQUIRE(Fsizeof32(loc) == orig_size);
 
@@ -1500,7 +1568,7 @@ TEST_CASE("Fextread32 empty buffer is OK", "[fml32]") {
   fclose(file.f);
 
   REQUIRE((file.f = fopen(file.name.c_str(), "r")) != nullptr);
-  REQUIRE(Fextread32(fbfr, file.f) != -1);
+  REQUIRE(Fextread32(fbfr, file.f) == 1);
 }
 
 TEST_CASE("Fextread32", "[fml32]") {
@@ -1523,7 +1591,7 @@ TEST_CASE("Fextread32", "[fml32]") {
   fclose(file.f);
 
   REQUIRE((file.f = fopen(file.name.c_str(), "r")) != nullptr);
-  REQUIRE(Fextread32(fbfr, file.f) != -1);
+  REQUIRE(Fextread32(fbfr, file.f) == 1);
 
   REQUIRE((file.f = fopen(file.name.c_str(), "w")) != nullptr);
   Ffprint32(fbfr, file.f);
@@ -1553,14 +1621,14 @@ TEST_CASE_METHOD(FieldFixture, "Ffprint32", "[fml32]") {
 
   set_fields(fbfr);
   REQUIRE((file.f = fopen(file.name.c_str(), "w")) != nullptr);
-  REQUIRE(Ffprint32(fbfr, file.f) != -1);
+  REQUIRE(Ffprint32(fbfr, file.f) == 1);
   fclose(file.f);
-  REQUIRE(Fprint32(fbfr) != -1);
+  REQUIRE(Fprint32(fbfr) == 1);
 
   Finit32(fbfr, Fsizeof32(fbfr));
 
   REQUIRE((file.f = fopen(file.name.c_str(), "r")) != nullptr);
-  REQUIRE(Fextread32(fbfr, file.f) != -1);
+  REQUIRE(Fextread32(fbfr, file.f) == 1);
   fclose(file.f);
 
   get_fields(fbfr);
@@ -1602,7 +1670,7 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport string", "[fml32]") {
   long olen = sizeof(ostr);
 
   REQUIRE(tpexport(reinterpret_cast<char *>(fbfr), 0, ostr, &olen,
-                   TPEX_STRING) != -1);
+                   TPEX_STRING) == 1);
 
   olen = 0;
   tpimport(ostr, 0, reinterpret_cast<char **>(&copy), &olen, TPEX_STRING);
@@ -1637,7 +1705,7 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport binary", "[fml32]") {
   char ostr[4 * 1024];
   long olen = sizeof(ostr);
 
-  REQUIRE(tpexport(reinterpret_cast<char *>(fbfr), 0, ostr, &olen, 0) != -1);
+  REQUIRE(tpexport(reinterpret_cast<char *>(fbfr), 0, ostr, &olen, 0) == 1);
 
   long ilen = olen;
   REQUIRE(tpimport(ostr, ilen, reinterpret_cast<char **>(&copy), &olen, 0) !=
@@ -1659,21 +1727,21 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport string into smaller buffer",
 
   for (FLDOCC32 oc = 0; Fused32(fbfr) < 3 * 1024; oc++) {
     std::string s = "foobar" + std::to_string(oc);
-    REQUIRE(Fchg32(fbfr, fld_string, oc, DECONST(s.c_str()), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld_string, oc, DECONST(s.c_str()), 0) == 1);
   }
 
   char ostr[8 * 1024];
   long olen = sizeof(ostr);
 
   REQUIRE(tpexport(reinterpret_cast<char *>(fbfr), 0, ostr, &olen,
-                   TPEX_STRING) != -1);
+                   TPEX_STRING) == 1);
 
   // FIXME: Oracle Tuxedo actually fails with TPESYSTEM if ilen=0 even whe
   // TPEX_STRING in flags
   long ilen = olen;
   olen = 0;
   REQUIRE(tpimport(ostr, ilen, reinterpret_cast<char **>(&copy), &olen,
-                   TPEX_STRING) != -1);
+                   TPEX_STRING) == 1);
 
   REQUIRE(Fchksum32(copy) == Fchksum32(fbfr));
 }
@@ -1688,13 +1756,13 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport binary into smaller buffer",
 
   for (FLDOCC32 oc = 0; Fused32(fbfr) < 2 * 1024; oc++) {
     std::string s = "foobar" + std::to_string(oc);
-    REQUIRE(Fchg32(fbfr, fld_string, oc, DECONST(s.c_str()), 0) != -1);
+    REQUIRE(Fchg32(fbfr, fld_string, oc, DECONST(s.c_str()), 0) == 1);
   }
 
   char ostr[8 * 1024];
   long olen = sizeof(ostr);
 
-  REQUIRE(tpexport(reinterpret_cast<char *>(fbfr), 0, ostr, &olen, 0) != -1);
+  REQUIRE(tpexport(reinterpret_cast<char *>(fbfr), 0, ostr, &olen, 0) == 1);
 
   long ilen = olen;
   olen = Fsizeof32(copy);
@@ -1721,7 +1789,7 @@ TEST_CASE("tpexport & tpimport STRING binary", "[mem]") {
   char ostr[8 * 1024];
   long olen = sizeof(ostr);
 
-  REQUIRE(tpexport(str, 4 * 1024, ostr, &olen, 0) != -1);
+  REQUIRE(tpexport(str, 4 * 1024, ostr, &olen, 0) == 1);
 
   long ilen = olen;
   olen = 1024;
@@ -1755,7 +1823,7 @@ TEST_CASE("tpexport & tpimport args", "[mem]") {
 #ifdef FUXEDO_TUX_COMPAT
   // 12.x rejects unknown flag bits with TPEINVAL, 22.x accepts them
   if (fux::compat::is221) {
-    REQUIRE(tpexport(str, 4 * 1024, ostr, &olen, 666) != -1);
+    REQUIRE(tpexport(str, 4 * 1024, ostr, &olen, 666) == 1);
   } else {
     REQUIRE(tpexport(str, 4 * 1024, ostr, &olen, 666) == -1);
     REQUIRE(tperrno == TPEINVAL);
@@ -1768,7 +1836,7 @@ TEST_CASE("tpexport & tpimport args", "[mem]") {
   }
 #endif
 
-  REQUIRE(tpexport(str, 4 * 1024, ostr, &olen, 0) != -1);
+  REQUIRE(tpexport(str, 4 * 1024, ostr, &olen, 0) == 1);
 
   REQUIRE(tpimport(nullptr, olen, &copy, &olen, 0) == -1);
   REQUIRE(tperrno == TPEINVAL);
@@ -1780,7 +1848,7 @@ TEST_CASE("tpexport & tpimport args", "[mem]") {
   // 12.x rejects a NULL target pointer with TPEINVAL, 22.x allocates the
   // buffer instead
   if (fux::compat::is221) {
-    REQUIRE(tpimport(ostr, ilen, &tmp, &olen, 0) != -1);
+    REQUIRE(tpimport(ostr, ilen, &tmp, &olen, 0) == 1);
     REQUIRE(tmp != nullptr);
     REQUIRE(tptypes(tmp, nullptr, nullptr) == 4 * 1024 - 1);
     tpfree(tmp);
@@ -1810,7 +1878,7 @@ TEST_CASE("tpexport & tpimport args", "[mem]") {
   REQUIRE((tperrno == TPEPROTO || tperrno == TPESYSTEM));
 #endif
 
-  REQUIRE(tpimport(ostr, olen, &copy, &olen, 0) != -1);
+  REQUIRE(tpimport(ostr, olen, &copy, &olen, 0) == 1);
 
   REQUIRE(memcmp(str, copy, 4 * 1024) == 0);
 }

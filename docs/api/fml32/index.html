@@ -65,6 +65,8 @@
 <li><a href="/api/tpgetrply/">tpgetrply</a></li>
 <li><a href="/api/tpcancel/">tpcancel</a></li>
 <li><a href="/api/tpforward/">tpforward</a></li>
+<li><a href="/api/tpsprio/">tpsprio</a></li>
+<li><a href="/api/tpgprio/">tpgprio</a></li>
 </ul>
 <h2>XATMI: conversational</h2>
 <ul>
@@ -146,11 +148,25 @@ able to occur multiple times. A field id packs a type and a number;
 <code>Fldtype32()</code> and <code>Fldno32()</code> decode it and
 <code>Fmkfldid32()</code> builds one. Field names come from field
 tables compiled with <code>mkfldhdr32</code>.</p>
-<p>Every call in this group takes a <code>FBFR32 *</code>, returns 0 or
-a count on success and -1 on error, and reports the failure in
-<code>Ferror32</code> (render it with <code>Fstrerror32()</code>).
-Occurrence counts (<code>FLDOCC32</code>) are zero-based; -1 means all
-occurrences where a call accepts it.</p>
+<p>Every call in this group takes a <code>FBFR32 *</code> and reports
+failure as -1 (or NULL on the calls that return pointers), with the
+reason in <code>Ferror32</code> (render it with
+<code>Fstrerror32()</code>). On success each call answers its own
+value: 1 for most adders, changers, and readers, a count for
+<code>Foccur32</code>, a size for <code>Fsizeof32</code>,
+<code>Fneeded32</code>, and <code>Flen32</code>, and 1-or-0 for
+<code>Fnext32</code> as it walks the buffer.</p>
+<p><strong>The success value is not a boolean.</strong> Oracle has
+answered both 0 and 1 for the same calls across functions and
+releases, and the documentation has been quiet about which; a lot of
+shipped code checks <code>== 0</code>, other code checks
+<code>== 1</code>, and both keep working because each call returns
+exactly what the current platform returns. Fuxedo matches that ABI per
+call. For new code the only portable contract is <code>!= -1</code>
+(or a NULL check on pointer-returning calls) — never write
+<code>if (Fadd32(...))</code>, a successful 1 reads as failure.</p>
+<p>Occurrence counts (<code>FLDOCC32</code>) are zero-based; -1 means
+all occurrences where a call accepts it.</p>
 <p>In ATMI programs the buffers come from <code>tpalloc("FML32", ...)</code>
 and are released with <code>tpfree()</code>. Outside ATMI, libfml32
 allocates with <code>Falloc32()</code>/<code>Ffree32()</code> and
