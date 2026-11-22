@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fuxedo Status and Roadmap - what works, verified against Oracle Tuxedo</title>
-<meta name="description" content="Fuxedo maturity, proven by running: Oracle Tuxedo sample applications (simpapp, xmlfmlapp, qsample) recompiled and run, all book examples on fuxedo and Oracle 12.2.2/22.1, structured feature list (ATMI, FML32, VIEW32, transactions, /Q, domains, workstations), and what is not prioritized yet.">
+<meta name="description" content="Fuxedo maturity, proven by running: Oracle Tuxedo sample applications (simpapp, xmlfmlapp, qsample) recompiled and run, all book examples on fuxedo and Oracle 12.2.2/22.1, structured feature list (ATMI, FML32 and FML16, VIEW32 and VIEW16, transactions, /Q, domains, workstations), and what is not prioritized yet.">
 <meta name="keywords" content="Fuxedo status, Fuxedo roadmap, open source Tuxedo maturity, Fuxedo vs Oracle Tuxedo features, Tuxedo compatibility verified">
 <link rel="canonical" href="https://fuxedo.io/status/">
 <link rel="stylesheet" href="/styles.css">
@@ -60,13 +60,13 @@ the same claim: no source edits, rebuild and go.</p>
 <td>simpapp, xmlfmlapp, and qsample from the Oracle Tuxedo 12.2.2
 samples build with fuxedo buildclient/buildserver and boot from their
 own UBBCONFIG; simpapp and xmlfmlapp also run against Oracle 12.2.2
-itself with identical output. The bankapp application compiles with
-fuxedo buildserver including the esqlc precompile step, boots from its
-own UBBCONFIG with 16-bit FML/VIEW buffers and VIEW-based routing, and
-serves its deposit and transfer services; the shipped bankapp variant
-targets the legacy Tuxedo/SQL database, so the database-backed
-end-to-end run uses the Oracle-database variant of the same
-sources.</td></tr>
+itself with identical output. The <a
+href="https://www.oracle.com/downloads/samplecode/tuxedo-samplecode-downloads.html">Tuxedo
+bankapp for Oracle database</a> sample compiles with fuxedo
+buildserver, its embedded SQL precompiled by Oracle proc, and boots
+from its own UBBCONFIG with 16-bit FML/VIEW buffers and VIEW-based
+data-dependent routing; its branch, teller, and account services
+answer requests end to end.</td></tr>
 <tr><td>Book examples</td>
 <td>Every runnable example from <a
 href="https://aivarsk.com/tuxedo-python/">Oracle Tuxedo for
@@ -90,13 +90,17 @@ TPSINGLETON and TPSECONDARYRQ, automatic transactions and AUTOTRAN,
 late-reply draining.</td></tr>
 <tr><td>Typed buffers</td>
 <td>FML32 with Oracle-compatible field ids and boolean expressions,
-VIEW32 with viewc32/viewdis32 and the Fv* family, XML buffers with
-tpxmltofml32 and BUFTYPECONV, STRING, CARRAY, tpimport/tpexport.</td></tr>
+FML16 (the classic 16-bit flavor with Fadd/Fchg/Fvall and the
+F16to32/F32to16 converters), VIEW32 with viewc32/viewdis32 and the
+Fv* family, VIEW16 with viewc, XML buffers with tpxmltofml32 and
+BUFTYPECONV, STRING, CARRAY, X_OCTET, X_COMMON, tpimport/tpexport,
+cross-checked against Oracle 12.2.2 at the return-value level.</td></tr>
 <tr><td>Administration</td>
-<td>tmloadcf, tmunloadcf, tmboot, tmshutdown, tmadmin, qmadmin, ud32,
-tmipcrm, crdl/crlog, the TM_MIB classes, runtime updates (advertise,
-unadvertise, suspend, resume, chgserver, changetrace), printtrans and
-offline log utilities.</td></tr>
+<td>tmloadcf, tmunloadcf, tmboot, tmshutdown, tmadmin, qmadmin,
+ud32/ud (32-bit and 16-bit Fprint drivers), mkfldhdr32/mkfldhdr,
+viewc32/viewc, tmipcrm, crdl/crlog, the TM_MIB classes, runtime
+updates (advertise, unadvertise, suspend, resume, chgserver,
+changetrace), printtrans and offline log utilities.</td></tr>
 <tr><td>Operations</td>
 <td>MSSQ sets with secondary queues and REPLYQ, server restart with
 MAXGEN/RESTART/GRACE sliding window, data-dependent routing across

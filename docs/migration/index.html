@@ -46,12 +46,12 @@ fuxedo buildclient/buildserver and run from their own UBBCONFIG; every
 runnable example from <a
 href="https://aivarsk.com/tuxedo-python/">Oracle Tuxedo for
 Developers</a> executes on fuxedo, Oracle Database chapter included,
-with the same test code cross-run on Oracle 12.2.2; the bankapp
-application builds with buildserver and the esqlc precompiler, boots
-with its 16-bit FML/VIEW buffers and data-dependent routing (the
-Oracle-database variant of the sources, since the shipped one targets
-the legacy Tuxedo/SQL database); and the tuxedo-python bindings run
-unmodified. The first step of a migration
+with the same test code cross-run on Oracle 12.2.2; the <a
+href="https://www.oracle.com/downloads/samplecode/tuxedo-samplecode-downloads.html">Tuxedo
+bankapp for Oracle database</a> sample builds with buildserver, its
+embedded SQL precompiled by Oracle proc, and boots with its 16-bit
+FML/VIEW buffers and data-dependent routing; and the tuxedo-python
+bindings run unmodified. The first step of a migration
 can literally be: install fuxedo next to the current home, point
 TUXDIR at it, rebuild, boot.</p>
 

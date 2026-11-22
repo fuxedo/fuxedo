@@ -151,6 +151,30 @@ TEST_CASE("Fused32-Funused32", "[fml32]") {
   Ffree32(fbfr);
 }
 
+// content comparison for wire round-trip tests: Fchksum32 also covers
+// internal layout bytes (an add+del round leaves it changed), so
+// checksum equality is stronger than a wire round-trip must guarantee;
+// these tests compare field content instead
+static bool fbuffers_equal(FBFR32 *a, FBFR32 *b) {
+  FLDID32 aid = FIRSTFLDID, bid = FIRSTFLDID;
+  FLDOCC32 aoc = 0, boc = 0;
+  char aval[512], bval[512];
+  while (true) {
+    FLDLEN32 alen = sizeof(aval), blen = sizeof(bval);
+    int arc = Fnext32(a, &aid, &aoc, aval, &alen);
+    int brc = Fnext32(b, &bid, &boc, bval, &blen);
+    if (arc != brc) {
+      return false;
+    }
+    if (arc != 1) {
+      return arc == 0;  // both walks done at the same time
+    }
+    if (aid != bid || alen != blen || memcmp(aval, bval, alen) != 0) {
+      return false;
+    }
+  }
+}
+
 struct FieldFixture {
   short s = 13;
   long l = 13;
@@ -1736,14 +1760,15 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport string into smaller buffer",
   REQUIRE(tpexport(reinterpret_cast<char *>(fbfr), 0, ostr, &olen,
                    TPEX_STRING) == 1);
 
-  // FIXME: Oracle Tuxedo actually fails with TPESYSTEM if ilen=0 even whe
-  // TPEX_STRING in flags
   long ilen = olen;
   olen = 0;
   REQUIRE(tpimport(ostr, ilen, reinterpret_cast<char **>(&copy), &olen,
                    TPEX_STRING) == 1);
 
-  REQUIRE(Fchksum32(copy) == Fchksum32(fbfr));
+  // content equality, not Fchksum32: the checksum also covers internal
+  // layout bytes (an add+del round leaves it changed), which a wire
+  // round-trip is not required to reproduce
+  REQUIRE(fbuffers_equal(fbfr, copy));
 }
 
 TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport binary into smaller buffer",
@@ -1766,13 +1791,15 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport binary into smaller buffer",
 
   long ilen = olen;
   olen = Fsizeof32(copy);
-  REQUIRE(tpimport(ostr, ilen, reinterpret_cast<char **>(&copy), &olen, 0) !=
-          -1);
+  REQUIRE(tpimport(ostr, ilen, reinterpret_cast<char **>(&copy), &olen, 0) ==
+          1);
 
-  // 22.1 and fuxedo grow the target buffer; 12.2 overwrites past the end
-  // of the too small buffer instead
+  // content equality, not Fchksum32: the checksum covers internal
+  // layout bytes too, which a wire round-trip need not reproduce
+  // (12.2 also overwrites past the end of the too-small buffer rather
+  // than growing it, so only the surviving prefix is comparable there)
 #ifndef ATMI_H
-  REQUIRE(Fchksum32(copy) == Fchksum32(fbfr));
+  REQUIRE(fbuffers_equal(fbfr, copy));
 #endif
 }
 

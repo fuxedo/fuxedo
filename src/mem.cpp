@@ -150,6 +150,7 @@ char *tprealloc(char *ptr, long size) {
 
   size = (size >= tptype->default_size) ? size : tptype->default_size;
   mem = (tpmem *)realloc(mem, sizeof(tpmem) + size);
+  mem->size = size;
   if (tptype->reinit != nullptr) {
     tptype->reinit(mem->data, size);
   }
@@ -250,7 +251,7 @@ int tpimport(char *istr, long ilen, char **obuf, long *olen, long flags) {
     constexpr auto prefix = offsetof(tpmem, type);
     char type[sizeof(tpmem::type) + 1] = {};
     char subtype[sizeof(tpmem::subtype) + 1] = {};
-    char wire[prefix + 8] = {};
+    char wire[sizeof(tpmem::type) + sizeof(tpmem::subtype)] = {};
     if (flags & TPEX_STRING) {
       constexpr auto wire_b64 = base64chars(sizeof(wire));
       if (ilen < static_cast<long>(wire_b64)) {
