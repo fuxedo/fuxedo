@@ -287,7 +287,9 @@ static void recover_tlog() {
     return;
   }
   XID xids[64];
-  int n = xasw->xa_recover_entry(xids, 64, 0, TMSTARTRSCAN);
+  // the scan runs on this group's RM connection, opened with rmid =
+  // grpno in tx_open; a hardcoded 0 answers XAER_PROTO on every boot
+  int n = xasw->xa_recover_entry(xids, 64, fux::tx::grpno, TMSTARTRSCAN);
   FUX_PROBE1(xa__recover, n);
   for (int i = 0; i < n; i++) {
     int outcome = log->outcome(&xids[i]);
@@ -295,13 +297,13 @@ static void recover_tlog() {
       userlog("recovering in-doubt transaction %s with COMMIT",
               fux::to_string(&xids[i]).c_str());
       FUX_PROBE2(heuristic__resolve, fux::to_string(&xids[i]).c_str(), 1);
-      xasw->xa_commit_entry(&xids[i], 0, TMNOFLAGS);
+      xasw->xa_commit_entry(&xids[i], fux::tx::grpno, TMNOFLAGS);
     } else if (outcome == 3) {
       // resolved heuristically before this boot; nothing to redo
       userlog("in-doubt transaction %s was completed heuristically",
               fux::to_string(&xids[i]).c_str());
       FUX_PROBE2(heuristic__resolve, fux::to_string(&xids[i]).c_str(), 3);
-      xasw->xa_forget_entry(&xids[i], 0, TMNOFLAGS);
+      xasw->xa_forget_entry(&xids[i], fux::tx::grpno, TMNOFLAGS);
     } else {
       FUX_PROBE2(heuristic__resolve, fux::to_string(&xids[i]).c_str(), 0);
       if (fux::qm::qm_branch_staged_empty(&xids[i])) {
@@ -314,7 +316,7 @@ static void recover_tlog() {
         userlog("recovering in-doubt transaction %s with ROLLBACK",
                 fux::to_string(&xids[i]).c_str());
       }
-      xasw->xa_rollback_entry(&xids[i], 0, TMNOFLAGS);
+      xasw->xa_rollback_entry(&xids[i], fux::tx::grpno, TMNOFLAGS);
     }
   }
 }

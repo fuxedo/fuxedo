@@ -66,6 +66,26 @@ or an administrator can see is pinned to the Oracle behavior, with one
 deliberate improvement: a busy system does not degrade under the
 one-second full-queue retry.</p>
 
+<p><strong>My Oracle_XA servers fail to boot with permission errors, but the
+database credentials are right. What is it?</strong> The
+<code>LogDir</code> in <code>OPENINFO</code>. The Oracle XA library
+opens a trace file there during <code>xa_open</code>, before any
+database work happens; if the server processes' user cannot write that
+directory, the open fails with permission-flavored errors that look
+like connect failures. Point <code>LogDir</code> at a directory the
+server user owns. The trace file itself,
+<code>xa_NULL&lt;date&gt;.trc</code>, is one per host and day, shared
+by every process, and is the first place to look when XA misbehaves -
+it logs every <code>xa_start</code>, <code>xa_end</code>, and recovery
+scan with return codes.</p>
+
+<p><strong>Which database grant does two-phase commit need?</strong>
+<code>GRANT SELECT ON sys.dba_pending_transactions</code> to the
+application user. Without it the transaction manager's recovery scan
+fails and prepared transactions stay in-doubt after a crash instead of
+being resolved. <code>FORCE TRANSACTION</code> is the companion
+privilege for heuristic resolution.</p>
+
 <p><strong>How do I migrate?</strong> Install side by side, build
 against Fuxedo headers, boot from the same UBBCONFIG, run your tests.
 The <a href="/migration/">migration page</a> has the full
