@@ -61,7 +61,13 @@ static void handle_blocktime() {
       req->cat = fux::ipc::unblock;
       userlog("Sending unblock message to client=%d queue=%0x", int(i),
               acc.rpid);
-      fux::ipc::qsend(acc.rpid, req, 0, fux::ipc::flags::notime);
+      // the receive side may be gone with its queue stuffed full: send
+      // with the cadence-retry window instead of blocking BBL outright
+      if (!fux::ipc::qsend(acc.rpid, req, 30000, fux::ipc::flags::noflags)) {
+        userlog("Unblock message to client=%d could not be delivered, "
+                "queue stayed full for 30s",
+                int(i));
+      }
     }
   }
 }

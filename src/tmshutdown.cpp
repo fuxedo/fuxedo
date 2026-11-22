@@ -185,8 +185,12 @@ int main(int argc, char *argv[]) {
                   << std::endl;
         any_failed = true;
       } else {
+        // pinned on Oracle 12.2.2: the polite shutdown wait is
+        // unbounded - tmshutdown sits in the reply wait until the
+        // server finishes tpsvrdone and exits, however long that
+        // takes (a 120s freeze kept it waiting the full 2m03s)
         if (tpgetrply(&cd, reinterpret_cast<char **>(buf.ptrptr()), 0,
-                      TPNOFLAGS) == -1) {
+                      TPNOTIME) == -1) {
         }
 
         if (server.is_inactive()) {
