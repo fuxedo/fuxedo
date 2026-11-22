@@ -492,13 +492,18 @@ struct server_thread {
     } else if (fux::tx::transactional()) {
       // AUTOTRAN (or the caller's transaction left open): end the
       // branch, then drive the two-phase outcome the way tx_commit
-      // does - xa_end alone leaves the transaction uncommitted. Only
-      // a transaction this server began itself is driven here; one
-      // joined from the caller is committed by the caller's tpcommit
+      // does - xa_end alone leaves the transaction uncommitted. A
+      // transaction this server began itself (explicit tpbegin or the
+      // AUTOTRAN machinery) is driven here; one joined from the
+      // caller is committed by the caller's tpcommit
+      // capture the xid before tx_end: the end clears the thread
+      // context, and current_xid afterwards reads a wiped XID
+      auto xid = fux::tx::current_xid();
       bool ok = fux::tx_end(rval == TPMINVAL);
-      if (ok && rval == TPMINVAL && fux::tx::own_begin()) {
-        auto xid = fux::tx::current_xid();
+      if (ok && rval == TPMINVAL &&
+          (fux::tx::own_begin() || fux::tx::autotran_begin())) {
         int drc = fux::tm::drive(&xid);
+        fux::tx::set_autotran_begin(false);
         ok = drc != 0;
       }
       if (!ok) {
@@ -553,8 +558,12 @@ static void execute(server_thread *tp) {
     if (sidx != mib::badoff &&
         main_ptr->m_.services().at(sidx).autotran[0] == 'Y') {
       tx_begin();
-      // autotran transactions are platform-begun, not service-begun
+      // autotran transactions are platform-begun, not service-begun:
+      // own_begin stays clear (the service must not be blamed for
+      // leaving it open), but the flag below tells tpreturn to drive
+      // the commit - xa_end alone leaves the transaction uncommitted
       fux::tx::clear_own_begin();
+      fux::tx::set_autotran_begin(true);
     }
   }
 
@@ -925,8 +934,11 @@ void tpreturn(int rval, long rcode, char *data, long len, long flags) try {
     rval = TPESVCERR;
   }
   return thread_ptr->tpreturn(rval, rcode, data, len, flags);
+} catch (const std::exception &e) {
+  userlog("tpreturn failed: %s", e.what());
+  longjmp(thread_ptr->tpreturn_env, -1);
 } catch (...) {
-  userlog("tpreturn failed");
+  userlog("tpreturn failed: unknown exception");
   longjmp(thread_ptr->tpreturn_env, -1);
 }
 

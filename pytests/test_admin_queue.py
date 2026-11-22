@@ -96,19 +96,30 @@ import tuxedo as t
 t.tpinit(None)
 t.tpcall("PING", "hi")  # wait until the domain is fully up
 n = 0
-deadline = time.time() + 30
-while time.time() < deadline:
+blocked = 0
+deadline = time.time() + 120
+while time.time() < deadline and not blocked:
     try:
-        t.tpacall("FLOOD", b"x" * 64, t.TPNOBLOCK | t.TPNOREPLY)
+        # 512-byte payloads fill the queue in far fewer messages, so
+        # the fill does not race the sender's rate on a loaded box
+        t.tpacall("FLOOD", b"x" * 512, t.TPNOBLOCK | t.TPNOREPLY)
         n += 1
     except t.XatmiException as e:
         if e.code == t.TPEBLOCK:
+            blocked = 1
             break
         raise
-print(f"flooded with {n} messages")
+print(f"flooded with {n} messages, blocked={blocked}", flush=True)
 if n == 0:
     raise AssertionError("queue never accepted a single message")
-time.sleep(120)  # hold the queue full while the main test inspects
+# keep the pressure on: without this the slow FLOOD server drains the
+# queue while we sleep and the queue never stays full
+end = time.time() + 150
+while time.time() < end:
+    try:
+        t.tpacall("FLOOD", b"x" * 512, t.TPNOBLOCK | t.TPNOREPLY)
+    except t.XatmiException:
+        time.sleep(0.05)
 t.tpterm()
 """
 
@@ -139,9 +150,10 @@ def test_admin_queue_backpressure():
             # queue starts answering TPEBLOCK, then holds
             import subprocess
             flood = subprocess.Popen(
-                [sys.executable, "-c", FLOOD_CLIENT],
+                [sys.executable, "-u", "-c", FLOOD_CLIENT],
                 env={**os.environ, **{k: str(v) for k, v in env.items()}},
-                cwd=dir)
+                cwd=dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True)
             try:
                 import time
                 # wait for the queue to saturate
@@ -150,7 +162,7 @@ def test_admin_queue_backpressure():
                     out = subprocess.run(
                         [sys.executable, "-c",
                          "import tuxedo as t; t.tpinit(None); "
-                         "t.tpacall('FLOOD', b'y', t.TPNOBLOCK | "
+                         "t.tpacall('FLOOD', b'y' * 512, t.TPNOBLOCK | "
                          "t.TPNOREPLY); print('not full')"],
                         env={**os.environ, **
                              {k: str(v) for k, v in env.items()}},
@@ -175,9 +187,11 @@ def test_admin_queue_backpressure():
             finally:
                 flood.terminate()
                 try:
-                    flood.wait(10)
+                    fout, _ = flood.communicate(timeout=10)
                 except subprocess.TimeoutExpired:
                     flood.kill()
+                    fout, _ = flood.communicate()
+                print(f"flood client output: {fout}")
             # the flood server is taken down with the direct-signal
             # path so the queued flood messages do not delay teardown
             run(["tmshutdown", "-k", "KILL", "-s", "floodsvr.py", "-y"],

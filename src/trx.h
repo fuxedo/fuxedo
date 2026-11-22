@@ -16,6 +16,8 @@ namespace tx {
 fux::gttid gttid();
 bool own_begin();
 void clear_own_begin();
+bool autotran_begin();
+void set_autotran_begin(bool v);
 bool transactional();
 bool tx_active();
 XID current_xid();

@@ -85,6 +85,9 @@ struct tx_context {
   // inside a service; such a transaction must not outlive tpreturn
   // (pinned: Oracle answers the caller with TPESVCERR and aborts it)
   bool own_begin = false;
+  // set when AUTOTRAN began the transaction around this request; the
+  // platform (not the service) drives its commit at tpreturn
+  bool autotran_begin = false;
   mib &mibcon_;
 };
 
@@ -123,7 +126,7 @@ int tx_open() {
     }
   }
 
-  auto xarc = xasw->xa_open_entry(info + len + 1, fux::tx::grpno, TMNOFLAGS);
+  auto xarc = xasw->xa_open_entry(info + len + 1, 0, TMNOFLAGS);
   FUX_PROBE3(xa__open, xasw->name, fux::tx::grpno, xarc);
   if (xarc == XA_OK) {
     if (getctxt().state == tx_state::s0) {
@@ -150,7 +153,7 @@ int tx_close() {
         getctxt().state == tx_state::s2)) {
     return TX_PROTOCOL_ERROR;
   }
-  auto xarc = xasw->xa_close_entry(getctxt().grpcfg->closeinfo, fux::tx::grpno,
+  auto xarc = xasw->xa_close_entry(getctxt().grpcfg->closeinfo, 0,
                                    TMNOFLAGS);
   FUX_PROBE2(xa__close, xasw->name, xarc);
   if (xarc == XA_OK) {
@@ -287,9 +290,10 @@ static void recover_tlog() {
     return;
   }
   XID xids[64];
-  // the scan runs on this group's RM connection, opened with rmid =
-  // grpno in tx_open; a hardcoded 0 answers XAER_PROTO on every boot
-  int n = xasw->xa_recover_entry(xids, 64, fux::tx::grpno, TMSTARTRSCAN);
+  // the platform opens, starts, and recovers with rmid 0 in every
+  // process (verified in its xa_NULLtrc); rmid is a process-local
+  // handle, so 0 is safe and matches the pinned convention
+  int n = xasw->xa_recover_entry(xids, 64, 0, TMSTARTRSCAN);
   FUX_PROBE1(xa__recover, n);
   for (int i = 0; i < n; i++) {
     int outcome = log->outcome(&xids[i]);
@@ -297,13 +301,13 @@ static void recover_tlog() {
       userlog("recovering in-doubt transaction %s with COMMIT",
               fux::to_string(&xids[i]).c_str());
       FUX_PROBE2(heuristic__resolve, fux::to_string(&xids[i]).c_str(), 1);
-      xasw->xa_commit_entry(&xids[i], fux::tx::grpno, TMNOFLAGS);
+      xasw->xa_commit_entry(&xids[i], 0, TMNOFLAGS);
     } else if (outcome == 3) {
       // resolved heuristically before this boot; nothing to redo
       userlog("in-doubt transaction %s was completed heuristically",
               fux::to_string(&xids[i]).c_str());
       FUX_PROBE2(heuristic__resolve, fux::to_string(&xids[i]).c_str(), 3);
-      xasw->xa_forget_entry(&xids[i], fux::tx::grpno, TMNOFLAGS);
+      xasw->xa_forget_entry(&xids[i], 0, TMNOFLAGS);
     } else {
       FUX_PROBE2(heuristic__resolve, fux::to_string(&xids[i]).c_str(), 0);
       if (fux::qm::qm_branch_staged_empty(&xids[i])) {
@@ -316,7 +320,7 @@ static void recover_tlog() {
         userlog("recovering in-doubt transaction %s with ROLLBACK",
                 fux::to_string(&xids[i]).c_str());
       }
-      xasw->xa_rollback_entry(&xids[i], fux::tx::grpno, TMNOFLAGS);
+      xasw->xa_rollback_entry(&xids[i], 0, TMNOFLAGS);
     }
   }
 }
@@ -382,6 +386,16 @@ bool drive(const XID *xid) {
   } else {
     command(branches2, const_cast<XID *>(xid), fux::tm::rollback);
   }
+  // the transaction is decided; give its shared table entry back.
+  // Agents (WSL, GWTDOMAIN) also end their own view, which is harmless
+  // - end() is a memset - but the core path must do it or every
+  // transaction leaks an entry until the table fills and the next
+  // begin aborts the server (pinned: bankapp populate, 2026-11-22)
+  try {
+    XID mutable_xid = *xid;
+    getmib().transactions().end(getmib().transactions().find(mutable_xid));
+  } catch (const std::out_of_range &) {
+  }
   return commit;
 }
 }  // namespace fux::tm
@@ -402,6 +416,11 @@ int tx_rollback() {
 
   command(branches, &info.xid, fux::tm::rollback);
 
+  try {
+    getmib().transactions().end(getmib().transactions().find(info.xid));
+  } catch (const std::out_of_range &) {
+  }
+
   return change_state(TX_OK);
 }
 
@@ -420,7 +439,7 @@ static int _tx_end(TXINFO *info, long flags) {
 
   auto gtrid = fux::to_string(&getctxt().info.xid);
   FUX_PROBE3(xa__end, gtrid.c_str(), fux::tx::grpno, flags);
-  auto xarc = xasw->xa_end_entry(&getctxt().info.xid, fux::tx::grpno, flags);
+  auto xarc = xasw->xa_end_entry(&getctxt().info.xid, 0, flags);
   FUX_PROBE1(xa__end_return, xarc);
   if (info != nullptr) {
     *info = getctxt().info;
@@ -486,7 +505,7 @@ static int _tx_start(TXINFO *info, long flags) {
 
   auto gtrid = fux::to_string(&getctxt().info.xid);
   FUX_PROBE3(xa__start, gtrid.c_str(), fux::tx::grpno, flags);
-  auto xarc = xasw->xa_start_entry(&getctxt().info.xid, fux::tx::grpno, flags);
+  auto xarc = xasw->xa_start_entry(&getctxt().info.xid, 0, flags);
   FUX_PROBE1(xa__start_return, xarc);
   if (xarc == XA_OK) {
     if (getctxt().state == tx_state::s1) {
@@ -559,6 +578,8 @@ namespace tx {
 fux::gttid gttid() { return getctxt().gttid; }
 bool own_begin() { return getctxt().own_begin; }
 void clear_own_begin() { getctxt().own_begin = false; }
+bool autotran_begin() { return getctxt().autotran_begin; }
+void set_autotran_begin(bool v) { getctxt().autotran_begin = v; }
 bool transactional() { return !(getctxt().info.xid.formatID == -1); }
 // Lazy variant: does not create a transaction context (and does not require
 // an attached domain) when the thread has not touched transactions at all.
@@ -680,7 +701,7 @@ void command(std::vector<branch> &branches, XID *xid, int command) {
   // recovery and the branches of servers that have left)
   for (auto &p : branches) {
     if (fux::is_server() && p.grpno == fux::tx::grpno) {
-      p.result = tm_op(command, xid, fux::tx::grpno, 0);
+      p.result = tm_op(command, xid, 0, 0);
       p.cd = -1;
     }
   }
@@ -691,7 +712,7 @@ void command(std::vector<branch> &branches, XID *xid, int command) {
     }
     buf.put(TA_XAFUNC, 0, command);
     buf.put(TA_XID, 0, fux::to_string(xid));
-    buf.put(TA_RMID, 0, p.grpno);
+    buf.put(TA_RMID, 0, 0);
     buf.put(TA_FLAGS, 0, 0);
     userlog("Calling TM in group %d for %s", p.grpno,
             fux::to_string(xid).c_str());
