@@ -500,11 +500,18 @@ struct server_thread {
       // context, and current_xid afterwards reads a wiped XID
       auto xid = fux::tx::current_xid();
       bool ok = fux::tx_end(rval == TPMINVAL);
-      if (ok && rval == TPMINVAL &&
-          (fux::tx::own_begin() || fux::tx::autotran_begin())) {
-        int drc = fux::tm::drive(&xid);
+      if (ok && (fux::tx::own_begin() || fux::tx::autotran_begin())) {
+        if (rval == TPMINVAL) {
+          int drc = fux::tm::drive(&xid);
+          ok = drc != 0;
+        } else {
+          // a failed return from a server-begun transaction: the
+          // platform rolls the whole transaction back (the branch end
+          // above only detached this server)
+          fux::tm::coordinate(&xid, fux::tm::rollback);
+          ok = false;  // the caller learns the transaction did not run
+        }
         fux::tx::set_autotran_begin(false);
-        ok = drc != 0;
       }
       if (!ok) {
         // the transaction outcome failed (commit aborted / rollback

@@ -225,7 +225,18 @@ int Fget(FBFR *fb, FLDID fieldid, FLDOCC occ, char *value, FLDLEN *len) {
   if (v == nullptr) {
     return -1;
   }
-  if (value == nullptr || len == nullptr || *len < vlen) {
+  // pinned on Oracle 12.2.2: a NULL length pointer is accepted for
+  // STRING fields (the terminator bounds the copy); classic code such
+  // as bankapp relies on it. Other types still need the length
+  if (len == nullptr) {
+    if (Fldtype(fieldid) == FLD_STRING && value != nullptr) {
+      memcpy(value, v, vlen);
+      return 1;
+    }
+    F16ERROR(FNOSPACE, "value length required");
+    return -1;
+  }
+  if (value == nullptr || *len < vlen) {
     F16ERROR(FNOSPACE, "value buffer too small");
     return -1;
   }
