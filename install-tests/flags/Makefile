@@ -13,6 +13,7 @@ check: server client tuxconfig
 	sleep 3
 	./client
 	tmshutdown -y
+	-tmshutdown -y -k KILL
 	grep -q ':TEST: FLAGMATRIX OK' ULOG.*
 	grep -q ':TEST: PRIO call=1 prio_in_svc=77' ULOG.*
 	grep -q ':TEST: PRIO call=2 prio_in_svc=50' ULOG.*

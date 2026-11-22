@@ -33,10 +33,12 @@ ifdef FUXEDO
 	grep -q '^NONE$$' bcast.C
 endif
 	tmshutdown -y
+	-tmshutdown -y -k KILL
 	tmboot -y
 	sleep 3
 	./client self
 	tmshutdown -y
+	-tmshutdown -y -k KILL
 	grep -q ':TEST: SELFTEST OK' ULOG.*
 	test `grep -c ':TEST: SELFTEST OK' ULOG.*` -eq 2
 	grep -q 'TA_SUBSCRIPTION_HANDLE' tmusrevt.dat

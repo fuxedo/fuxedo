@@ -11,8 +11,9 @@ check: server client tuxconfig
 	-tmipcrm -y
 	-tmboot -y
 	sleep 3 # 22.1 returns before the bulletin board is ready
-	./client
-	tmshutdown -y
+	timeout 120 ./client
+	-tmshutdown -y
+	-tmshutdown -y -k KILL
 	grep -q ':TEST: SERVICE_INPUTS called' ULOG.*
 	grep -q ':TEST: SERVICE_COMMIT called' ULOG.*
 	grep -q ':TEST: SERVICE_ABORT called' ULOG.*

@@ -32,6 +32,7 @@ ifdef FUXEDO
 	./txprop
 endif
 	tmshutdown -y
+	-tmshutdown -y -k KILL
 	grep -q ':TEST: SERVICEA called' ULOG.*
 	grep -q ':TEST: SERVICEB called' ULOG.*
 	grep -q ':TEST: FAILSERVICE called' ULOG.*

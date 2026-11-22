@@ -20,6 +20,7 @@ check: oraxa server server1 server2 client tuxconfig
 	./client
 	./client
 	tmshutdown -y
+	-tmshutdown -y -k KILL
 	sqlplus fuxedo/fuxedo@orcl @post.sql >> `echo ULOG.*`
 	grep -q ':TEST: SERVICE_COMMIT called' ULOG.*
 	grep -q ':TEST: SERVICE_ABORT called' ULOG.*

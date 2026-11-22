@@ -18,6 +18,7 @@ check: qsvc client tuxconfig
 	sleep 3
 	./client
 	tmshutdown -y
+	-tmshutdown -y -k KILL
 	grep -E -q '[!:]qsvc\..*: TEST: tpsvrinit called' ULOG.*
 	grep -E -q '[!:]qsvc\..*: QSAMPLE: STRING got hello queue' ULOG.*
 

@@ -29,6 +29,7 @@ check: restartme client tuxconfig
 	grep -E -q '[!:]BBL\..*: Restarting restartme -g 1 -i 1, generation 3' ULOG.*
 	grep -E -q '[!:]BBL\..*: Not restarting restartme -g 1 -i 1' ULOG.*
 	tmshutdown -y
+	-tmshutdown -y -k KILL
 	# a clean shutdown must not trigger a restart
 	! grep -E -q '[!:]BBL\..*: Restarting restartme -g 1 -i 1, generation 4' ULOG.*
 	# stage matrix (pinned live): an external SIGTERM (not

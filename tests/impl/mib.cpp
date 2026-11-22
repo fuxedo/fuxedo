@@ -125,7 +125,12 @@ TEST_CASE("services can be advertised", "[mib]") {
   auto q = m.servers().at(srv).rqaddr;
 
   m.advertise("service", q, srv);
-  REQUIRE_THROWS_AS(m.advertise("service", q, srv), std::logic_error);
+  // the platform tolerates a repeated identical advertisement
+  // (tpadvertise fails with TPEPROTO and the server keeps running), so
+  // a duplicate of the same (service, queue, server) is a no-op here -
+  // throwing would turn any earlier crash into a permanent boot loop
+  // on the stale bulletin-board entry
+  m.advertise("service", q, srv);
   m.unadvertise("service", q, srv);
   REQUIRE_THROWS_AS(m.unadvertise("service", q, srv), std::logic_error);
 }

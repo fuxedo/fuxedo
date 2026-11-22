@@ -17,6 +17,7 @@ check: tmsxaf worker client tuxconfig tlog
 	./client
 	echo 0 > knob
 	tmshutdown -y
+	-tmshutdown -y -k KILL
 	grep -q ':TEST: WORK called' ULOG.*
 
 # register the scripted RM for the build (append; the DESTDIR install

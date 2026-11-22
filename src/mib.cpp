@@ -172,7 +172,12 @@ void mib::advertise(const std::string &servicename, size_t queue,
   }
 
   if (find_advertisement(service, queue, server) != badoff) {
-    throw std::logic_error("Already advertised");
+    // the platform tolerates a repeated advertisement of the same
+    // service by the same server (tpadvertise fails with TPEPROTO and
+    // the server keeps running); throwing here turns any earlier
+    // crash into a permanent boot loop on the stale bulletin-board
+    // entry, so an identical ad is a no-op
+    return;
   }
 
   auto i = find_advertisement(badoff, badoff, badoff);

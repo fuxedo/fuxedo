@@ -12,6 +12,7 @@ check: server client tuxconfig
 	sleep 3 # 22.1 returns before the bulletin board is ready
 	./client
 	tmshutdown -y
+	-tmshutdown -y -k KILL
 	grep -q ':TEST: SERVICE_TPSUCCESS called' ULOG.*
 	grep -q ':TEST: SERVICE_TPFAIL called' ULOG.*
 

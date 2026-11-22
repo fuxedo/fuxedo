@@ -24,6 +24,7 @@ check: server tuxconfig
 	grep -qE '[!:]server\..*:TEST: tpsvrdone called.*-i 1' ULOG.*
 	grep -qE '[!:]server\..*:TEST: tpsvrdone done.*-i 1' ULOG.*
 	tmshutdown -y
+	-tmshutdown -y -k KILL
  
 ubbconfig: ubbconfig.in
 	cat $< \

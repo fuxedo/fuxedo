@@ -16,6 +16,7 @@ check: pump client tmsqm tuxconfig tlog
 	./client
 	./client concurrent
 	tmshutdown -y
+	-tmshutdown -y -k KILL
 	@crlog tlog | head -8
 
 ubbconfig: ubbconfig.in

@@ -525,7 +525,7 @@ static void execute(server_thread *tp) {
       main_ptr->advertisements.end()) {
     // Possible on a shared MSSQ queue when set members do not advertise
     // identical services; cycle the message like Tuxedo does
-    tp->req->mtype = 1L << 30;
+    tp->req->mtype = (1L << 30) - 1;
     main_ptr->narrow_window();
     fux::ipc::qsend(main_ptr->request_queue, tp->req, 0,
                     fux::ipc::flags::notime);
@@ -632,7 +632,7 @@ static void dispatch() {
           // return for processing by other MSSQ servers: re-type to the
           // maximum and narrow this server's window so it is not seen again
           userlog("Not the target receiver of message, put back in queue");
-          thread_ptr->req->mtype = 1L << 30;
+          thread_ptr->req->mtype = (1L << 30) - 1;
           main_ptr->narrow_window();
           fux::ipc::qsend(main_ptr->request_queue, thread_ptr->req, 0,
                           fux::ipc::flags::notime);

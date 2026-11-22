@@ -21,6 +21,7 @@ check: server  tuxconfig
 	echo "SRVCNM\t.TMIB\nTA_CLASS\tT_SVCGRP\nTA_OPERATION\tGET\n\n" | ud32
 	echo "pq" | tmadmin
 	tmshutdown -y
+	-tmshutdown -y -k KILL
 
 ubbconfig: ubbconfig.in
 	cat $< \

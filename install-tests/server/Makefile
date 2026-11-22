@@ -30,6 +30,7 @@ check: server mtserver failserver client defserver defmtserver tuxconfig tpretur
 	-./tpforward_client || true
 	!(./tpreturn_client)
 	tmshutdown -y
+	-tmshutdown -y -k KILL
 	grep -E -q '[!:]server\..*.*:TEST: tpsvrinit called' ULOG.*
 	! grep -E -q '[!:]server\..*:TEST: tpsvrthrinit called' ULOG.*
 	grep -E -q '[!:]server\..*:TEST: SERVICE called' ULOG.*

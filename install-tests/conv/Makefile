@@ -21,13 +21,14 @@ check: server client tuxconfig
 	-tmipcrm -y
 	-tmboot -y
 	sleep 3 # 22.1 returns before the bulletin board is ready
-	./client basic
-	./client fail
-	./client cdiscon
-	./client srvfirst
-	./client negative
-	./client large
+	timeout 120 ./client basic
+	timeout 120 ./client fail
+	timeout 120 ./client cdiscon
+	timeout 120 ./client srvfirst
+	timeout 120 ./client negative
+	timeout 120 ./client large
 	tmshutdown -y
+	-tmshutdown -y -k KILL
 	grep -q ':TEST: BASIC OK' ULOG.*
 	grep -q ':TEST: FAIL OK' ULOG.*
 	grep -q ':TEST: CDISCON OK' ULOG.*
