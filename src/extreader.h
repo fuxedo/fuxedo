@@ -23,6 +23,30 @@ class extreader : public basic_parser {
   }
   FBFR32 *get() { return buf.get(); }
 
+  // ud tool protocol: field lines accumulate into fml, a line with just
+  // "n" starts a new buffer, a blank line sends the current buffer and
+  // returns true. At EOF the pending buffer is dropped.
+  bool parse_ud(fux::fml32ptr &fml) {
+    while (sym_ != EOF) {
+      if (accept('\n')) {
+        return true;
+      }
+      if (sym_ == 'n') {
+        std::string tok;
+        accept([](int c) { return c != '\t' && c != '\n' && c != EOF; }, &tok);
+        if (tok == "n" && (sym_ == '\n' || sym_ == EOF)) {
+          accept('\n');
+          Finit32(fml.ptr(), Fsizeof32(fml.ptr()));
+          continue;
+        }
+        parse_field(fml, 0, tok);
+        continue;
+      }
+      parse_field(fml, 0, "");
+    }
+    return false;
+  }
+
  private:
   fux::fml32ptr buf;
   fux::fml32ptr parse_buf(int indent) {
@@ -37,10 +61,14 @@ class extreader : public basic_parser {
       return false;
     }
     if (accept('\n')) {
-      // empty line terminates buffer
+      // empty line terminates the buffer
       return false;
     }
+    return parse_field(fml, indent, "");
+  }
 
+  bool parse_field(fux::fml32ptr &fml, int indent,
+                   const std::string &first_token) {
     for (int i = 0; i < indent; i++) {
       if (!accept('\t')) {
         throw basic_parser_error(
@@ -50,12 +78,16 @@ class extreader : public basic_parser {
     }
 
     std::string f, fname, fvalue;
-    flag(&f);
 
-    if (!field_name(&fname)) {
-      throw basic_parser_error(
-          "field name not found", row_, col_,
-          "expected field name, found '" + std::string(1, sym_) + "'");
+    if (!first_token.empty()) {
+      fname = first_token;
+    } else {
+      flag(&f);
+      if (!field_name(&fname)) {
+        throw basic_parser_error(
+            "field name not found", row_, col_,
+            "expected field name, found '" + std::string(1, sym_) + "'");
+      }
     }
     if (!accept('\t')) {
       throw basic_parser_error(
@@ -109,5 +141,4 @@ class extreader : public basic_parser {
     // No value is fine as well
     return true;
   }
-
 };

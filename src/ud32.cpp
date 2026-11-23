@@ -2,6 +2,7 @@
 // Copyright (C) 2017 Aivars Kalvans <aivars.kalvans@gmail.com>
 
 #include <clara.hpp>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -13,8 +14,6 @@
 
 #include "extreader.h"
 #include "fux.h"
-
-using fux::fml32buf;
 
 int main(int argc, char *argv[]) {
   bool show_help = false;
@@ -69,8 +68,20 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  FLDID32 SRVCNM = Fldid32(const_cast<char *>("SRVCNM"));
-  if (SRVCNM == BADFLDID) {
+  // join before reading input: the machine ENVFILE applies at tpinit
+  // and its field tables must be in effect when the first buffer parses
+  TPINIT tpinitrec = {};
+  TPINIT *tpinitp = nullptr;
+  if (!cltname.empty() || !usrname.empty()) {
+    std::strncpy(tpinitrec.cltname, cltname.c_str(), MAXTIDENT);
+    std::strncpy(tpinitrec.usrname, usrname.c_str(), MAXTIDENT);
+    tpinitrec.cltname[MAXTIDENT] = '\0';
+    tpinitrec.usrname[MAXTIDENT] = '\0';
+    tpinitp = &tpinitrec;
+  }
+  if (tpinit(tpinitp) == -1) {
+    std::cerr << "tpinit failed " << tpstrerror(tperrno) << std::endl;
+    return 1;
   }
   if (blocktime > 0) {
     tpsblktime(static_cast<int>(blocktime), TPBLK_ALL);
@@ -80,15 +91,15 @@ int main(int argc, char *argv[]) {
   }
   try {
     long errors = 0;
-    // each buffer on stdin is one call; a blank line separates buffers
-    while (true) {
-      extreader r(stdin);
-      if (!r.parse()) {
-        break;
-      }
-      FBFR32 *fbfr = r.get();
-      fux::fml32buf rq(&fbfr);
+    // one buffer persists across sends: field lines accumulate into it,
+    // a blank line sends it and the reply lands in it, an "n" line
+    // starts a new buffer
+    extreader r(stdin);
+    fux::fml32ptr acc;
+    while (r.parse_ud(acc)) {
+      FBFR32 *fbfr = acc.ptr();
 
+      FLDID32 SRVCNM = Fldid32(const_cast<char *>("SRVCNM"));
       char *srvcnm = Ffind32(fbfr, SRVCNM, 0, nullptr);
       if (srvcnm == nullptr) {
         fprintf(stderr, "No service name found (%s)\n",
@@ -99,6 +110,8 @@ int main(int argc, char *argv[]) {
         }
         continue;
       }
+      // copy the name out: the call below may reallocate the buffer
+      std::string svcname(srvcnm);
       if (!noprint) {
         Fprint32(fbfr);
       }
@@ -109,20 +122,23 @@ int main(int argc, char *argv[]) {
 
       int cd;
       if (noreply) {
-        cd = tpacall(srvcnm, reinterpret_cast<char *>(rq.ptr()), 0, TPNOFLAGS);
+        cd = tpacall(const_cast<char *>(svcname.c_str()),
+                     reinterpret_cast<char *>(acc.ptr()), 0, TPNOFLAGS);
       } else {
         long olen = 0;
-        cd = tpcall(srvcnm, reinterpret_cast<char *>(rq.ptr()), 0,
-                    reinterpret_cast<char **>(rq.ptrptr()), &olen, TPNOFLAGS);
+        cd = tpcall(const_cast<char *>(svcname.c_str()),
+                    reinterpret_cast<char *>(acc.ptr()), 0,
+                    reinterpret_cast<char **>(acc.ptrptr()), &olen, TPNOFLAGS);
       }
       if (cd == -1) {
-        fprintf(stderr, "%s failed %d %s\n", srvcnm, tperrno,
+        fprintf(stderr, "%s failed %d %s\n", svcname.c_str(), tperrno,
                 tpstrerror(tperrno));
         errors++;
       }
 
       if (!noprint) {
-        Fprint32(fbfr);
+        // the call may have reallocated the buffer; the reply is in it
+        Fprint32(acc.ptr());
       }
       if (cd == -1) {
         if (timeout > 0) {

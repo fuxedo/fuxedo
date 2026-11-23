@@ -18,6 +18,12 @@ namespace fux {
 // idle in the receive.
 extern void (*poll_hook)();
 
+// Applies a machine ENVFILE (VAR=VALUE lines) to the process
+// environment; TUXDIR/TUXCONFIG/APPDIR from the configuration always
+// win. Used for booted servers and for clients at tpinit, matching the
+// platform. Returns false when the file cannot be opened.
+bool apply_envfile(const std::string &path);
+
 class fml32buf_error : public std::exception {
  public:
   fml32buf_error() : code_(Ferror32) {}

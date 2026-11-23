@@ -507,9 +507,9 @@ struct server_thread {
         } else {
           // a failed return from a server-begun transaction: the
           // platform rolls the whole transaction back (the branch end
-          // above only detached this server)
+          // above only detached this server); the caller still gets the
+          // service's rval (TPESVCFAIL), not a transaction error
           fux::tm::coordinate(&xid, fux::tm::rollback);
-          ok = false;  // the caller learns the transaction did not run
         }
         fux::tx::set_autotran_begin(false);
       }

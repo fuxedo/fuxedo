@@ -4,8 +4,6 @@ Making the world a better place through minimal message-oriented transport layer
 
 
 [![Build Status](https://github.com/fuxedo/fuxedo/actions/workflows/fuxedo.yml/badge.svg)](https://github.com/fuxedo/fuxedo/actions/workflows/fuxedo.yml)
-[![codecov](https://codecov.io/gh/fuxedo/fuxedo/branch/master/graph/badge.svg)](https://codecov.io/gh/fuxedo/fuxedo)
-[![Coverage Status](https://coveralls.io/repos/github/fuxedo/fuxedo/badge.svg)](https://coveralls.io/github/fuxedo/fuxedo)
 
 ## Why Fuxedo?
 
@@ -19,7 +17,10 @@ Fuxedo started in late 2011 as a toy project: an excuse to play with C++11 and t
 
 Fuxedo is an open source implementation of X/Open XATMI specification and some Oracle Tuxedo extensions of the API. The goal is to provide source code compatibility with core Tuxedo functionality: ideally a recompilation will be sufficient to port software from Tuxedo to Fuxedo. Fuxedo also keeps Tuxedo's configuration file formats and conventions silently ignoring the obscure parts.
 
-There is no definition of what "core functionality" is but I will start with the functions I use on daily basis. Things like TSAM, Jolt, SALT, queues and adapters are out of scope.
+There is no fixed definition of what "core functionality" is; the
+starting point is the functionality used on a daily basis. Areas like
+TSAM, Jolt, SALT, and adapters are not a priority at the moment and
+can move up on request.
 
 Currently C++17 is used as implementation language mostly to learn what the new standard offers. This choice makes some of XATMI C-style interfaces weird to implement but life is too short to write everything in C.
 
@@ -147,6 +148,7 @@ Fuxedo tries to be compatible with Oracle Tuxedo for all functionality implement
 
 - Running `make` from `install-tests` folder will execute all "intergration tests" with whatever `TUXDIR` points to. That is done for every change in Fuxedo and time-to-time with Oracle Tuxedo 12.2
 - Part of unittests (FML32, Boolean expressions) are compiled and executed as "integration tests" under `install-tests/unit`
+- Oracle's own C samples (simpapp, xmlfmlapp, qsample) and the bankapp-for-Oracle-database sample build and run on fuxedo from their own UBBCONFIG; bankapp's AUTOTRAN database effects persist in Oracle through the real two-phase path, with the same row counts as on Oracle Tuxedo 12.2.2 (branches, tellers, and accounts included).
 
 Some of the tests fail with Oracle Tuxedo and I have reported several issues to Oracle, some are fixed but require additional patches from Oracle to be installed.
 

@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <iostream>
 #include <string>
 
 #include "Uunix.h"
@@ -36,6 +37,33 @@ char *Ustrerror(int err) {
 }
 
 char *tuxgetenv(const char *name) { return std::getenv(name); }
+
+namespace fux {
+bool apply_envfile(const std::string &path) {
+  std::ifstream env(path);
+  if (!env) {
+    return false;
+  }
+  std::string line;
+  while (std::getline(env, line)) {
+    if (line.empty() || line[0] == '#') {
+      continue;
+    }
+    auto eq = line.find('=');
+    if (eq == std::string::npos) {
+      continue;
+    }
+    auto name = line.substr(0, eq);
+    auto value = line.substr(eq + 1);
+    if (name == "TUXDIR" || name == "TUXCONFIG" || name == "APPDIR") {
+      std::cerr << "ENVFILE cannot override " << name << std::endl;
+      continue;
+    }
+    setenv(name.c_str(), value.c_str(), 1);
+  }
+  return true;
+}
+}  // namespace fux
 
 int tuxputenv(const char *str) {
   auto *eq = std::strchr(str, '=');

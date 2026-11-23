@@ -14,6 +14,7 @@
 #include <cstdlib>
 
 #include "compat.h"
+#include "fux.h"
 #include "mib.h"
 #include "misc.h"
 
@@ -187,31 +188,11 @@ int main(int argc, char *argv[]) {
     // lines); TUXDIR/TUXCONFIG/APPDIR from the configuration always win.
     // PATH and LD_LIBRARY_PATH found here replace the inherited values
     // before the platform prefix below is applied.
-    if (m.mach().envfile[0] != '\0') {
-      std::ifstream env(m.mach().envfile);
-      if (!env) {
-        std::cerr << "tmboot: cannot open ENVFILE " << m.mach().envfile
-                  << std::endl;
-        return -1;
-      }
-      std::string line;
-      while (std::getline(env, line)) {
-        if (line.empty() || line[0] == '#') {
-          continue;
-        }
-        auto eq = line.find('=');
-        if (eq == std::string::npos) {
-          continue;
-        }
-        auto name = line.substr(0, eq);
-        auto value = line.substr(eq + 1);
-        if (name == "TUXDIR" || name == "TUXCONFIG" || name == "APPDIR") {
-          std::cerr << "tmboot: warning: ENVFILE cannot override " << name
-                    << std::endl;
-          continue;
-        }
-        setenv(name.c_str(), value.c_str(), 1);
-      }
+    if (m.mach().envfile[0] != '\0' &&
+        !fux::apply_envfile(m.mach().envfile)) {
+      std::cerr << "tmboot: cannot open ENVFILE " << m.mach().envfile
+                << std::endl;
+      return -1;
     }
 
     std::ostringstream path;

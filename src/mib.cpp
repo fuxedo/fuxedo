@@ -615,10 +615,14 @@ node_state mib::check_node(uint32_t ipckey) {
   return result;
 }
 
-mib &getmib() {
-  static std::unique_ptr<mib> mibcon;
+namespace {
+std::unique_ptr<mib> mibcon;
+std::string mibpath;
+}  // namespace
 
-  if (!mibcon.get()) {
+mib &getmib() {
+  auto path = fux::util::getenv("TUXCONFIG", "");
+  if (!mibcon || path != mibpath) {
     fux::cfg::tables tables;
     getconfig(&tables);
     mibcon = std::make_unique<mib>(tables.dom);
@@ -627,9 +631,15 @@ mib &getmib() {
       getconfig(nullptr, &u);
       ubb2mib(u, *mibcon.get());
     }
+    mibpath = path;
   }
 
   return *mibcon.get();
+}
+
+void resetmib() {
+  mibcon.reset();
+  mibpath.clear();
 }
 
 static uint64_t fingerprint_of(const fux::cfg::domain &cfg) {

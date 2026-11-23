@@ -5,6 +5,7 @@
 #include <xa.h>
 #include <xatmi.h>
 
+#include <fml.h>
 #include <fml32.h>
 
 #include <algorithm>
@@ -16,6 +17,7 @@
 #include <vector>
 
 #include "compat.h"
+#include "fux.h"
 #include "ipc.h"
 #include "mib.h"
 #include "misc.h"
@@ -130,9 +132,46 @@ int client::routed_group(const char *svc, char *data) {
         value = base;
       }
     } else {
-      if (strcmp(type, "FML32") != 0) {
-        return -1;  // only FML32 buffers carry routing fields for now
-      }
+      if (strcmp(type, "FML") == 0) {
+        // 16-bit fielded buffer: read the routing value in its stored
+        // flavor (the 16-bit Fget copies raw bytes, no conversion)
+        auto *fb = reinterpret_cast<FBFR *>(data);
+        FLDLEN flen = 0;
+        auto *raw = Ffind(fb, static_cast<FLDID>(e.fieldid), 0, &flen);
+        if (raw == nullptr) {
+          TPERROR(TPESYSTEM, "Routing field %s null", e.field);
+          return -2;
+        }
+        switch (e.fldtype) {
+          case FLD_SHORT:
+            value = std::to_string(*reinterpret_cast<short *>(raw));
+            kind = fux::routing::field_kind::integer;
+            break;
+          case FLD_LONG:
+            value = std::to_string(*reinterpret_cast<long *>(raw));
+            kind = fux::routing::field_kind::integer;
+            break;
+          case FLD_FLOAT:
+            value = std::to_string(*reinterpret_cast<float *>(raw));
+            kind = fux::routing::field_kind::floating;
+            break;
+          case FLD_DOUBLE:
+            value = std::to_string(*reinterpret_cast<double *>(raw));
+            kind = fux::routing::field_kind::floating;
+            break;
+          case FLD_STRING:
+          case FLD_CHAR:
+            value.assign(raw, strnlen(raw, flen));
+            break;
+          default:
+            TPERROR(TPESYSTEM, "Routing field %s has unsupported type",
+                    e.field);
+            return -2;
+        }
+      } else {
+        if (strcmp(type, "FML32") != 0) {
+          return -1;  // only fielded buffers carry routing fields
+        }
       auto fb = reinterpret_cast<FBFR32 *>(data);
       if (e.fldtype == FLD_SHORT || e.fldtype == FLD_LONG) {
         long v = 0;
@@ -164,6 +203,7 @@ int client::routed_group(const char *svc, char *data) {
       } else {
         TPERROR(TPESYSTEM, "Routing field %s has unsupported type", e.field);
         return -2;
+      }
       }
     }
     auto ranges = fux::routing::parse_ranges(e.ranges);
@@ -892,7 +932,18 @@ static thread_local std::shared_ptr<client> current_client;
 static client &getclient(const char *cltname = nullptr,
                          const char *usrname = nullptr) {
   if (!current_client.get()) {
-    current_client = std::make_shared<client>(getmib(), cltname, usrname);
+    auto &m = getmib();
+    // the machine ENVFILE applies to joining clients too, not only to
+    // booted servers (pinned on Oracle 12.2.2): bankapp's ud inherits
+    // FLDTBLDIR from it at tpinit
+    static bool envfile_applied = [&m] {
+      if (m.mach().envfile[0] != '\0') {
+        fux::apply_envfile(m.mach().envfile);
+      }
+      return true;
+    }();
+    (void)envfile_applied;
+    current_client = std::make_shared<client>(m, cltname, usrname);
   }
   return *current_client;
 }
@@ -922,7 +973,7 @@ int tpinit(TPINIT *tpinfo) {
                   tpinfo != nullptr ? tpinfo->usrname : nullptr);
         return 0;
       },
-      0);
+      -1);
   fux::trace::event("} tpinit = %d", rc);
   return rc;
 }
@@ -941,9 +992,12 @@ int tpterm() {
   int rc = fux::atmi::exception_boundary(
       [&] {
         current_client.reset();
+        // a later tpinit may join a different application; the cached
+        // configuration and bulletin board must not leak across
+        resetmib();
         return 0;
       },
-      0);
+      -1);
   fux::trace::event("} tpterm = %d", rc);
   return rc;
 }

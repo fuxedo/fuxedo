@@ -5,6 +5,7 @@
 #include <functional>  //std::hash
 #include <iostream>
 
+#include <fml.h>
 #include <fml32.h>
 
 #include "fux.h"
@@ -200,8 +201,7 @@ void ubb2mib(ubbconfig &u, mib &m) {
     }
     // resolve the routing field now (the way the platform resolves it in
     // the bulletin board at boot) so clients evaluate routing by id or
-    // struct offset. VIEW-buffer criteria resolve through the view
-    // registry (the 16-bit env names, like the rest of the VIEW flavor)
+    // struct offset
     if (strncmp(entry.buftype, "VIEW", 4) == 0) {
       const char *vname = entry.buftype[4] == ':' ? entry.buftype + 5 : "";
       auto view = fux::view::get16(vname);
@@ -226,15 +226,29 @@ void ubb2mib(ubbconfig &u, mib &m) {
                                " for criteria " + rtconf.first);
       }
     } else {
-      auto fieldid = Fldid32(entry.field);
-      if (fieldid == BADFLDID) {
-        throw std::logic_error("Cannot map field name " +
-                               std::string(entry.field) +
-                               " to field identifier for criteria " +
-                               rtconf.first);
+      // fielded criteria resolve in the buffer's own flavor: the 16-bit
+      // tables for BUFTYPE="FML", the 32-bit ones otherwise
+      if (strcmp(entry.buftype, "FML") == 0) {
+        auto fieldid = Fldid(entry.field);
+        if (fieldid == BADFLDID) {
+          throw std::logic_error("Cannot map field name " +
+                                 std::string(entry.field) +
+                                 " to field identifier for criteria " +
+                                 rtconf.first);
+        }
+        entry.fieldid = fieldid;
+        entry.fldtype = Fldtype(fieldid);
+      } else {
+        auto fieldid = Fldid32(entry.field);
+        if (fieldid == BADFLDID) {
+          throw std::logic_error("Cannot map field name " +
+                                 std::string(entry.field) +
+                                 " to field identifier for criteria " +
+                                 rtconf.first);
+        }
+        entry.fieldid = fieldid;
+        entry.fldtype = Fldtype32(fieldid);
       }
-      entry.fieldid = fieldid;
-      entry.fldtype = Fldtype32(fieldid);
     }
     auto &slot = routings.at(routings->len);
     slot = entry;

@@ -66,40 +66,46 @@ void add(FBFR *fb, const kv &item) {
   }
 }
 
-void print_field(char *at) {
+std::string field_value(char *at) {
   auto id = *reinterpret_cast<FLDID *>(at);
   auto len = *reinterpret_cast<FLDLEN *>(at + sizeof(FLDID));
   auto *value = at + sizeof(FLDID) + sizeof(FLDLEN);
-  std::string name;
+  std::ostringstream os;
+  switch (Fldtype(id)) {
+    case FLD_SHORT:
+      os << *reinterpret_cast<short *>(value);
+      break;
+    case FLD_LONG:
+      os << *reinterpret_cast<long *>(value);
+      break;
+    case FLD_CHAR:
+      os << *value;
+      break;
+    case FLD_FLOAT:
+      os << *reinterpret_cast<float *>(value);
+      break;
+    case FLD_DOUBLE:
+      os << *reinterpret_cast<double *>(value);
+      break;
+    default:
+      os.write(value, len);
+      break;
+  }
+  return os.str();
+}
+
+std::string field_name(FLDID id) {
   auto id32 = Fmkfldid32(Fldtype(id), Fldno(id));
   auto *n = Fname32(id32);
   if (n != nullptr) {
-    name = n;
-  } else {
-    name = "#" + std::to_string(Fldno(id));
+    return n;
   }
-  std::cout << name << '\t';
-  switch (Fldtype(id)) {
-    case FLD_SHORT:
-      std::cout << *reinterpret_cast<short *>(value);
-      break;
-    case FLD_LONG:
-      std::cout << *reinterpret_cast<long *>(value);
-      break;
-    case FLD_CHAR:
-      std::cout << *value;
-      break;
-    case FLD_FLOAT:
-      std::cout << *reinterpret_cast<float *>(value);
-      break;
-    case FLD_DOUBLE:
-      std::cout << *reinterpret_cast<double *>(value);
-      break;
-    default:
-      std::cout.write(value, len);
-      break;
-  }
-  std::cout << '\n';
+  return "#" + std::to_string(Fldno(id));
+}
+
+void print_field(char *at) {
+  std::cout << field_name(*reinterpret_cast<FLDID *>(at)) << '\t'
+            << field_value(at) << '\n';
 }
 
 }  // namespace
@@ -179,6 +185,10 @@ int main(int argc, char **argv) {
           auto *at = Ffind(rfb, id, occ, &len);
           // the record header sits right before the value
           print_field(at - sizeof(FLDID) - sizeof(FLDLEN));
+          kv item;
+          item.name = field_name(id);
+          item.value = field_value(at - sizeof(FLDID) - sizeof(FLDLEN));
+          items.push_back(std::move(item));
           occ++;
         }
       }
@@ -188,14 +198,18 @@ int main(int argc, char **argv) {
     tpfree(reply);
   };
 
-  // Fprint text streams separate buffers with a blank line; the "n"
-  // line is a buffer-start marker the tools emit
+  // the current buffer is sent on every blank line; an "n" line starts
+  // a new buffer; input pending at EOF is dropped
   while (std::getline(std::cin, line)) {
     if (line.empty() || line == "\r") {
       process();
       continue;
     }
-    if (line == "n" || line[0] == '#') {
+    if (line == "n") {
+      items.clear();
+      continue;
+    }
+    if (line[0] == '#') {
       continue;
     }
     auto sep = line.find_first_of("\t ");
@@ -208,7 +222,6 @@ int main(int argc, char **argv) {
     item.value = line.substr(sep + 1, end - sep);
     items.push_back(std::move(item));
   }
-  process();
   tpterm();
   return failures == 0 ? 0 : 1;
 }

@@ -264,6 +264,10 @@ class mib {
 };
 
 mib &getmib();
+// Drops the cached configuration, so the next getmib() re-reads
+// TUXCONFIG. tpterm calls this: a process that joins another
+// application afterwards must not keep the old bulletin board.
+void resetmib();
 std::string getubb();
 
 namespace fux::clnt {

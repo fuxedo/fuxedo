@@ -1,7 +1,7 @@
 """CLI compatibility tests for the smaller fuxedo/Tuxedo tools.
 
-Vendor neutral where possible; ud32 buffer printing is fuxedo-gated because
-Oracle ud32 requires a domain to print.
+Vendor neutral where possible; Oracle's ud32 needs a live domain just
+like fuxedo's, so no ud32 gating is required anymore.
 """
 
 import os
@@ -53,13 +53,11 @@ def test_ud32_help():
     assert "ud32" in proc.stdout + proc.stderr
 
 
-def test_ud32_prints_buffer_without_domain():
-    if not is_fuxedo():
-        print("skipping ud32 buffer print test on non-fuxedo install")
-        return
-    proc = run(["ud32"], input="SRVCNM\tNO_SUCH_SERVICE\n", expect=None)
-    assert "SRVCNM" in proc.stdout
-    assert "NO_SUCH_SERVICE" in proc.stdout
+def test_ud32_requires_domain():
+    # the platform joins at startup (tpinit before reading stdin); a
+    # missing domain is a startup failure, not a silent passthrough
+    env = {k: v for k, v in os.environ.items() if k != "TUXCONFIG"}
+    run(["ud32"], input="\n", expect=-1, env=env)
 
 
 def test_tmipcrm_requires_domain():
