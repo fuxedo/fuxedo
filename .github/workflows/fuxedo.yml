@@ -87,8 +87,13 @@ jobs:
 
     - name: Run the compatibility suites against Oracle Tuxedo
       run: |
-        export TUXDIR=$(echo "$HOME"/oracle/tuxedo*)
-        . "$TUXDIR/tux.env"
+        tree=$(echo "$HOME"/oracle/tuxedo*)
+        . "$tree/tux.env"
+        # the asset's tux.env carries the build machine's TUXDIR; point
+        # the environment back at the extracted tree
+        export TUXDIR="$tree"
+        export PATH="$TUXDIR/bin:$PATH"
+        export LD_LIBRARY_PATH="$TUXDIR/lib:$LD_LIBRARY_PATH"
         if [ -n "${{ matrix.needs-nsl }}" ]; then
           make -C install-tests check-compat-221
         else
