@@ -31,11 +31,11 @@ check:
 # build a TMS via buildtms, which fails to link Oracle's prebuilt TMS.o
 # on modern toolchains; txnull links against fuxedo's own library;
 # restart and qsample exercise fuxedo-specific pieces (/Q layout,
-# restart bookkeeping). conv runs fuxedo-only for now: Oracle 12.2.2
-# answers tpconnect to an advertised conversational service with
-# TPENOENT on this home (pristine boot, static or dynamic advertise),
-# an open platform question - see notes/flags-investigation.md.
-# Verified against Oracle 12.2.2.
+# restart bookkeeping). conv runs fuxedo-only for now: the ubb carries
+# CONV=Y (pinned on 22.1: without it tpconnect answers TPENOENT), the
+# modes pass standalone on 22.1, but running all six modes in sequence
+# wedges the no-recv tpreturn path there - see the version-differences
+# note. Verified against Oracle 12.2.2.
 ORACLE_DIRS = unit view server tmshutdown tpinit tpcall tpacall \
               tpadvertise tpforward blocktime bbl eventbr flags
 

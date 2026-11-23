@@ -80,11 +80,16 @@ tuxconfig getconfig(fux::cfg::tables *tables, ubbconfig *ubb) {
   if (tables != nullptr || ubb != nullptr) {
     ubbconfig parsed;
     // the text parse must not die with a raw iostream error when the
-    // file is short (e.g. read while another tmloadcf rewrites it);
-    // the parser handles EOF gracefully
+    // file is short or rewritten mid-read (e.g. another tmloadcf);
+    // the parser handles EOF gracefully, a failed read does not
     fin.exceptions(std::ifstream::badbit);
-    ubbreader p(fin);
-    parsed = p.parse();
+    try {
+      ubbreader p(fin);
+      parsed = p.parse();
+    } catch (const std::ios_base::failure &) {
+      throw std::runtime_error("cannot parse TUXCONFIG file " +
+                               fux::util::getenv("TUXCONFIG", ""));
+    }
     if (tables != nullptr) {
       *tables = fux::cfg::build(parsed);
     }
@@ -391,10 +396,23 @@ size_t mib::make_server(uint16_t srvid, uint16_t grpno,
     server.rqaddr = make_queue(rqaddr);
   }
 
-  // FIXME: only active
-  queues().at(server.rqaddr).servercnt++;
   queues().at(server.rqaddr).server_idx = servers()->len;
   return servers()->len++;
+}
+
+void mib::set_server_state(size_t idx, state_t s) {
+  auto &srv = servers().at(idx);
+  bool was = srv.state == state_t::ACTive;
+  bool now = s == state_t::ACTive;
+  if (was != now) {
+    // raw shm, plain int; guard against a stale decrement anyway
+    auto &cnt = queues().at(srv.rqaddr).servercnt;
+    cnt += now ? 1 : -1;
+    if (cnt < 0) {
+      cnt = 0;
+    }
+  }
+  srv.state = s;
 }
 
 size_t mib::find_service(const char *servicename) {

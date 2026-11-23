@@ -9,10 +9,11 @@
 
 static int count(const char *qname) {
   TPQCTL ctl = {};
+  ctl.flags = TPQPEEK;
   char *msg = tpalloc((char *)"STRING", NULL, 64);
   long len = 64;
   int found = tpdequeue((char *)"QS", (char *)qname, &ctl, (char **)&msg, &len,
-                        TPQPEEK) != -1;
+                        TPNOFLAGS) != -1;
   tpfree(msg);
   return found;
 }

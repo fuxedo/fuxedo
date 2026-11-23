@@ -127,8 +127,8 @@ struct server_main {
     return true;
   }
 
-  void active() { m_.servers().at(mib_server).state = state_t::ACTive; }
-  void inactive() { m_.servers().at(mib_server).state = state_t::INActive; }
+  void active() { m_.set_server_state(mib_server, state_t::ACTive); }
+  void inactive() { m_.set_server_state(mib_server, state_t::INActive); }
 
   int tpadvertisex(const char *svcname, void (*func)(TPSVCINFO *), long flags) {
     fux::scoped_fuxlock lock(mutex);
@@ -339,6 +339,13 @@ struct server_thread {
     } else if (len != nullptr) {
       *len = 0;
     }
+    // pinned on Oracle 22.1: a received event answers -1 with
+    // tperrno=TPEEVENT; the data that rode with the event is still
+    // delivered
+    if (*revent != 0) {
+      TPERROR(TPEEVENT, "event 0x%lx on conversation %d", *revent, cd);
+      throw fux::xatmi_error();
+    }
     fux::atmi::reset_tperrno();
   }
 
@@ -359,7 +366,13 @@ struct server_thread {
     res->cd = cd;
     res->revent = (flags & TPRECVONLY) ? TPEV_SENDONLY : 0;
     res->replyq = -1;
-    if (!fux::ipc::qsend(req->replyq, res, 0, fux::ipc::flags::notime)) {
+    bool sent = false;
+    try {
+      sent = fux::ipc::qsend(req->replyq, res, 0, fux::ipc::flags::notime);
+    } catch (const std::system_error &) {
+      sent = false;  // receiver gone mid-conversation
+    }
+    if (!sent) {
       TPERROR(TPEOS, "Cannot send on conversation %d: %s", cd,
               strerror(errno));
       throw fux::xatmi_error();
@@ -384,7 +397,7 @@ struct server_thread {
     res->cd = cd;
     res->revent = TPEV_DISCONIMM;
     res->replyq = -1;
-    fux::ipc::qsend(req->replyq, res, 0, fux::ipc::flags::notime);
+    send_reply(req->replyq, res);
     conv_open = false;
     fux::atmi::reset_tperrno();
   }
@@ -431,6 +444,18 @@ struct server_thread {
     longjmp(tpreturn_env, 1);
   }
 
+  // A late reply to a client that already left (tpterm with the call
+  // in flight, workstation session closed) lands on a deleted queue:
+  // EINVAL is "receiver gone", not a server-fatal error.
+  static void send_reply(int msqid, fux::ipc::msg &m) {
+    try {
+      fux::ipc::qsend(msqid, m, 0, fux::ipc::flags::notime);
+    } catch (const std::system_error &e) {
+      userlog("reply to a gone client queue %d dropped: %s", msqid,
+              e.what());
+    }
+  }
+
   void reply(int rval, long rcode, char *data, long len, long flags) {
     if (conv) {
       // a conversational return ends the conversation: the terminal
@@ -455,7 +480,7 @@ struct server_thread {
         res->mtype = req->cd;
         res->cd = req->cd;
         res->replyq = -1;
-        fux::ipc::qsend(req->replyq, res, 0, fux::ipc::flags::notime);
+        send_reply(req->replyq, res);
       }
       return;
     }
@@ -477,7 +502,7 @@ struct server_thread {
       res->mtype = req->cd;
       res->cd = req->cd;
 
-      fux::ipc::qsend(req->replyq, res, 0, fux::ipc::flags::notime);
+      send_reply(req->replyq, res);
     }
   }
 

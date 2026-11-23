@@ -3,6 +3,72 @@
 All notable changes to Fuxedo are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- The `tpdequeue`/`tpenqueue` flags argument now accepts only TPNOTIME;
+  the TPQ* selectors belong in `TPQCTL.flags` and are rejected
+  client-side with TPEINVAL (pinned on Oracle 22.1: any TPQ* bit in the
+  argument fails instantly with zero IPC, on both queue calls). The
+  standalone empty-queue dequeue reports TPEDIAGNOSTIC/QMENOMSG like
+  the domain path and the platform (was TPENOENT).
+- `tprecv` (client and service side) reports a received conversational
+  event as -1 with tperrno=TPEEVENT, delivering the data that rode
+  with the event (pinned on Oracle 22.1).
+- `tpgblktime(0)` and unit-only reads return the TPBLK_ALL value
+  instead of 0; the TPBLK_MILLISECOND unit is accepted on reads
+  everywhere (22.1 rejects it only on `tpsblktime`, pinned).
+- Transaction timeouts interrupt an in-flight call: a reply wait is
+  capped by the current transaction's deadline and the reaper ends the
+  call with TPETIME at the boundary (pinned on Oracle 12.2.2; a 1 s
+  transaction around a 2 s service fails the call, and tpcommit then
+  answers TPETIME and rolls back).
+- `tmipcrm` exits 1 with a clean message on unreadable, short, or
+  concurrently rewritten TUXCONFIG files (was a raw iostream error and
+  exit 255).
+- The request queue's active-server count (TA_SERVERCNT) follows the
+  ACTive state transitions instead of counting configured servers;
+  crash-restart no longer double-counts.
+- `proc_name` resolves from /proc/self/comm at first use (apps may still
+  assign it); the build no longer depends on the glibc-only
+  `__progname` extern.
+- A service no longer dies when its reply finds the caller gone
+  (tpterm with the call in flight, workstation session closed): the
+  late reply drops with a userlog instead of throwing through the
+  tpreturn path (wslstress finding: the server process terminated on
+  EINVAL).
+- The workstation listener drops a link's whole session state on
+  accept so OS fd reuse cannot inherit a predecessor's client context
+  or outstanding calls, and its reply pump drops stale call
+  descriptors instead of spinning when a pending call already
+  completed with an error.
+- install-tests/orarm runs against Oracle Tuxedo too: the machine
+  ENVFILE carries the loader path and ORACLE_HOME into the scrubbed
+  server environment, qmadmin takes the prompt-fed form, and a second
+  tmboot pass covers the BBL-attach race. Verified end to end on 22.1
+  against the live database; the 12.2.2 expectations are unchanged.
+
+### Added
+
+- API reference pages for `tpsblktime`/`tpgblktime` with the SCANUNIT
+  granularity facts and the 12.x/22.1 unit difference, plus the
+  `blktime` example and a `blktime_matrix` in the flags suite pinning
+  the set/get contracts on both platforms.
+- pytests/test_txtimeout.py: transaction deadline fails an in-flight
+  call with TPETIME and a following tpcommit.
+- pytests/test_wslstress.py: workstation stress (churn p50/p95,
+  MAXWSCLIENTS ceiling behavior, SIGKILL-storm liveness).
+- tmadmin: bbparms, bbstats, bbclean (stale entry removal), boot and
+  shutdown (delegate to tmboot/tmshutdown), changepriority (accepted,
+  reported as having no effect: fuxedo dispatches FIFO).
+
+### Changed
+
+- Test programs and src binaries declare their dependency on
+  libfuxedo.la explicitly; `make` no longer keeps stale statically
+  linked test binaries after library changes.
+
 ## [1.0.5] - 2026-11-22
 
 - `ud`/`ud32` input protocol pinned on Oracle 12.2.2: a blank line sends

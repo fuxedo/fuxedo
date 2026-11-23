@@ -72,7 +72,9 @@ void ECHO(TPSVCINFO *svcinfo) {
   long len = 0;
   long revent = 0;
   while (1) {
-    if (tprecv(svcinfo->cd, &buf, &len, 0, &revent) == -1) {
+    int rrc = tprecv(svcinfo->cd, &buf, &len, 0, &revent);
+    // events answer -1/TPEVENT with data delivered; real errors differ
+    if (rrc == -1 && tperrno != TPEEVENT) {
       break;
     }
     if (revent & TPEV_DISCONIMM) {
@@ -130,15 +132,19 @@ int main(int argc, char *argv[]) {
     assert(cd != -1);
     strcpy(buf, "hello2");
     assert(tpsend(cd, buf, 0, TPRECVONLY, &revent) != -1);
-    assert(tprecv(cd, &buf, &len, 0, &revent) != -1);
+    // events answer -1/TPEVENT with the data delivered (Oracle 22.1 pin)
+    assert(tprecv(cd, &buf, &len, 0, &revent) == -1);
+    assert(tperrno == TPEEVENT);
     assert(strcmp(buf, "hello1") == 0);
     strcpy(buf, "hello3");
     assert(tpsend(cd, buf, 0, TPRECVONLY, &revent) != -1);
-    assert(tprecv(cd, &buf, &len, 0, &revent) != -1);
+    assert(tprecv(cd, &buf, &len, 0, &revent) == -1);
+    assert(tperrno == TPEEVENT);
     assert(strcmp(buf, "hello2") == 0);
     strcpy(buf, "");
     assert(tpsend(cd, buf, 0, TPRECVONLY, &revent) != -1);
-    assert(tprecv(cd, &buf, &len, 0, &revent) != -1);
+    assert(tprecv(cd, &buf, &len, 0, &revent) == -1);
+    assert(tperrno == TPEEVENT);
     assert(revent & TPEV_SVCSUCC);
   } else if (argc > 1 && strcmp(argv[1], "large") == 0) {
     long n = 200000;

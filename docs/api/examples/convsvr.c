@@ -16,8 +16,11 @@ void CHAT(TPSVCINFO *svcinfo) {
   long revent = 0;
 
   while (1) {
-    if (tprecv(svcinfo->cd, &buf, &len, 0, &revent) == -1) {
-      break;  // TPEV_DISCONIMM (tpdiscon) or the peer went away
+    int rc = tprecv(svcinfo->cd, &buf, &len, 0, &revent);
+    // events answer -1 with tperrno=TPEEVENT and the data delivered;
+    // only a real error or the disconnect event ends the loop
+    if (rc == -1 && tperrno != TPEEVENT) {
+      break;  // the peer went away
     }
     if (revent & TPEV_DISCONIMM) {
       break;

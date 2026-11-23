@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
       if (server.is_inactive()) {
         continue;
       }
-      server.suspend();
+      m.set_server_state(i, state_t::SUSpended);
 
       // resource manager servers (SRVID >= 30000) are reported on a
       // Group Id row without the Server Id prefix; third-party

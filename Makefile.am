@@ -62,6 +62,7 @@ bin_PROGRAMS = src/mkfldhdr32 src/mkfldhdr src/viewc32 src/viewc src/viewdis32 s
 
 src_qmadmin_SOURCES = src/qmadmin.cpp
 src_qmadmin_LDADD = src/libfuxedo.la
+src_qmadmin_DEPENDENCIES = src/libfuxedo.la
 
 src_buildtms_SOURCES = src/buildtms.cpp
 src_buildserver_SOURCES = src/buildserver.cpp
@@ -69,90 +70,119 @@ src_buildclient_SOURCES = src/buildclient.cpp
 
 src_tmboot_SOURCES = src/tmboot.cpp
 src_tmboot_LDADD = src/libfuxedo.la
+src_tmboot_DEPENDENCIES = src/libfuxedo.la
 
 src_TMS_SOURCES = src/TMS.cpp
 src_TMS_LDADD = src/libfuxedo.la
+src_TMS_DEPENDENCIES = src/libfuxedo.la
 
 # queue manager resource manager; the QM two-phase effects are driven
 # inside TMQUEUE, so this runs the same transaction server as TMS
 src_TMS_QM_SOURCES = src/TMS.cpp
 src_TMS_QM_LDADD = src/libfuxedo.la
+src_TMS_QM_DEPENDENCIES = src/libfuxedo.la
 
 src_BBL_SOURCES = src/BBL.cpp
 src_BBL_LDADD = src/libfuxedo.la -lpthread
+src_BBL_DEPENDENCIES = src/libfuxedo.la
 
 src_dmloadcf_SOURCES = src/dmloadcf.cpp
 src_dmloadcf_LDADD = src/libfuxedo.la
+src_dmloadcf_DEPENDENCIES = src/libfuxedo.la
 
 src_dmunloadcf_SOURCES = src/dmunloadcf.cpp
 src_dmunloadcf_LDADD = src/libfuxedo.la
+src_dmunloadcf_DEPENDENCIES = src/libfuxedo.la
 
 src_dmadmin_SOURCES = src/dmadmin.cpp
 src_dmadmin_LDADD = src/libfuxedo.la
+src_dmadmin_DEPENDENCIES = src/libfuxedo.la
 
 src_TMQUEUE_SOURCES = src/TMQUEUE.cpp
 src_TMQUEUE_LDADD = src/libfuxedo.la
+src_TMQUEUE_DEPENDENCIES = src/libfuxedo.la
 
 src_TMUSREVT_SOURCES = src/TMUSREVT.cpp
 src_TMUSREVT_LDADD = src/libfuxedo.la
+src_TMUSREVT_DEPENDENCIES = src/libfuxedo.la
 
 src_TMSYSEVT_SOURCES = src/TMSYSEVT.cpp
 src_TMSYSEVT_LDADD = src/libfuxedo.la
+src_TMSYSEVT_DEPENDENCIES = src/libfuxedo.la
 
 src_TMQFORWARD_SOURCES = src/TMQFORWARD.cpp
 src_TMQFORWARD_LDADD = src/libfuxedo.la -lpthread
+src_TMQFORWARD_DEPENDENCIES = src/libfuxedo.la
 
 src_GWADM_SOURCES = src/GWADM.cpp
 src_GWADM_LDADD = src/libfuxedo.la
+src_GWADM_DEPENDENCIES = src/libfuxedo.la
 
 src_GWTDOMAIN_SOURCES = src/GWTDOMAIN.cpp
 src_GWTDOMAIN_LDADD = src/libfuxedo.la
+src_GWTDOMAIN_DEPENDENCIES = src/libfuxedo.la
 
 src_WSL_SOURCES = src/WSL.cpp
 src_WSL_LDADD = src/libfuxedo.la
+src_WSL_DEPENDENCIES = src/libfuxedo.la
 
 src_tmadmin_SOURCES = src/tmadmin.cpp
 src_tmadmin_LDADD = src/libfuxedo.la
+src_tmadmin_DEPENDENCIES = src/libfuxedo.la
 
 src_tmshutdown_SOURCES = src/tmshutdown.cpp
 src_tmshutdown_LDADD = src/libfuxedo.la
+src_tmshutdown_DEPENDENCIES = src/libfuxedo.la
 
 src_mkfldhdr32_SOURCES = src/mkfldhdr32.cpp
 src_mkfldhdr_SOURCES = src/mkfldhdr.cpp
 src_viewc_SOURCES = src/viewc32.cpp
 src_viewc_CPPFLAGS = -DVIEWC16_DEFAULTS
 src_mkfldhdr32_LDADD = src/libfuxedo.la
+src_mkfldhdr32_DEPENDENCIES = src/libfuxedo.la
 
 src_viewc32_SOURCES = src/viewc32.cpp
 src_viewc32_LDADD = src/libfuxedo.la
+src_viewc32_DEPENDENCIES = src/libfuxedo.la
 src_viewc_LDADD = src/libfuxedo.la
+src_viewc_DEPENDENCIES = src/libfuxedo.la
 src_mkfldhdr_LDADD = src/libfuxedo.la
+src_mkfldhdr_DEPENDENCIES = src/libfuxedo.la
 
 src_viewdis32_SOURCES = src/viewdis32.cpp
 src_viewdis32_LDADD = src/libfuxedo.la
+src_viewdis32_DEPENDENCIES = src/libfuxedo.la
 
 src_ud32_SOURCES = src/ud32.cpp
 src_ud_SOURCES = src/ud16.cpp
 src_ud_LDADD = src/libfuxedo.la
+src_ud_DEPENDENCIES = src/libfuxedo.la
 src_ud32_LDADD = src/libfuxedo.la
+src_ud32_DEPENDENCIES = src/libfuxedo.la
 
 src_crdl_SOURCES = src/crdl.cpp
 src_crdl_LDADD = src/libfuxedo.la
+src_crdl_DEPENDENCIES = src/libfuxedo.la
 
 src_crlog_SOURCES = src/crlog.cpp
 src_crlog_LDADD = src/libfuxedo.la
+src_crlog_DEPENDENCIES = src/libfuxedo.la
 
 src_tmloadcf_SOURCES = src/tmloadcf.cpp
 src_tmloadcf_LDADD = src/libfuxedo.la
+src_tmloadcf_DEPENDENCIES = src/libfuxedo.la
 
 src_tmunloadcf_SOURCES = src/tmunloadcf.cpp
 src_tmunloadcf_LDADD = src/libfuxedo.la
+src_tmunloadcf_DEPENDENCIES = src/libfuxedo.la
 
 src_fux_SOURCES = src/fux.cpp
 src_fux_LDADD = src/libfuxedo.la
+src_fux_DEPENDENCIES = src/libfuxedo.la
 
 src_tmipcrm_SOURCES = src/tmipcrm.cpp
 src_tmipcrm_LDADD = src/libfuxedo.la
+src_tmipcrm_DEPENDENCIES = src/libfuxedo.la
 
 udataobjdir = @prefix@/udataobj
 udataobj_DATA = RM include/tpadm
@@ -185,66 +215,86 @@ tests/compat/view16test.h tests/compat/view16test.V: $(top_srcdir)/tests/compat/
 
 tests_impl_userlog_SOURCES = tests/impl/userlog.cpp tests/tests-main.cpp
 tests_impl_userlog_LDADD = src/libfuxedo.la
+tests_impl_userlog_DEPENDENCIES = src/libfuxedo.la
 
 tests_compat_base64_SOURCES = tests/compat/base64.cpp tests/tests-main.cpp
 tests_compat_base64_LDADD = src/libfuxedo.la
+tests_compat_base64_DEPENDENCIES = src/libfuxedo.la
 
 tests_impl_ipcq_SOURCES = tests/impl/ipcq.cpp tests/tests-main.cpp
 tests_impl_ipcq_LDADD = src/libfuxedo.la
+tests_impl_ipcq_DEPENDENCIES = src/libfuxedo.la
 
 tests_compat_xatmi_SOURCES = tests/compat/xatmi.cpp tests/tests-main.cpp
 tests_compat_xatmi_LDADD = src/libfuxedo.la
+tests_compat_xatmi_DEPENDENCIES = src/libfuxedo.la
 
 tests_compat_fml32_SOURCES = tests/compat/fml32.cpp tests/tests-main.cpp
 tests_compat_fml32_LDADD = src/libfuxedo.la
+tests_compat_fml32_DEPENDENCIES = src/libfuxedo.la
 
 tests_compat_expr_SOURCES = tests/compat/expr.cpp tests/tests-main.cpp
 tests_compat_expr_LDADD = src/libfuxedo.la
+tests_compat_expr_DEPENDENCIES = src/libfuxedo.la
 
 tests_compat_hardening_SOURCES = tests/compat/hardening.cpp tests/tests-main.cpp
 tests_compat_hardening_LDADD = src/libfuxedo.la
+tests_compat_hardening_DEPENDENCIES = src/libfuxedo.la
 
 tests_compat_flags_SOURCES = tests/compat/flags.cpp tests/tests-main.cpp
 tests_compat_flags_LDADD = src/libfuxedo.la
+tests_compat_flags_DEPENDENCIES = src/libfuxedo.la
 
 tests_compat_view32_SOURCES = tests/compat/view32.cpp tests/tests-main.cpp
 
 tests_compat_xmlfml_SOURCES = tests/compat/xmlfml.cpp tests/tests-main.cpp
 tests_compat_xmlfml_LDADD = src/libfuxedo.la
+tests_compat_xmlfml_DEPENDENCIES = src/libfuxedo.la
 tests_compat_view32_LDADD = src/libfuxedo.la
+tests_compat_view32_DEPENDENCIES = src/libfuxedo.la
 tests_compat_view32_CPPFLAGS = -I$(top_builddir)/tests/compat
 
 tests_compat_fml16_SOURCES = tests/compat/fml16.cpp tests/tests-main.cpp
 tests_compat_fml16_LDADD = src/libfuxedo.la
+tests_compat_fml16_DEPENDENCIES = src/libfuxedo.la
 
 tests_compat_view16_SOURCES = tests/compat/view16.cpp tests/tests-main.cpp
 tests_compat_view16_LDADD = src/libfuxedo.la
+tests_compat_view16_DEPENDENCIES = src/libfuxedo.la
 tests_compat_view16_CPPFLAGS = -I$(top_builddir)/tests/compat
 
 tests_impl_mib_SOURCES = tests/impl/mib.cpp tests/tests-main.cpp
 tests_impl_dmlink_SOURCES = tests/impl/dmlink.cpp tests/tests-main.cpp
 tests_impl_dmlink_LDADD = src/libfuxedo.la
+tests_impl_dmlink_DEPENDENCIES = src/libfuxedo.la
 tests_impl_mib_LDADD = src/libfuxedo.la
+tests_impl_mib_DEPENDENCIES = src/libfuxedo.la
 
 tests_impl_trx_SOURCES = tests/impl/trx.cpp tests/tests-main.cpp
 tests_impl_trx_LDADD = src/libfuxedo.la
+tests_impl_trx_DEPENDENCIES = src/libfuxedo.la
 
 tests_impl_qm_SOURCES = tests/impl/qm.cpp tests/tests-main.cpp
 
 tests_impl_routing_SOURCES = tests/impl/routing.cpp tests/tests-main.cpp
 tests_impl_routing_LDADD = src/libfuxedo.la
+tests_impl_routing_DEPENDENCIES = src/libfuxedo.la
 
 tests_impl_cfg_SOURCES = tests/impl/cfg.cpp tests/tests-main.cpp
 tests_impl_cfg_LDADD = src/libfuxedo.la
+tests_impl_cfg_DEPENDENCIES = src/libfuxedo.la
 
 tests_impl_tlog_SOURCES = tests/impl/tlog.cpp tests/tests-main.cpp
 tests_impl_tlog_LDADD = src/libfuxedo.la
+tests_impl_tlog_DEPENDENCIES = src/libfuxedo.la
 tests_impl_tlog_CPPFLAGS = -I$(top_srcdir)/src
 
 tests_impl_qmtx_SOURCES = tests/impl/qmtx.cpp tests/tests-main.cpp
 tests_impl_qmtx_LDADD = src/libfuxedo.la
+tests_impl_qmtx_DEPENDENCIES = src/libfuxedo.la
 tests_impl_qmtx_CPPFLAGS = -I$(top_srcdir)/src
 tests_impl_qm_LDADD = src/libfuxedo.la
+tests_impl_qm_DEPENDENCIES = src/libfuxedo.la
 
 clang-format:
 	clang-format -style=Google -i \

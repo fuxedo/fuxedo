@@ -129,6 +129,35 @@ TEST_CASE("dot-prefixed queue names are rejected", "[qm]") {
   tpfree(data);
 }
 
+TEST_CASE("queue selectors in the flags argument are rejected", "[qm]") {
+  // pinned on Oracle 22.1 (live probe): the tpdequeue/tpenqueue
+  // flags argument accepts only TPNOTIME; TPQ* selectors belong in
+  // TPQCTL.flags and are rejected client-side with TPEINVAL
+  qm_test_dir qm;
+  enqueue_msg("Q1", "x");
+  REQUIRE(dequeue_msg("Q1") == "x");
+  auto data = tpalloc(const_cast<char *>("STRING"), nullptr, 4);
+  strcpy(data, "x");
+  TPQCTL ctl = {};
+  REQUIRE(tpenqueue(const_cast<char *>("QS1"), const_cast<char *>("Q1"),
+                    &ctl, data, 0, TPQTIME_REL) == -1);
+  REQUIRE(tperrno == TPEINVAL);
+  auto out = tpalloc(const_cast<char *>("STRING"), nullptr, 10);
+  long len = 0;
+  REQUIRE(tpdequeue(const_cast<char *>("QS1"), const_cast<char *>("Q1"),
+                    &ctl, &out, &len, TPQWAIT) == -1);
+  REQUIRE(tperrno == TPEINVAL);
+  REQUIRE(tpdequeue(const_cast<char *>("QS1"), const_cast<char *>("Q1"),
+                    &ctl, &out, &len, TPQPEEK) == -1);
+  REQUIRE(tperrno == TPEINVAL);
+  // TPNOTIME is legal in the argument
+  REQUIRE(tpdequeue(const_cast<char *>("QS1"), const_cast<char *>("Q1"),
+                    &ctl, &out, &len, TPNOTIME) == -1);
+  REQUIRE(tperrno == TPEDIAGNOSTIC);
+  tpfree(data);
+  tpfree(out);
+}
+
 TEST_CASE("queue operations in transaction mode are rejected", "[qm]") {
   // Requires an attached domain (tpbegin needs TUXCONFIG); covered by
   // domain-level tests instead. fux::tx::tx_active() guards the check so

@@ -33,8 +33,11 @@ int qm_fail(TPQCTL *ctl, const fux::qm::qm_error &e) {
   }
   if (e.diagnostic == QMEINVAL) {
     TPERROR(TPEINVAL, "%s", e.what());
-  } else if (e.diagnostic == QMEBADQUEUE || e.diagnostic == QMEBADMSGID ||
-             e.diagnostic == QMENOMSG) {
+  } else if (e.diagnostic == QMENOMSG) {
+    // pinned on Oracle 22.1: an empty queue is TPEDIAGNOSTIC with
+    // QMENOMSG, same as the domain path below
+    TPERROR(TPEDIAGNOSTIC, "%s", e.what());
+  } else if (e.diagnostic == QMEBADQUEUE || e.diagnostic == QMEBADMSGID) {
     TPERROR(TPENOENT, "%s", e.what());
   } else {
     TPERROR(TPEOS, "%s", e.what());
@@ -208,7 +211,7 @@ int tpenqueue(char *qspace, char *qname, TPQCTL *ctl, char *data, long len,
     TPERROR(TPEINVAL, "qspace, qname and ctl are required");
     return -1;
   }
-  if (flags != TPNOFLAGS) {
+  if ((flags & ~TPNOTIME) != 0) {
     TPERROR(TPEINVAL, "invalid flags %ld", flags);
     return -1;
   }
@@ -288,7 +291,7 @@ static long wait_deadline_ms(long flags, const TPQCTL *ctl) {
   if ((flags & TPNOTIME) != 0) {
     return std::numeric_limits<long>::min();
   }
-  long wait_s = 30;  // TODO(pin): default wait when no TPQTIME_* is given
+  long wait_s = 30;  // TMQUEUE -t default for waits without TPQTIME_*
   if ((ctl->flags & TPQTIME_REL) != 0) {
     wait_s = ctl->deq_time;
   } else if ((ctl->flags & TPQTIME_ABS) != 0) {
@@ -306,8 +309,10 @@ static int tpdequeue_once(const std::string &svc, const char *qspace,
 
 int tpdequeue(char *qspace, char *qname, TPQCTL *ctl, char **data, long *len,
               long flags) {
-  constexpr long valid_flags = TPQGETBYMSGID | TPQGETBYCORRID | TPQPEEK |
-                               TPQWAIT | TPQTIME_ABS | TPQTIME_REL | TPNOTIME;
+  // pinned on Oracle 22.1: the flags argument accepts only TPNOTIME;
+  // the TPQ* selectors (GETBY/WAIT/TIME/PEEK) live in TPQCTL.flags and
+  // are rejected here client-side with TPEINVAL
+  constexpr long valid_flags = TPNOTIME;
   if (qspace == nullptr || qname == nullptr || ctl == nullptr ||
       data == nullptr) {
     TPERROR(TPEINVAL, "qspace, qname, ctl and data are required");
@@ -415,6 +420,7 @@ static int tpdequeue_once(const std::string &svc, const char *qspace,
     return 0;
   }
 
-  return fux::tmq::exec_dequeue(qspace, qname, ctl, data, len,
-                                flags & ~TPQWAIT);
+  // the queue selectors (PEEK/GETBY/TQWAIT) travel in ctl->flags, the
+  // pinned home; the flags argument carries API-level bits only
+  return fux::tmq::exec_dequeue(qspace, qname, ctl, data, len, ctl->flags);
 }

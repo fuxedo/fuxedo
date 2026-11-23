@@ -18,7 +18,7 @@ export FIELDTBLS32 := demo
 export TMPDIR := $(CURDIR)/.tmp
 
 CLIENTS := tpcall acall cancel buffers session fmldemo txdemo \
-           enqueue dequeue conv prio
+           enqueue dequeue conv prio blktime
 
 check: tuxconfig apisvr advsvr convsvr $(CLIENTS)
 	mkdir -p $(TMPDIR)

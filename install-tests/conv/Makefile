@@ -8,16 +8,20 @@ include ../mk/domain.mk
 # conversational services on their own thread and wants a
 # single-context server here.
 ifneq ($(wildcard $(TUXDIR)/lib/libfuxedo.so),)
-THREADLINE = MINDISPATCHTHREADS=2 MAXDISPATCHTHREADS=2 
+THREADLINE = MINDISPATCHTHREADS=2 MAXDISPATCHTHREADS=2
+BOOTWAIT = 3
 else
 THREADLINE =
+# 22.1 returns from tmboot well before the bulletin board is ready;
+# the first client call needs the wait
+BOOTWAIT = 10
 endif
 
 check: server client tuxconfig
 	-rm -f ULOG.*
 	-tmipcrm -y
 	-tmboot -y
-	sleep 3 # 22.1 returns before the bulletin board is ready
+	sleep $(BOOTWAIT)
 	timeout 120 ./client basic
 	timeout 120 ./client fail
 	timeout 120 ./client cdiscon
@@ -33,7 +37,7 @@ check: server client tuxconfig
 	grep -q ':TEST: NEGATIVE OK' ULOG.*
 	grep -q ':TEST: LARGE OK' ULOG.*
 	grep -q ':TEST: ECHO recv len=7 revent=0x20 data=hello2' ULOG.*
-	grep -qE ':TEST: SLEEP (second recv rc=0 revent=0x1|disconnect in first recv rc=0 revent=0x1)' ULOG.*
+	grep -qE ':TEST: SLEEP (second recv rc=-1 revent=0x1|disconnect in first recv rc=-1 revent=0x1)' ULOG.*
 
 server: server.c
 	buildserver -o $@ -f $< -s ECHO -s FAILSVC -s SLEEP -s SENDFIRST -s ECHOBIG -v -f "-Wl,--no-as-needed"

@@ -82,3 +82,6 @@ ubbconfig.fast
 /orarm/server.flat.lis
 /orarm/server.proclog
 /qsample/TMS_QM
+
+# orarm generated server env file
+orarm/ENVFILE

@@ -20,6 +20,8 @@ namespace fs = std::experimental::filesystem;
 
 #include <signal.h>
 #include <sys/types.h>
+#include <sys/wait.h>
+#include <fstream>
 #include <unistd.h>
 
 #include <tpadm.h>
@@ -57,6 +59,12 @@ static void do_help() {
   std::cout << "printserver (psr) [-g groupname] [-i srvid]" << std::endl;
   std::cout << "crdl [-b blocks] -z device" << std::endl;
   std::cout << "crlog -m machine" << std::endl;
+  std::cout << "bbparms" << std::endl;
+  std::cout << "bbstats" << std::endl;
+  std::cout << "bbclean" << std::endl;
+  std::cout << "boot [tmboot options]" << std::endl;
+  std::cout << "shutdown [tmshutdown options]" << std::endl;
+  std::cout << "changepriority -g grpname -i srvid priority" << std::endl;
 }
 
 // Shared option parsing for the server-targeting commands.
@@ -472,8 +480,161 @@ static void do_printevents() {
   }
 }
 
-static void do_printtrans() {
+static bool pid_alive(pid_t pid) {
+  // a zombie still answers kill(pid, 0); bbclean must not treat a
+  // dead server's slot as live, so reap-check via /proc state
+  if (kill(pid, 0) == -1) {
+    return false;
+  }
+  std::string stat = fux::util::getenv("PROCFS", "/proc") + "/" +
+                     std::to_string(static_cast<long>(pid)) + "/stat";
+  std::ifstream in(stat);
+  std::string line;
+  if (in && std::getline(in, line)) {
+    auto rp = line.rfind(')');
+    if (rp != std::string::npos && rp + 2 < line.size()) {
+      return line[rp + 2] != 'Z';
+    }
+  }
+  return true;
+}
 
+// BB sizing parameters, from the loaded configuration and the live
+// shared segment
+static void do_bbparms() {
+  fux::cfg::tables tables;
+  getconfig(&tables);
+  mib &m = getmib();
+  std::cout << "Bulletin Board Parameters" << std::endl;
+  std::cout << "\tMAXACCESSERS\t" << tables.dom.maxaccessers << std::endl;
+  std::cout << "\tMAXSERVERS\t" << tables.dom.maxservers << std::endl;
+  std::cout << "\tMAXSERVICES\t" << tables.dom.maxservices << std::endl;
+  std::cout << "\tMAXGROUPS\t" << tables.dom.maxgroups << std::endl;
+  std::cout << "\tMAXGTT\t" << 100 << std::endl;
+  std::cout << "\tMAXQUEUES\t" << tables.dom.maxqueues << std::endl;
+  std::cout << "\tSHM size\t" << mib::needed(tables.dom) << std::endl;
+  (void)m;
+}
+
+// Live occupancy counts from the shared segment
+static void do_bbstats() {
+  mib &m = getmib();
+  size_t servers = 0, active = 0, services = 0, accessers = 0;
+  for (size_t i = 0; i < m.servers()->len; i++) {
+    servers++;
+    if (m.servers().at(i).state == state_t::ACTive) {
+      active++;
+    }
+  }
+  for (size_t i = 0; i < m.services()->len; i++) {
+    if (m.services().at(i).state == state_t::ACTive) {
+      services++;
+    }
+  }
+  for (size_t i = 0; i < m.accessers()->len; i++) {
+    if (m.accessers().at(i).valid()) {
+      accessers++;
+    }
+  }
+  std::cout << "Bulletin Board Statistics" << std::endl;
+  std::cout << "\tServers configured\t" << servers << std::endl;
+  std::cout << "\tServers active\t\t" << active << std::endl;
+  std::cout << "\tServices advertised\t" << services << std::endl;
+  std::cout << "\tAccessers attached\t" << accessers << std::endl;
+  std::cout << "\tTransactions active\t" << m.transactions().len
+            << std::endl;
+}
+
+// Drop stale entries: dead accessers (with their reply queues) and
+// dead servers (with their advertisements), like the BBL watchdog
+// would once its scan unit passes
+static void do_bbclean() {
+  mib &m = getmib();
+  int cleaned = 0;
+  for (size_t i = 0; i < m.accessers()->len; i++) {
+    auto &acc = m.accessers().at(i);
+    if (acc.pid != 0 && !pid_alive(acc.pid)) {
+      if (acc.rpid != 0) {
+        fux::ipc::qdelete(acc.rpid);
+      }
+      acc.invalidate();
+      cleaned++;
+    }
+  }
+  for (size_t i = 0; i < m.servers()->len; i++) {
+    auto &srv = m.servers().at(i);
+    if (srv.pid != 0 && !pid_alive(srv.pid)) {
+      srv.pid = 0;
+      m.cleanup_server_advertisements(i);
+      cleaned++;
+    }
+  }
+  std::cout << "bbclean: " << cleaned << " stale entries removed"
+            << std::endl;
+}
+
+// boot/shutdown hand the rest of the line to tmboot/tmshutdown, the
+// way the platform's tmadmin delegates
+static void do_boot_shutdown(const std::string &args, bool boot) {
+  std::vector<std::string> argv = fux::split(args, " \t");
+  std::vector<const char *> av;
+  av.push_back(boot ? "tmboot" : "tmshutdown");
+  for (auto &a : argv) {
+    if (!a.empty()) {
+      av.push_back(a.c_str());
+    }
+  }
+  av.push_back(nullptr);
+  pid_t pid = fork();
+  if (pid == 0) {
+    execvp(av[0], const_cast<char *const *>(av.data()));
+    _exit(127);
+  }
+  int status = 0;
+  while (waitpid(pid, &status, 0) == -1 && errno == EINTR) {
+  }
+}
+
+// The platform tunes MSSQ dispatch priority per server; fuxedo
+// dispatches FIFO, so the value is accepted and reported without
+// effect rather than silently ignored
+static void do_changepriority(const std::string &args) {
+  auto toks = fux::split(args, " \t");
+  int srvid = -1;
+  std::string grp;
+  std::vector<std::string> positional;
+  for (size_t i = 0; i < toks.size(); i++) {
+    if (toks[i] == "-i" && i + 1 < toks.size()) {
+      srvid = std::stoi(toks[++i]);
+    } else if (toks[i] == "-g" && i + 1 < toks.size()) {
+      grp = toks[++i];
+    } else {
+      positional.push_back(toks[i]);
+    }
+  }
+  mib &m = getmib();
+  size_t gidx = grp.empty() ? mib::badoff : m.group_index(grp);
+  int matched = 0;
+  for (size_t i = 0; i < m.servers()->len; i++) {
+    auto &s = m.servers().at(i);
+    if (srvid != -1 && s.srvid != srvid) {
+      continue;
+    }
+    if (gidx != mib::badoff && s.group_idx != gidx) {
+      continue;
+    }
+    matched++;
+  }
+  if (matched == 0) {
+    std::cerr << "changepriority: no matching server" << std::endl;
+    return;
+  }
+  std::cout << "changepriority: " << matched << " server(s) noted; fuxedo "
+            << "dispatches FIFO, the priority value has no effect"
+            << std::endl;
+}
+
+static void do_printtrans() {
   mib &m = getmib();
   auto &tbl = m.transactions();
 
@@ -655,6 +816,22 @@ int main(int argc, char *argv[]) {
           }
         } else if (line == "quit" || line == "q") {
           break;
+        } else if (line == "bbparms") {
+          do_bbparms();
+        } else if (line == "bbstats") {
+          do_bbstats();
+        } else if (line == "bbclean") {
+          if (!refuse_readonly("bbclean")) {
+            do_bbclean();
+          }
+        } else if (line.rfind("boot", 0) == 0) {
+          do_boot_shutdown(line.substr(strlen("boot")), true);
+        } else if (line.rfind("shutdown", 0) == 0) {
+          do_boot_shutdown(line.substr(strlen("shutdown")), false);
+        } else if (line.rfind("changepriority", 0) == 0) {
+          if (!refuse_readonly("changepriority")) {
+            do_changepriority(line.substr(strlen("changepriority")));
+          }
         } else {
           std::cerr << line << ": invalid command" << std::endl;
         }

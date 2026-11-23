@@ -22,7 +22,9 @@ void ECHO(TPSVCINFO *svcinfo) {
   long revent = 0;
   while (1) {
     int rc = tprecv(svcinfo->cd, &buf, &len, 0, &revent);
-    if (rc == -1) {
+    // events answer -1/TPEEVENT with the data delivered (pinned on
+    // Oracle 22.1); a real failure keeps a different tperrno
+    if (rc == -1 && tperrno != TPEEVENT) {
       userlog(":TEST: ECHO tprecv failed %d", tperrno);
       break;
     }
@@ -70,7 +72,8 @@ void SLEEP(TPSVCINFO *svcinfo) {
   userlog(":TEST: SLEEP first recv done, waiting for the disconnect");
   rc = tprecv(svcinfo->cd, &buf, &len, 0, &revent);
   userlog(":TEST: SLEEP second recv rc=%d revent=0x%lx", rc, revent);
-  assert(rc == 0);
+  assert(rc == -1);
+  assert(tperrno == TPEEVENT);
   assert(revent & TPEV_DISCONIMM);
   tpreturn(TPSUCCESS, 0, done, 0, 0);
 }
@@ -99,7 +102,10 @@ void SENDFIRST(TPSVCINFO *svcinfo) {
   long len = 0;
   long revent = 0;
   assert(tpsend(svcinfo->cd, first, 0, TPRECVONLY, &revent) != -1);
-  assert(tprecv(svcinfo->cd, &buf, &len, 0, &revent) != -1);
+  int rc = tprecv(svcinfo->cd, &buf, &len, 0, &revent);
+  // the client's data rides with the SENDONLY event: -1/TPEEVENT
+  assert(rc == -1);
+  assert(tperrno == TPEEVENT);
   userlog(":TEST: SENDFIRST recv data=%s revent=0x%lx", buf, revent);
   assert(strcmp(buf, "client-data") == 0);
   tpreturn(TPSUCCESS, 9, sdone, 0, 0);

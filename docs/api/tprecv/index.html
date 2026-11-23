@@ -67,6 +67,8 @@
 <li><a href="/api/tpforward/">tpforward</a></li>
 <li><a href="/api/tpsprio/">tpsprio</a></li>
 <li><a href="/api/tpgprio/">tpgprio</a></li>
+<li><a href="/api/tpsblktime/">tpsblktime</a></li>
+<li><a href="/api/tpgblktime/">tpgblktime</a></li>
 </ul>
 <h2>XATMI: conversational</h2>
 <ul>
@@ -220,14 +222,16 @@ int main() {
     return 1;
   }
 
-<span class="hl">  // tprecv waits for one message or event; revent tells events from
-  // data (TPEV_SENDONLY: the peer handed send permission over)
-  if (tprecv(cd, &amp;buf, &amp;len, 0, &amp;revent) == -1) {
+<span class="hl">  // tprecv waits for one message or event; an event arrives as -1 with
+  // tperrno=TPEVENT and revent set (TPEV_SENDONLY: the peer handed send
+  // permission over), the data riding with the event is still delivered
+  int rc = tprecv(cd, &amp;buf, &amp;len, 0, &amp;revent);
+  if (rc == -1 &amp;&amp; tperrno != TPEEVENT) {
     fprintf(stderr, &quot;tprecv failed: %s (%d)\n&quot;, tpstrerror(tperrno),
             tperrno);
     return 1;
   }
-  printf(&quot;service says: %s\n&quot;, buf);</span>
+  printf(&quot;service says: %s (revent=0x%lx)\n&quot;, buf, revent);</span>
 
   // tpdiscon tears the conversation down immediately; the service
   // sees TPEV_DISCONIMM from tprecv (a graceful end is an empty

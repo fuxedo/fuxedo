@@ -26,7 +26,7 @@ int main(void) {
   long len = 100;
   int rc = -1;
   for (int i = 0; i < 50 && rc == -1; i++) {
-    rc = tpdequeue("QSPACE", "RPLYQ", &rctl, (char **)&buf, &len, TPQWAIT);
+    rc = tpdequeue("QSPACE", "RPLYQ", &rctl, (char **)&buf, &len, 0);
   }
   if (rc == -1) {
     fprintf(stderr, "tpdequeue failed: %s diag=%ld\n", tpstrerror(tperrno),

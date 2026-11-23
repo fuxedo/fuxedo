@@ -223,6 +223,9 @@ class mib {
   size_t server_index(uint16_t srvid, size_t group_idx);
 
   size_t find_server(uint16_t srvid, uint16_t grpno);
+  // Transitions a server's state, keeping the request queue's active
+  // server count (TA_SERVERCNT) in sync: only ACTive servers count.
+  void set_server_state(size_t idx, state_t s);
   size_t make_server(uint16_t srvid, uint16_t grpno,
                      const std::string &servername, const std::string &clopt,
                      const std::string &rqaddr);

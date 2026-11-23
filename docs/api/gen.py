@@ -26,7 +26,8 @@ GROUPS = [
     ("XATMI: session", ["tpinit", "tpterm"]),
     ("XATMI: errors", ["tperrno", "tpstrerror"]),
     ("XATMI: calls", ["tpcall", "tpacall", "tpgetrply", "tpcancel",
-                      "tpforward", "tpsprio", "tpgprio"]),
+                      "tpforward", "tpsprio", "tpgprio", "tpsblktime",
+                      "tpgblktime"]),
     ("XATMI: conversational", ["tpconnect", "tpsend", "tprecv",
                                "tpdiscon"]),
     ("XATMI: buffers", ["tpalloc", "tpfree", "tptypes", "tpexport",
@@ -386,6 +387,84 @@ fuxedo returns the value set by the last tpsprio() on the thread.</p>""",
         "versions": None,
         "example": ("prio.c", "tpgprio"),
         "see_also": ["tpsprio", "tpcall"],
+    },
+    "tpsblktime": {
+        "title": "set the blocking timeout for calls on this thread",
+        "group": "XATMI: calls",
+        "synopsis": "int tpsblktime(int blktime, long flags);",
+        "description": """
+<p>tpsblktime() sets how long the thread's blocking calls wait before
+giving up with TPETIME. It applies to reply waits (tpcall() and
+tpgetrply()) and, on fuxedo, to queue waits as well. The value is a
+per-thread attribute, not a per-call one: TPBLK_NEXT is consumed by
+the next blocking call, TPBLK_ALL stays in effect until changed.</p>
+<p>blktime 0 restores the platform default: wait forever is NOT the
+default: an unset timeout means the UBBCONFIG BLOCKTIME value
+applies (default about 60 seconds).</p>
+<p><strong>Units and granularity.</strong> flags carry the unit:
+TPBLK_SECOND everywhere, TPBLK_MILLISECOND on 12.x only (pinned: 22.1
+rejects millisecond and microsecond units with TPEINVAL). Whatever the
+unit, the effective granularity on the platform is SCANUNIT: BLOCKTIME
+is a multiplier of the RESOURCES SCANUNIT parameter and the BBL scans
+for timed-out blocking calls once per SCANUNIT, which defaults to 10
+seconds. Sub-SCANUNIT precision is not representable there. fuxedo's
+watchdog ticks once per second, so fuxedo honors second and
+millisecond blocktimes to roughly one second. That is tighter than
+the platform default and looser than a timer.</p>""",
+        "args": [
+            ("blktime", "Timeout in the requested unit. 0 restores the "
+                        "UBBCONFIG default. Negative values fail with "
+                        "TPEINVAL."),
+            ("flags", "Target (TPBLK_NEXT or TPBLK_ALL) OR unit "
+                      "(TPBLK_SECOND; TPBLK_MILLISECOND on 12.x). Other "
+                      "bits fail with TPEINVAL."),
+        ],
+        "flags": [
+            ("TPBLK_NEXT", "Apply to the next blocking call only."),
+            ("TPBLK_ALL", "Apply to all subsequent blocking calls on "
+                          "this thread."),
+            ("TPBLK_SECOND", "blktime is in seconds."),
+            ("TPBLK_MILLISECOND", "blktime is in milliseconds (12.x "
+                                  "only; 22.1: TPEINVAL)."),
+        ],
+        "flags_note": "Exactly one target and one unit are required.",
+        "errors": [
+            ("TPEINVAL", "Negative blktime, or a flags word that is not "
+                         "one target and one supported unit."),
+        ],
+        "notes": """
+<p><strong>Version note (pinned).</strong> 12.x accepts
+TPBLK_MILLISECOND; 22.1 rejects TPBLK_MILLISECOND and
+TPBLK_MICROSECOND with TPEINVAL. fuxedo accepts both units.</p>""",
+        "versions": "Millisecond/microsecond units: accepted on 12.x, "
+                    "rejected with TPEINVAL on 22.1.",
+        "example": ("blktime.c", "tpsblktime"),
+        "see_also": ["tpgblktime", "tpcall", "tpgetrply"],
+    },
+    "tpgblktime": {
+        "title": "read the current blocking timeout",
+        "group": "XATMI: calls",
+        "synopsis": "long tpgblktime(long flags);",
+        "description": """
+<p>tpgblktime() reads back the blocking timeout set with
+tpsblktime(), in the unit requested by flags. flags 0 (or a bare unit
+bit) reads the TPBLK_ALL value; TPBLK_NEXT reads the next-call value.
+The unit bits are honored on read: TPBLK_SECOND by default,
+TPBLK_MILLISECOND returns the value in milliseconds.</p>""",
+        "args": [
+            ("flags", "0 for the TPBLK_ALL value, TPBLK_NEXT for the "
+                      "next-call value, TPBLK_ALL explicitly; OR a unit "
+                      "(TPBLK_SECOND default, TPBLK_MILLISECOND to get "
+                      "the value in milliseconds)."),
+        ],
+        "flags": None,
+        "errors": [
+            ("TPEINVAL", "Unsupported flags word."),
+        ],
+        "notes": None,
+        "versions": None,
+        "example": ("blktime.c", "tpgblktime"),
+        "see_also": ["tpsblktime", "tpcall"],
     },
     "tpconnect": {
         "title": "open a conversation with a service",

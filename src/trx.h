@@ -26,6 +26,9 @@ bool tx_active();
 // 12.2.2, where a 1s transaction around a 2s insert fails the call
 // with TPETIME and the row does not land)
 bool expired();
+// milliseconds until the current transaction's timeout passes, -1
+// when it has none (pair with expired() at the deadline)
+long time_left_ms();
 XID current_xid();
 int tx_begin();
 int tx_rollback();

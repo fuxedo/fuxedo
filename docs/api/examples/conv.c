@@ -41,14 +41,16 @@ int main() {
   // doc:end
 
   // doc:region tprecv
-  // tprecv waits for one message or event; revent tells events from
-  // data (TPEV_SENDONLY: the peer handed send permission over)
-  if (tprecv(cd, &buf, &len, 0, &revent) == -1) {
+  // tprecv waits for one message or event; an event arrives as -1 with
+  // tperrno=TPEVENT and revent set (TPEV_SENDONLY: the peer handed send
+  // permission over), the data riding with the event is still delivered
+  int rc = tprecv(cd, &buf, &len, 0, &revent);
+  if (rc == -1 && tperrno != TPEEVENT) {
     fprintf(stderr, "tprecv failed: %s (%d)\n", tpstrerror(tperrno),
             tperrno);
     return 1;
   }
-  printf("service says: %s\n", buf);
+  printf("service says: %s (revent=0x%lx)\n", buf, revent);
   // doc:end
 
   // doc:region tpdiscon

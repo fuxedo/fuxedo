@@ -17,9 +17,30 @@
 
 #include "misc.h"
 
-// FIXME: Linux only
-extern const char *__progname;
-char *proc_name = const_cast<char *>(__progname);
+// Resolved from /proc/self/comm at first use; an application may still
+// assign proc_name to override it (public contract from userlog.h).
+static char proc_name_buf[64] = {};
+char *proc_name = proc_name_buf;
+
+static const char *proc_name_get() {
+  if (proc_name != proc_name_buf) {
+    return proc_name;
+  }
+  FILE *f = fopen("/proc/self/comm", "r");
+  if (f != nullptr) {
+    if (fgets(proc_name_buf, sizeof(proc_name_buf), f) != nullptr) {
+      size_t n = strlen(proc_name_buf);
+      if (n > 0 && proc_name_buf[n - 1] == '\n') {
+        proc_name_buf[n - 1] = 0;
+      }
+    }
+    fclose(f);
+  }
+  if (proc_name_buf[0] == 0) {
+    strcpy(proc_name_buf, "unknown");
+  }
+  return proc_name_buf;
+}
 
 static std::string getname() {
   struct utsname buf;
@@ -60,11 +81,11 @@ int userlog(const char *fmt, ...) {
     n = snprintf(buf, sizeof(buf),
                  "%02d%02d%02d.%03d.%s!%s.%d: ", timeinfo.tm_hour,
                  timeinfo.tm_min, timeinfo.tm_sec, int(tv.tv_usec / 1000),
-                 nodename.c_str(), proc_name, getpid());
+                 nodename.c_str(), proc_name_get(), getpid());
   } else {
     n = snprintf(buf, sizeof(buf), "%02d%02d%02d.%s!%s.%d: ", timeinfo.tm_hour,
-                 timeinfo.tm_min, timeinfo.tm_sec, nodename.c_str(), proc_name,
-                 getpid());
+                 timeinfo.tm_min, timeinfo.tm_sec, nodename.c_str(),
+                 proc_name_get(), getpid());
   }
 
   va_list ap;

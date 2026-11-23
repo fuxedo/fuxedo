@@ -1698,16 +1698,14 @@ TEST_CASE_METHOD(FieldFixture, "tpexport & tpimport string", "[fml32]") {
 
   olen = 0;
   tpimport(ostr, 0, reinterpret_cast<char **>(&copy), &olen, TPEX_STRING);
-  // FIXME: Oracle Tuxedo actually fails with TPESYSTEM if ilen=0 even when
-  // TPEX_STRING in flags Expected to fail on Oracle Tuxedo, issue reported to
-  // Oracle support
 #ifndef ATMI_H
   long ilen = olen;
 #else
   long ilen = 0;
 #endif
-  // 12.2 fails with TPESYSTEM when ilen=0 even with TPEX_STRING (reported
-  // to Oracle support); 22.1 accepts it
+  // ilen=0 with TPEX_STRING: 12.2 fails TPESYSTEM (quirk reported to
+  // Oracle support), 22.1 accepts and imports the whole string; fuxedo
+  // follows 22.1 (12.1 unprobed). Both platform branches asserted here.
   if (tpimport(ostr, ilen, reinterpret_cast<char **>(&copy), &olen,
                TPEX_STRING) == -1) {
     REQUIRE(tperrno == TPESYSTEM);

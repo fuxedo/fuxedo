@@ -51,11 +51,12 @@ static void TMQ(TPSVCINFO *svcinfo) {
     rc = fux::tmq::exec_enqueue(g_qspace.c_str(), qname.c_str(), &ctl,
                                 payload);
   } else if (op == fux::tmq::dequeue) {
-    long flags = rq.get<long>(fux::tmq::f_flags(), 0, 0L);
+    // the queue selectors travel in ctl.flags (pinned home); the
+    // legacy f_flags field mirrors the API argument and is ignored
     char *data = tpalloc(const_cast<char *>("CARRAY"), nullptr, 1024);
     long len = 0;
     rc = fux::tmq::exec_dequeue(g_qspace.c_str(), qname.c_str(), &ctl, &data,
-                                &len, flags);
+                                &len, ctl.flags);
     if (rc == 0 && len > 0) {
       // exec_dequeue tpimport()ed the message into a typed buffer; the
       // wire carries export bytes

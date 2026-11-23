@@ -342,6 +342,56 @@ static void priority_matrix() {
   }
 }
 
+// tpsblktime/tpgblktime contracts pinned against Oracle 22.1 (live
+// probe): unit-only reads return the TPBLK_ALL value converted;
+// flags 0 reads it in seconds; the MS unit is rejected on set by
+// 22.1 and accepted by 12.x.
+static void blktime_matrix() {
+  if (tpsblktime(5, TPBLK_ALL | TPBLK_SECOND) == -1) {
+    userlog(":TEST: FAIL tpsblktime set rc=-1 tperrno=%d", tperrno);
+    g_fail++;
+  }
+  if (tpgblktime(0) != 5) {
+    userlog(":TEST: FAIL tpgblktime(0)=%ld want 5", tpgblktime(0));
+    g_fail++;
+  }
+  if (tpgblktime(TPBLK_MILLISECOND) != 5000) {
+    userlog(":TEST: FAIL tpgblktime(MS)=%ld want 5000",
+            tpgblktime(TPBLK_MILLISECOND));
+    g_fail++;
+  }
+  if (tpgblktime(TPBLK_ALL | TPBLK_SECOND) != 5) {
+    userlog(":TEST: FAIL tpgblktime(ALL|SECOND)=%ld want 5",
+            tpgblktime(TPBLK_ALL | TPBLK_SECOND));
+    g_fail++;
+  }
+  if (tpgblktime(TPBLK_NEXT | TPBLK_SECOND) != 0) {
+    userlog(":TEST: FAIL tpgblktime(NEXT|SECOND)=%ld want 0",
+            tpgblktime(TPBLK_NEXT | TPBLK_SECOND));
+    g_fail++;
+  }
+  if (tpsblktime(-1, TPBLK_ALL | TPBLK_SECOND) != -1 ||
+      tperrno != TPEINVAL) {
+    userlog(":TEST: FAIL tpsblktime(-1) rc=%d tperrno=%d want -1/TPEINVAL",
+            tpsblktime(-1, TPBLK_ALL | TPBLK_SECOND), tperrno);
+    g_fail++;
+  }
+  // 22.1 rejects the MS unit on set with TPEINVAL; 12.x accepts it.
+  // Assert the union: either accepted (value sticks) or the pinned error.
+  if (tpsblktime(7, TPBLK_ALL | TPBLK_MILLISECOND) == -1) {
+    if (tperrno != TPEINVAL) {
+      userlog(":TEST: FAIL tpsblktime(MS) tperrno=%d want TPEINVAL",
+              tperrno);
+      g_fail++;
+    }
+  } else if (tpgblktime(TPBLK_MILLISECOND) != 7) {
+    userlog(":TEST: FAIL MS set: tpgblktime(MS)=%ld want 7",
+            tpgblktime(TPBLK_MILLISECOND));
+    g_fail++;
+  }
+  tpsblktime(0, TPBLK_ALL | TPBLK_SECOND);
+}
+
 int main() {
   if (tpinit(NULL) == -1) {
     fprintf(stderr, "tpinit failed %d\n", tperrno);
@@ -353,6 +403,7 @@ int main() {
   conv_matrix();
   demarcation_matrix();
   priority_matrix();
+  blktime_matrix();
   tpterm();
   if (g_fail == 0) {
     userlog(":TEST: FLAGMATRIX OK");

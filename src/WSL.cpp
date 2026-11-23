@@ -72,7 +72,10 @@ void send_frame(int fd, fux::link::frame_type type, std::vector<char> payload) {
 }
 
 void on_accept(int fd) {
-  links[fd].cltname.clear();
+  // fd numbers are reused by the OS: a half-closed predecessor must
+  // not leak its client context or pending descriptors into the new
+  // session (found by wslstress: replies went empty after churn)
+  links.erase(fd);
 }
 
 void rollback_tx(wslink &l);
@@ -416,6 +419,18 @@ void drain_replies() {
       int cd = 0;
       long len = 0;
       if (l.cl->tpgetrply(&cd, &buf, &len, TPNOBLOCK | TPGETANY) == -1) {
+        if (tperrno != TPEBLOCK && tperrno != TPEPROTO) {
+          userlog("WSL: drain fd=%d tpgetrply failed tperrno=%d", fd,
+                  tperrno);
+        }
+        if (tperrno == TPEPROTO) {
+          // pending and the client's descriptor set disagree: drop the
+          // stale descriptors instead of spinning forever
+          userlog("WSL: fd=%d dropping %zu stale pending descriptors "
+                  "(first %d)",
+                  fd, l.pending.size(), *l.pending.begin());
+          l.pending.clear();
+        }
         tpfree(buf);
         break;  // nothing ready right now
       }

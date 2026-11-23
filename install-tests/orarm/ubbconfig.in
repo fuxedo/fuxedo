@@ -9,7 +9,10 @@ MAXSERVICES 30
 BLOCKTIME 20
 
 *MACHINES
-"@UNAME@" LMID=tuxapp APPDIR="@CURDIR@" TUXCONFIG="@CURDIR@/tuxconfig" TUXDIR="@TUXDIR@" TLOGDEVICE="@CURDIR@/TLOG" TLOGSIZE=100
+# Oracle's tmboot scrubs the server environment, so the generated
+# Pro*C code needs its loader path and ORACLE_HOME from the machine
+# ENVFILE; fuxedo honors the same entry
+"@UNAME@" LMID=tuxapp APPDIR="@CURDIR@" TUXCONFIG="@CURDIR@/tuxconfig" TUXDIR="@TUXDIR@" TLOGDEVICE="@CURDIR@/TLOG" TLOGSIZE=100 ENVFILE="@CURDIR@/ENVFILE"
 
 *GROUPS
 APP LMID=tuxapp GRPNO=1

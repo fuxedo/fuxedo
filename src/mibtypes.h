@@ -148,8 +148,6 @@ struct server {
     return true;
   }
 
-  void suspend() { state = state_t::SUSpended; }
-
   bool is_inactive() const { return state == state_t::INActive; }
 };
 

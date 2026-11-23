@@ -7,6 +7,7 @@
 #include <fml32.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "orarm.h"
 
@@ -44,7 +45,8 @@ int main(void) {
   // S4: AUTOTRAN service, TPFAIL -> no row, caller sees the failure
   svc("INSERTFAIL", 104, "s4");
 
-  // S5: server-begun transaction committed by the platform at return
+  // S5: server-begun transaction left open at tpreturn: the platform
+  // aborts it and the caller sees TPESVCERR, no row lands
   svc("INSERTOWN", 105, "s5");
 
   // S6: one-second transaction around a two-second insert -> abort
@@ -114,8 +116,9 @@ int main(void) {
     for (int tries = 0; tries < 90; tries++) {
       TPQCTL qctl;
       memset(&qctl, 0, sizeof(qctl));
+      qctl.flags = TPQPEEK;
       long qlen = 64;
-      int rc = tpdequeue("QSPACE", "JOBS", &qctl, &qmsg, &qlen, TPQPEEK);
+      int rc = tpdequeue("QSPACE", "JOBS", &qctl, &qmsg, &qlen, 0);
       if (rc == -1 && tperrno == TPEDIAGNOSTIC &&
           qctl.diagnostic == QMENOMSG) {
         drained = 1;

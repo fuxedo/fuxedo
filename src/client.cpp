@@ -413,13 +413,29 @@ int client::tpgetrply(int *cd, char **data, long *len, long flags) {
         return -1;
       }
       // TPNOTIME waits without a deadline: leave the accesser without
-      // a reply-wait timeout so the reaper never fires
-      if (flags & TPNOTIME) {
+      // a reply-wait timeout so the reaper never fires. A transaction
+      // with a timeout caps the wait regardless: when the tx deadline
+      // passes mid-call the reaper's marker ends the call with TPETIME
+      // (pinned on Oracle 12.2.2: a 1s tx around a 2s service fails
+      // the call with TPETIME; tpcommit then answers TPETIME and rolls
+      // back)
+      long tx_left = fux::tx::time_left_ms();
+      if ((flags & TPNOTIME) && tx_left < 0) {
         mibcon_.accessers().at(client_).rpid_timeout = INVALID_TIME;
       } else {
-        mibcon_.accessers().at(client_).rpid_timeout =
-            std::chrono::steady_clock::now() +
-            std::chrono::milliseconds(next_blocktime());
+        auto now = std::chrono::steady_clock::now();
+        // a TPNOTIME wait never blocks, so it must not consume a
+        // TPBLK_NEXT value either; only a timed wait does
+        auto wait_end = (flags & TPNOTIME)
+                            ? now
+                            : now + std::chrono::milliseconds(next_blocktime());
+        if (tx_left >= 0) {
+          auto tx_end = now + std::chrono::milliseconds(tx_left);
+          if ((flags & TPNOTIME) || tx_end < wait_end) {
+            wait_end = tx_end;
+          }
+        }
+        mibcon_.accessers().at(client_).rpid_timeout = wait_end;
       }
       try {
         if (flags & TPNOBLOCK) {
@@ -768,6 +784,13 @@ int client::tprecv(int cd, char **data, long *len, long flags, long *revent) {
   } else if (len != nullptr) {
     *len = 0;
   }
+  // pinned on Oracle 22.1: a received event is reported as -1 with
+  // tperrno=TPEEVENT; the data that rode with the event is still
+  // delivered into the caller's buffer
+  if (*revent != 0) {
+    TPERROR(TPEEVENT, "event 0x%lx on conversation %d", *revent, cd);
+    return -1;
+  }
   fux::atmi::reset_tperrno();
   return 0;
 }
@@ -879,12 +902,12 @@ int client::tpgblktime(long flags) {
   long what = flags & ~TPBLK__MASK;
   long timeout;
 
-  if (what == 0) {
-    timeout = 0;
+  // no target bits means the TPBLK_ALL value, with or without a
+  // unit (tpgblktime(TPBLK_MILLISECOND) reads the ALL value in ms)
+  if (what == 0 || what == TPBLK_ALL) {
+    timeout = blocktime_all;
   } else if (what == TPBLK_NEXT) {
     timeout = blocktime_next;
-  } else if (what == TPBLK_ALL) {
-    timeout = blocktime_all;
   } else {
     TPERROR(TPEINVAL, "Invalid flags passed to tpgblktime(%ld)", flags);
     return -1;
@@ -893,10 +916,9 @@ int client::tpgblktime(long flags) {
   if (units == TPBLK_SECOND) {
     timeout /= 1000;
   } else if (units == TPBLK_MILLISECOND) {
-    if (fux::compat::is221) {
-      TPERROR(TPEINVAL, "Invalid flags passed to tpgblktime(%ld)", flags);
-      return -1;
-    }
+    // 22.x rejects the unit on tpsblktime() but accepts it on reads
+    // (pinned: tpgblktime(TPBLK_MILLISECOND) returns the value in ms
+    // on Oracle 22.1)
     timeout /= 1;
   } else {
     TPERROR(TPEINVAL, "Invalid flags passed to tpgblktime(%ld)", flags);
@@ -1095,7 +1117,8 @@ int tpgetrply(int *cd, char **data, long *len, long flags) {
   } else {
     rc = fux::atmi::exception_boundary(
         [&] {
-          // TODO: if no transaction calls, use false
+          // suspends the current transaction for the wait; the guard
+          // short-circuits when this thread has none
           fux::suspend_guard g(true);
           return getclient().tpgetrply(cd, data, len, flags);
         },

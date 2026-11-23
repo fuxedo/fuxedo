@@ -150,6 +150,11 @@ static void monitor_servers() {
       if (was_active) {
         maybe_restart(m, server);
       }
+      if (server.pid == 0) {
+        // no restart (RESTART=N, MAXGEN exhausted, spawn failed): the
+        // server is gone, drop it from the queue's active count
+        m.set_server_state(i, state_t::INActive);
+      }
     }
   }
 }

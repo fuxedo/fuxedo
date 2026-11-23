@@ -35,6 +35,7 @@ trap 'tmshutdown -y 2>/dev/null; exit 1' EXIT HUP INT TERM
 ./fmldemo
 ./conv
 ./prio
+./blktime
 
 # /Q examples: the queues were created before the boot above
 ./enqueue

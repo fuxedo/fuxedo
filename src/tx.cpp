@@ -208,6 +208,16 @@ bool expired() {
   return ctxt.has_deadline &&
          std::chrono::steady_clock::now() >= ctxt.deadline;
 }
+long time_left_ms() {
+  auto &ctxt = getctxt();
+  if (!ctxt.has_deadline) {
+    return -1;
+  }
+  auto left = std::chrono::duration_cast<std::chrono::milliseconds>(
+                  ctxt.deadline - std::chrono::steady_clock::now())
+                  .count();
+  return left < 0 ? 0 : left;
+}
 }  // namespace fux::tx
 
 int tx_begin() {

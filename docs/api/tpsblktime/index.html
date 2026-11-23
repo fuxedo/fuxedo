@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tpsblktime() - set the blocking timeout for calls on this thread | Fuxedo API reference</title>
+<meta name="description" content="tpsblktime() - set the blocking timeout for calls on this thread. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="keywords" content="tpsblktime, tpsblktime example, Oracle Tuxedo tpsblktime, Tuxedo C API, Fuxedo, XATMI,tpgblktime,tpcall,tpgetrply">
+<link rel="canonical" href="https://fuxedo.io/api/tpsblktime/">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://fuxedo.io/api/tpsblktime/">
+<meta property="og:title" content="tpsblktime() - set the blocking timeout for calls on this thread">
+<meta property="og:description" content="tpsblktime() - set the blocking timeout for calls on this thread. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="tpsblktime() - set the blocking timeout for calls on this thread">
+<meta name="twitter:description" content="tpsblktime() - set the blocking timeout for calls on this thread. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "tpsblktime() - set the blocking timeout for calls on this thread",
+      "description": "tpsblktime() - set the blocking timeout for calls on this thread. Reference for Oracle Tuxedo and Fuxedo: arguments, flags, error codes with tperrno, complete C example. Cross-checked against Tuxedo 12.2 and 22.1.",
+      "url": "https://fuxedo.io/api/tpsblktime/",
+      "isPartOf": {"@type": "WebSite", "name": "Fuxedo API reference", "url": "https://fuxedo.io/api/"},
+      "programmingLanguage": "C",
+      "license": "https://opensource.org/licenses/MIT"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Fuxedo", "item": "https://fuxedo.io/"},
+        {"@type": "ListItem", "position": 2, "name": "API reference", "item": "https://fuxedo.io/api/"},
+        {"@type": "ListItem", "position": 3, "name": "tpsblktime"}
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/api/api.css">
+</head>
+<body>
+<div class="page">
+<h1><img src="/fuxedo.svg" alt="Fuxedo logo">tpsblktime()</h1>
+<p class="tagline">set the blocking timeout for calls on this thread</p>
+
+<div class="api-layout">
+<nav class="api-nav">
+<h2>XATMI: session</h2>
+<ul>
+<li><a href="/api/tpinit/">tpinit</a></li>
+<li><a href="/api/tpterm/">tpterm</a></li>
+</ul>
+<h2>XATMI: errors</h2>
+<ul>
+<li><a href="/api/tperrno/">tperrno</a></li>
+<li><a href="/api/tpstrerror/">tpstrerror</a></li>
+</ul>
+<h2>XATMI: calls</h2>
+<ul>
+<li><a href="/api/tpcall/">tpcall</a></li>
+<li><a href="/api/tpacall/">tpacall</a></li>
+<li><a href="/api/tpgetrply/">tpgetrply</a></li>
+<li><a href="/api/tpcancel/">tpcancel</a></li>
+<li><a href="/api/tpforward/">tpforward</a></li>
+<li><a href="/api/tpsprio/">tpsprio</a></li>
+<li><a href="/api/tpgprio/">tpgprio</a></li>
+<li><a class="here" href="/api/tpsblktime/">tpsblktime</a></li>
+<li><a href="/api/tpgblktime/">tpgblktime</a></li>
+</ul>
+<h2>XATMI: conversational</h2>
+<ul>
+<li><a href="/api/tpconnect/">tpconnect</a></li>
+<li><a href="/api/tpsend/">tpsend</a></li>
+<li><a href="/api/tprecv/">tprecv</a></li>
+<li><a href="/api/tpdiscon/">tpdiscon</a></li>
+</ul>
+<h2>XATMI: buffers</h2>
+<ul>
+<li><a href="/api/tpalloc/">tpalloc</a></li>
+<li><a href="/api/tpfree/">tpfree</a></li>
+<li><a href="/api/tptypes/">tptypes</a></li>
+<li><a href="/api/tpexport/">tpexport</a></li>
+<li><a href="/api/tpimport/">tpimport</a></li>
+</ul>
+<h2>XATMI: transactions</h2>
+<ul>
+<li><a href="/api/tpbegin/">tpbegin</a></li>
+<li><a href="/api/tpgetlev/">tpgetlev</a></li>
+<li><a href="/api/tpsuspend/">tpsuspend</a></li>
+<li><a href="/api/tpresume/">tpresume</a></li>
+<li><a href="/api/tpcommit/">tpcommit</a></li>
+<li><a href="/api/tpabort/">tpabort</a></li>
+</ul>
+<h2>XATMI: queues</h2>
+<ul>
+<li><a href="/api/tpenqueue/">tpenqueue</a></li>
+<li><a href="/api/tpdequeue/">tpdequeue</a></li>
+</ul>
+<h2>XATMI: server</h2>
+<ul>
+<li><a href="/api/tpsvrinit/">tpsvrinit</a></li>
+<li><a href="/api/tpsvrdone/">tpsvrdone</a></li>
+<li><a href="/api/tpsvrthrinit/">tpsvrthrinit</a></li>
+<li><a href="/api/tpsvrthrdone/">tpsvrthrdone</a></li>
+<li><a href="/api/tpreturn/">tpreturn</a></li>
+<li><a href="/api/tpadvertise/">tpadvertise</a></li>
+<li><a href="/api/tpadvertisex/">tpadvertisex</a></li>
+<li><a href="/api/tpunadvertise/">tpunadvertise</a></li>
+</ul>
+<h2>FML32</h2>
+<ul>
+<li><a href="/api/fml32/">fml32</a></li>
+<li><a href="/api/Ferror32/">Ferror32</a></li>
+<li><a href="/api/Fstrerror32/">Fstrerror32</a></li>
+<li><a href="/api/Fadd32/">Fadd32</a></li>
+<li><a href="/api/Fchg32/">Fchg32</a></li>
+<li><a href="/api/Fget32/">Fget32</a></li>
+<li><a href="/api/Fdel32/">Fdel32</a></li>
+<li><a href="/api/Fnext32/">Fnext32</a></li>
+<li><a href="/api/Fprint32/">Fprint32</a></li>
+<li><a href="/api/Ffprint32/">Ffprint32</a></li>
+<li><a href="/api/Fwrite32/">Fwrite32</a></li>
+<li><a href="/api/Fread32/">Fread32</a></li>
+<li><a href="/api/Fboolco32/">Fboolco32</a></li>
+<li><a href="/api/Fboolev32/">Fboolev32</a></li>
+<li><a href="/api/Fboolpr32/">Fboolpr32</a></li>
+<li><a href="/api/Fmkfldid32/">Fmkfldid32</a></li>
+<li><a href="/api/Fneeded32/">Fneeded32</a></li>
+<li><a href="/api/Fsizeof32/">Fsizeof32</a></li>
+<li><a href="/api/Flen32/">Flen32</a></li>
+</ul>
+</nav>
+
+<div class="api-main">
+
+<h2>Synopsis</h2>
+<pre><code>#include &lt;atmi.h&gt;
+
+int tpsblktime(int blktime, long flags);</code></pre>
+
+<h2>Description</h2>
+
+<p>tpsblktime() sets how long the thread's blocking calls wait before
+giving up with TPETIME. It applies to reply waits (tpcall() and
+tpgetrply()) and, on fuxedo, to queue waits as well. The value is a
+per-thread attribute, not a per-call one: TPBLK_NEXT is consumed by
+the next blocking call, TPBLK_ALL stays in effect until changed.</p>
+<p>blktime 0 restores the platform default: wait forever is NOT the
+default: an unset timeout means the UBBCONFIG BLOCKTIME value
+applies (default about 60 seconds).</p>
+<p><strong>Units and granularity.</strong> flags carry the unit:
+TPBLK_SECOND everywhere, TPBLK_MILLISECOND on 12.x only (pinned: 22.1
+rejects millisecond and microsecond units with TPEINVAL). Whatever the
+unit, the effective granularity on the platform is SCANUNIT: BLOCKTIME
+is a multiplier of the RESOURCES SCANUNIT parameter and the BBL scans
+for timed-out blocking calls once per SCANUNIT, which defaults to 10
+seconds. Sub-SCANUNIT precision is not representable there. fuxedo's
+watchdog ticks once per second, so fuxedo honors second and
+millisecond blocktimes to roughly one second. That is tighter than
+the platform default and looser than a timer.</p>
+
+<h2>Arguments</h2>
+<table>
+<tr><th>Argument</th><th>Description</th></tr>
+<tr><td>blktime</td><td>Timeout in the requested unit. 0 restores the UBBCONFIG default. Negative values fail with TPEINVAL.</td></tr>
+<tr><td>flags</td><td>Target (TPBLK_NEXT or TPBLK_ALL) OR unit (TPBLK_SECOND; TPBLK_MILLISECOND on 12.x). Other bits fail with TPEINVAL.</td></tr>
+</table>
+
+<h2>Flags</h2>
+<table>
+<tr><th>Flag</th><th>Description</th></tr>
+<tr><td>TPBLK_NEXT</td><td>Apply to the next blocking call only.</td></tr>
+<tr><td>TPBLK_ALL</td><td>Apply to all subsequent blocking calls on this thread.</td></tr>
+<tr><td>TPBLK_SECOND</td><td>blktime is in seconds.</td></tr>
+<tr><td>TPBLK_MILLISECOND</td><td>blktime is in milliseconds (12.x only; 22.1: TPEINVAL).</td></tr>
+</table>
+<p>Exactly one target and one unit are required.</p>
+
+<h2>Errors (tperrno)</h2>
+<table>
+<tr><th>Code</th><th>Description</th></tr>
+<tr><td>TPEINVAL</td><td>Negative blktime, or a flags word that is not one target and one supported unit.</td></tr>
+</table>
+
+<h2>Notes</h2>
+
+<p><strong>Version note (pinned).</strong> 12.x accepts
+TPBLK_MILLISECOND; 22.1 rejects TPBLK_MILLISECOND and
+TPBLK_MICROSECOND with TPEINVAL. fuxedo accepts both units.</p>
+
+<h2>12.2 vs 22.1</h2>
+<p>Millisecond/microsecond units: accepted on 12.x, rejected with TPEINVAL on 22.1.</p>
+
+<h2>Example</h2>
+<p class="example-file">Full source: <code>docs/api/examples/blktime.c</code>
+(build and run with <code>make -C docs/api/examples check
+TUXDIR=&lt;install&gt;</code>); the lines documenting tpsblktime() are highlighted.</p>
+<pre><code>// tpsblktime()/tpgblktime() example: set a per-thread blocking
+// timeout, read it back, and make a call that is subject to it.
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;atmi.h&gt;
+
+int main() {
+  if (tpinit((TPINIT *)NULL) == -1) {
+    perror(&quot;tpinit&quot;);
+    return 1;
+  }
+
+  char *buf = tpalloc(&quot;STRING&quot;, NULL, 32);
+  strcpy(buf, &quot;hello&quot;);
+  long len = 32;
+
+<span class="hl">  // flags carry the target (TPBLK_ALL persists on the thread, TPBLK_NEXT
+  // is consumed by the next blocking call) and the unit (TPBLK_SECOND;
+  // 12.x also accepts TPBLK_MILLISECOND, 22.1 rejects it with TPEINVAL).
+  // 0 restores waiting forever
+  if (tpsblktime(5, TPBLK_ALL | TPBLK_SECOND) == -1) {
+    fprintf(stderr, &quot;tpsblktime failed: %s (%d)\n&quot;, tpstrerror(tperrno),
+            tperrno);
+    return 1;
+  }</span>
+
+  // reads the timeout back in the requested unit; flags 0 means the
+  // TPBLK_ALL value
+  long ms = tpgblktime(TPBLK_MILLISECOND);
+  printf(&quot;blocking timeout: %ld ms\n&quot;, ms);
+
+  if (tpcall((char *)&quot;TOUPPER&quot;, buf, 0, &amp;buf, &amp;len, 0) == -1) {
+    fprintf(stderr, &quot;tpcall failed: %s (%d)\n&quot;, tpstrerror(tperrno),
+            tperrno);
+    return 1;
+  }
+
+  printf(&quot;reply: %s\n&quot;, buf);
+  tpfree(buf);
+  tpterm();
+  return 0;
+}</code></pre>
+
+<p>See also: <a href="/api/tpgblktime/">tpgblktime</a>, <a href="/api/tpcall/">tpcall</a>, <a href="/api/tpgetrply/">tpgetrply</a>.</p>
+
+<p class="compat-line">fuxedo: supported.
+Cross-checked against Oracle Tuxedo 12.2.2 and 22.1
+with the API hardening suite.</p>
+
+</div>
+</div>
+
+<footer>
+<p>Part of the <a href="/api/">Fuxedo API reference</a>.
+<a href="https://github.com/fuxedo/fuxedo">Fuxedo</a> is the open source
+alternative to Oracle Tuxedo: same API, same commands, same System V IPC
+mechanics.</p>
+</footer>
+</div>
+</body>
+</html>

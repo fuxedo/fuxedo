@@ -33,20 +33,33 @@ IPCKEY := $(shell echo $$(( (RANDOM % 20000) + 41000 )))
 UBB_EXTRA_SED = | sed "s:@IPCKEY@:$(IPCKEY):g" \
 	  | sed "s|@OPENINFO@|$(OPENINFO)|g"
 
-check: scrub db-setup orasvr client TMS_ORACLE TMS_QM_ORARM tuxconfig crlog qsetup
+check: scrub db-setup orasvr client TMS_ORACLE TMS_QM_ORARM tuxconfig envfile crlog qsetup
 	-tmipcrm -y 2>/dev/null
 	tmboot -y
+	# the platform may race the BBL attach on the first pass; a second
+	# pass boots the servers that failed with "No BBL" (pinned 12.2.2)
+	sleep 2
+	-tmboot -y 2>/dev/null
 	sleep 3
 	./client
 	-tmshutdown -y
 	$(MAKE) verify
+
+envfile:
+	@printf 'LD_LIBRARY_PATH=%s/lib:%s/lib:%s\nORACLE_HOME=%s\nTNS_ADMIN=%s\nFLDTBLDIR32=%s\nFIELDTBLS32=orarm.flds\n' \
+	  "$(TUXDIR)" "$(ORACLE_HOME)" "$(EXTRA_LDPATH)" "$(ORACLE_HOME)" "$(CURDIR)" "$(CURDIR)" > ENVFILE
 
 # queue space for the two-RM scenarios: JOBS feeds TMQFORWARD (generous
 # retries for the redeliver-on-visibility semantics), RAWQ carries the
 # client's own probe messages
 qsetup:
 	rm -rf QUE
+ifeq ($(wildcard $(TUXDIR)/lib/libfuxedo.so),)
+	# Oracle qmadmin wants the prompts fed; fuxedo accepts the flat form
+	printf 'crdl %s 0 400\nqspacecreate\nQSPACE\n46001\n100\n6\n4\n9\n3\nERRQ\ny\n16\nqopen QSPACE\nqcreate JOBS fifo none 10 2 100%% 0%%\nqcreate RAWQ fifo none 0 0 100%% 0%%\nq\n' "$$(pwd)/QUE" | QMCONFIG=$$(pwd)/QUE qmadmin
+else
 	printf 'crdl %s 0 400\nqspacecreate -n 100B\nQSPACE\n46001\n100\n6\n4\n9\n3\nERRQ\nn\n16\nqopen QSPACE\nqcreate JOBS fifo none 10 2 100%% 0%% -\nqcreate RAWQ fifo none 0 0 100%% 0%% -\n' "$$(pwd)/QUE" | qmadmin "$$(pwd)/QUE"
+endif
 
 TMS_QM_ORARM:
 	CFLAGS=-no-pie buildtms -o $@ -r TUXEDO/QM -v
@@ -70,7 +83,7 @@ scrub:
 # row visibility, asserted from outside the application
 verify:
 	@$(ORACLE_HOME)/bin/sqlplus -s $(ORARM_USER)/$(ORARM_PASS)@$(ORARM_DB) @verify.sql
-	@echo "expected: s1=1 s3=1 s5=1 s2=0 s4=0 s6=0 s7=1 s8=0 q=5/5 qr=3/3"
+	@echo "expected: s1=1 s3=1 s5=0 s2=0 s4=0 s6=0 s7=1 s8=0 q=5/5 qr=3/3"
 	@echo "pins verified live against Oracle 12.2.2: s5 aborts a"
 	@echo "server-begun tx left open at tpreturn + answers TPESVCERR;"
 	@echo "s6 times the transaction out (TPETIME) and rolls the row back"
@@ -113,7 +126,7 @@ clean:
 	-tmipcrm -y 2>/dev/null
 	rm -f ubbconfig tuxconfig orasvr orasvr_gen.c server.flat.c \
 	  server.proclog client TMS_ORACLE TMS_QM_ORARM orarm.h \
-	  orarm.fml ULOG.* stdout stderr
+	  orarm.fml ULOG.* stdout stderr ENVFILE
 	rm -rf TLOG QUE
 
 .PHONY: check verify crlog clean ubbconfig scrub db-setup qsetup

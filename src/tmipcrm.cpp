@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
   auto result = parser.parse(clara::Args(argc, argv));
   if (!result) {
     std::cerr << parser;
-    return -1;
+    return 1;
   }
 
   try {
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
       // report-only; 12.x works offline
       std::cerr << "tmipcrm: cannot attach to the bulletin board"
                 << std::endl;
-      return -1;
+      return 1;
     }
 
     mib mib(tables.dom);
@@ -102,8 +102,8 @@ int main(int argc, char *argv[]) {
       }
     }
   } catch (const std::exception &e) {
-    std::cerr << e.what() << std::endl;
-    return -1;
+    std::cerr << "tmipcrm: " << e.what() << std::endl;
+    return 1;
   }
 
   return 0;
