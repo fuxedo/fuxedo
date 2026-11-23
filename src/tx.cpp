@@ -78,9 +78,15 @@ struct tx_context {
     gttid = fux::bad_gttid;
   }
   tx_state state;
+  // set by tx_close: a thread whose RM was closed on purpose must not
+  // be promoted out of S0 by the worker-thread begin path
+  bool rm_closed = false;
   group *grpcfg = nullptr;
   TXINFO info;
   fux::gttid gttid;
+  // transaction lifetime: set at begin from the requested timeout
+  std::chrono::steady_clock::time_point deadline;
+  bool has_deadline = false;
   // set when the current transaction was begun by an explicit tpbegin
   // inside a service; such a transaction must not outlive tpreturn
   // (pinned: Oracle answers the caller with TPESVCERR and aborts it)
@@ -129,6 +135,7 @@ int tx_open() {
   auto xarc = xasw->xa_open_entry(info + len + 1, 0, TMNOFLAGS);
   FUX_PROBE3(xa__open, xasw->name, fux::tx::grpno, xarc);
   if (xarc == XA_OK) {
+    getctxt().rm_closed = false;
     if (getctxt().state == tx_state::s0) {
       getctxt().notrx();
       getctxt().state = tx_state::s1;
@@ -147,6 +154,7 @@ int tx_open() {
 int tx_close() {
   if (!local_rm()) {
     getctxt().state = tx_state::s0;
+    getctxt().rm_closed = true;
     return TX_OK;
   }
   if (!(getctxt().state == tx_state::s0 || getctxt().state == tx_state::s1 ||
@@ -158,6 +166,7 @@ int tx_close() {
   FUX_PROBE2(xa__close, xasw->name, xarc);
   if (xarc == XA_OK) {
     getctxt().state = tx_state::s0;
+    getctxt().rm_closed = true;
     return TX_OK;
   }
 
@@ -193,9 +202,26 @@ static XID xid() {
   return xid;
 }
 
+namespace fux::tx {
+bool expired() {
+  auto &ctxt = getctxt();
+  return ctxt.has_deadline &&
+         std::chrono::steady_clock::now() >= ctxt.deadline;
+}
+}  // namespace fux::tx
+
 int tx_begin() {
   if (TMREGISTER) {
     // return TX_OK;
+  }
+
+  // A thread that never opened its own context (TMQFORWARD's
+  // forwarding threads, for example) starts in S0 per the XA state
+  // machine, but the process RM is open already and such a thread
+  // drives no local branch; treat it as opened. A thread that closed
+  // its RM on purpose keeps failing with PROTO, the platform pin.
+  if (getctxt().state == tx_state::s0 && !getctxt().rm_closed) {
+    getctxt().state = tx_state::s1;
   }
 
   // a begin issued while dispatching a service (rather than by the
@@ -203,7 +229,7 @@ int tx_begin() {
   // transaction open at tpreturn, which the platform rejects
   getctxt().own_begin = fux::is_server();
 
-  TXINFO info;
+  TXINFO info = {};
   info.xid = xid();
   // a caller without a group (a client) starts the transaction
   // unaffiliated; group bits are added when a service call joins it.
@@ -213,7 +239,21 @@ int tx_begin() {
                         ? getmib().transactions().start(info.xid,
                                                         fux::tx::grpidx)
                         : getmib().transactions().start(info.xid);
-  return _tx_start(&info);
+  auto rc = _tx_start(&info);
+  if (rc == TX_OK) {
+    // the requested timeout lives in the context (tpbegin sets it via
+    // tx_set_transaction_timeout before begin; AUTOTRAN sets it from
+    // the service TRANTIME)
+    auto timeout = getctxt().info.transaction_timeout;
+    if (timeout > 0) {
+      getctxt().deadline = std::chrono::steady_clock::now() +
+                           std::chrono::seconds(timeout);
+      getctxt().has_deadline = true;
+    } else {
+      getctxt().has_deadline = false;
+    }
+  }
+  return rc;
 }
 
 static bool tx_set1(int rc) {
@@ -651,6 +691,15 @@ int tx_set_transaction_control(TRANSACTION_CONTROL control) {
 }
 
 int tx_set_transaction_timeout(TRANSACTION_TIMEOUT timeout) {
+  // a worker thread that never opened its own context (TMQFORWARD's
+  // forwarding threads, for example) starts in S0 per the XA state
+  // machine, but the process RM is open already and such a thread
+  // drives no local branch; treat it as opened, unless the thread
+  // closed its RM on purpose (the platform pin: begin after tpclose
+  // fails)
+  if (getctxt().state == tx_state::s0 && !getctxt().rm_closed) {
+    getctxt().state = tx_state::s1;
+  }
   if (!(getctxt().state == tx_state::s1 || getctxt().state == tx_state::s2 ||
         getctxt().state == tx_state::s3 || getctxt().state == tx_state::s4)) {
     return TX_PROTOCOL_ERROR;

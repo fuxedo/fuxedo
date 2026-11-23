@@ -1,10 +1,4 @@
-ifndef TUXDIR
-$(error TUXDIR is not set)
-endif
-
-export PATH:=$(TUXDIR)/bin:$(PATH)
-export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
-export TUXCONFIG:=$(CURDIR)/tuxconfig
+include ../mk/domain.mk
 
 check: server tuxconfig
 	-rm -f ULOG.*
@@ -26,14 +20,6 @@ check: server tuxconfig
 	tmshutdown -y
 	-tmshutdown -y -k KILL
  
-ubbconfig: ubbconfig.in
-	cat $< \
-          | sed s:@TUXDIR@:$(TUXDIR):g \
-          | sed s:@UNAME@:`uname -n`:g \
-          | sed s:@CURDIR@:$(CURDIR):g > $@
-
-tuxconfig: ubbconfig
-	tmloadcf -y $<
 
 server: server.c
 	buildserver -o $@ -f $< -s SERVICE -v -f "-Wl,--no-as-needed"

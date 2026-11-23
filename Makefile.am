@@ -157,6 +157,13 @@ src_tmipcrm_LDADD = src/libfuxedo.la
 udataobjdir = @prefix@/udataobj
 udataobj_DATA = RM include/tpadm
 
+fux.env: $(srcdir)/fux.env.in
+	sed 's,[@]prefix[@],$(prefix),g' $(srcdir)/fux.env.in > $@
+
+fuxenvdir = @prefix@
+nodist_fuxenv_DATA = fux.env
+CLEANFILES = fux.env
+
 TESTS = tests/impl/routing tests/compat/xatmi tests/compat/fml32 tests/compat/expr tests/compat/view32 tests/compat/hardening tests/compat/flags tests/compat/xmlfml tests/impl/mib tests/impl/dmlink tests/impl/ipcq tests/compat/base64 tests/impl/userlog tests/impl/trx tests/impl/qm tests/impl/cfg tests/impl/tlog tests/impl/qmtx tests/compat/fml16 tests/compat/view16
 check_PROGRAMS = $(TESTS)
 

@@ -10,6 +10,7 @@
 
 #include "fux.h"
 #include "mib.h"
+#include "servermain.h"
 
 #include <atmi.h>
 #include <stdio.h>
@@ -32,14 +33,9 @@ extern int _tmbuilt_with_thread_option;
 
 static struct tmdsptchtbl_t _tmdsptchtbl[] = {
     {".TMIB", "TMIB", TMIB, 0, 0, NULL}, {NULL, NULL, NULL, 0, 0, NULL}};
-static struct tmsvrargs_t tmsvrargs = {
-    &tmnull_switch, _tmdsptchtbl, 0,    tpsvrinit, tpsvrdone, _tmrunserver,
-    NULL,           NULL,         NULL, NULL,      tprminit,  tpsvrthrinit,
-    tpsvrthrdone,   NULL};
-
-struct tmsvrargs_t *_tmgetsvrargs() {
-  return &tmsvrargs;
-}
+static struct tmsvrargs_t tmsvrargs =
+    fuxedo_server_args(&tmnull_switch, _tmdsptchtbl, true);
+struct tmsvrargs_t *_tmgetsvrargs() { return &tmsvrargs; }
 
 int main(int argc, char **argv) {
   _tmbuilt_with_thread_option = 0;

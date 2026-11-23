@@ -1,10 +1,5 @@
-ifndef TUXDIR
-$(error TUXDIR is not set)
-endif
+include ../mk/domain.mk
 
-export PATH:=$(TUXDIR)/bin:$(PATH)
-export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
-export TUXCONFIG:=$(CURDIR)/tuxconfig
 # the FML32 filter in the selftest resolves TA_OPERATION by name
 export FLDTBLDIR32:=$(TUXDIR)/udataobj
 export FIELDTBLS32:=tpadm
@@ -55,15 +50,6 @@ endif
 	grep -q ':TEST: tpbegin_flags rc=-1 tperrno=4' ULOG.*
 	grep -q ':TEST: tpcommit_flags rc=-1 tperrno=4' ULOG.*
 	grep -q ':TEST: tpabort_flags rc=-1 tperrno=4' ULOG.*
-
-ubbconfig: ubbconfig.in
-	cat $< \
-          | sed s:@TUXDIR@:$(TUXDIR):g \
-          | sed s:@UNAME@:`uname -n`:g \
-          | sed s:@CURDIR@:$(CURDIR):g > $@
-
-tuxconfig: ubbconfig
-	tmloadcf -y $<
 
 client: client.c
 	buildclient -o $@ -f $< -v -f "-g -Wl,--no-as-needed"

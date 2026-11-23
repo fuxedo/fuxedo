@@ -564,6 +564,13 @@ static void execute(server_thread *tp) {
     auto sidx = main_ptr->m_.find_service(tpsvcinfo.name);
     if (sidx != mib::badoff &&
         main_ptr->m_.services().at(sidx).autotran[0] == 'Y') {
+      // the service TRANTIME bounds the platform-begun transaction the
+      // way tpbegin's timeout bounds a caller's own (pinned: Oracle
+      // fails work past the deadline with TPETIME and rolls back)
+      auto trantime = main_ptr->m_.services().at(sidx).trantime;
+      if (trantime > 0) {
+        tx_set_transaction_timeout(trantime);
+      }
       tx_begin();
       // autotran transactions are platform-begun, not service-begun:
       // own_begin stays clear (the service must not be blamed for

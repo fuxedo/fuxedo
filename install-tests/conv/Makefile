@@ -1,10 +1,7 @@
-ifndef TUXDIR
-$(error TUXDIR is not set)
-endif
+# extra @PLACEHOLDERS@ expanded by ../mk/domain.mk
+UBB_EXTRA_SED = | sed 's|@THREADLINE@|$(THREADLINE)|'
 
-export PATH:=$(TUXDIR)/bin:$(PATH)
-export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
-export TUXCONFIG:=$(CURDIR)/tuxconfig
+include ../mk/domain.mk
 
 # a conversational service blocks in tprecv; fuxedo serves it from a
 # dispatch thread pool, which must be configured. Oracle runs
@@ -37,16 +34,6 @@ check: server client tuxconfig
 	grep -q ':TEST: LARGE OK' ULOG.*
 	grep -q ':TEST: ECHO recv len=7 revent=0x20 data=hello2' ULOG.*
 	grep -qE ':TEST: SLEEP (second recv rc=0 revent=0x1|disconnect in first recv rc=0 revent=0x1)' ULOG.*
-
-ubbconfig: ubbconfig.in
-	cat $< \
-          | sed s:@TUXDIR@:$(TUXDIR):g \
-          | sed s:@UNAME@:`uname -n`:g \
-          | sed s:@CURDIR@:$(CURDIR):g \
-          | sed 's|@THREADLINE@|$(THREADLINE)|' > $@
-
-tuxconfig: ubbconfig
-	tmloadcf -y $<
 
 server: server.c
 	buildserver -o $@ -f $< -s ECHO -s FAILSVC -s SLEEP -s SENDFIRST -s ECHOBIG -v -f "-Wl,--no-as-needed"

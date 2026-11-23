@@ -1,12 +1,6 @@
-ifndef TUXDIR
-$(error TUXDIR is not set)
-endif
+include ../mk/domain.mk
 
-export PATH:=$(TUXDIR)/bin:$(PATH)
-export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
-export TUXCONFIG:=$(CURDIR)/tuxconfig
-
-check: qsvc client tuxconfig
+check: qsvc client TMS_QM tuxconfig
 	-rm -f ULOG.*
 	-tmshutdown -y 2>/dev/null
 	-tmipcrm -y 2>/dev/null
@@ -22,14 +16,8 @@ check: qsvc client tuxconfig
 	grep -E -q '[!:]qsvc\..*: TEST: tpsvrinit called' ULOG.*
 	grep -E -q '[!:]qsvc\..*: QSAMPLE: STRING got hello queue' ULOG.*
 
-ubbconfig: ubbconfig.in
-	cat $< \
-          | sed s:@TUXDIR@:$(TUXDIR):g \
-          | sed s:@UNAME@:`uname -n`:g \
-          | sed s:@CURDIR@:$(CURDIR):g > $@
-
-tuxconfig: ubbconfig
-	tmloadcf -y $<
+TMS_QM:
+	buildtms -o $@ -r TUXEDO/QM -v
 
 qsvc: server.c
 	buildserver -o $@ -f $< -s STRING -v -f "-Wl,--no-as-needed"
@@ -41,4 +29,4 @@ clean:
 	-tmshutdown -y 2>/dev/null
 	-tmipcrm -y 2>/dev/null
 	-sleep 1
-	-rm -rf ubbconfig tuxconfig qsvc client QUE ULOG.* stdout stderr access.* core || true
+	-rm -rf ubbconfig tuxconfig qsvc client TMS_QM QUE ULOG.* stdout stderr access.* core || true

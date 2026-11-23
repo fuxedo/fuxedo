@@ -22,6 +22,28 @@ All notable changes to Fuxedo are documented here. The format follows
 - The cached configuration and bulletin board are dropped at `tpterm`
   and reloaded when `TUXCONFIG` changes, so one process can join
   another application (or the same key after a reload) cleanly.
+- `TMQFORWARD` forwards transactionally: dequeue and target service
+  commit or abort together, a failed forward aborts so the message is
+  redelivered after the queue's retry delay, and messages move to the
+  failure queue after the retries limit. Worker threads of a server
+  process (TMQFORWARD's forwarders) can begin transactions without a
+  per-thread `tx_open`.
+- `install-tests/orarm` now runs the two-RM pipeline end to end on a
+  live Oracle: an AUTOTRAN service inserts a row and enqueues its id
+  in one transaction (Oracle XA + /Q), and `TMQFORWARD` feeds a reader
+  service that processes the row with redelivery when the row is not
+  visible yet.
+- Transaction timeouts are enforced the platform way (verified on
+  Oracle 12.2.2): a transaction past its `tpbegin` timeout or service
+  `TRANTIME` answers `TPETIME` to calls and `tpcommit` rolls it back.
+- `fux.env` installs at the prefix root, the shape of the platform's
+  `tux.env`: one source sets `TUXDIR`, `PATH`, and the loader paths
+  for shells. A preset `TUXDIR` wins so a DESTDIR tree works too.
+- `install-tests/mk/domain.mk` carries the toolchain exports and the
+  `ubbconfig` template expansion every domain test repeated; the
+  system servers share the `tmsvrargs` initializer through
+  `fuxedo_server_args` in `src/servermain.h` instead of copy-pasting
+  the positional 14-field struct.
 
 ## [1.0.4] - 2026-11-22
 

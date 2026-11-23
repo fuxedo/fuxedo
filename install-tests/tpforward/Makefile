@@ -1,10 +1,8 @@
-ifndef TUXDIR
-$(error TUXDIR is not set)
-endif
+# extra @PLACEHOLDERS@ expanded by ../mk/domain.mk
+UBB_EXTRA_SED = | sed 's|@TLOGDEV@|$(TLOGDEV)|' \
+	  | sed 's|@GROUPLINE@|$(GROUPLINE)|'
 
-export PATH:=$(TUXDIR)/bin:$(PATH)
-export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
-export TUXCONFIG:=$(CURDIR)/tuxconfig
+include ../mk/domain.mk
 
 # fuxedo runs the transactional cases with its built-in null resource
 # manager; Oracle here covers the no-TMS semantics (TPESVCERR on failed
@@ -45,17 +43,6 @@ ifdef FUXEDO
 	grep -q ':TEST: TXSVC called lev=1' ULOG.*
 	grep -q ':TEST: TXSVC called lev=0' ULOG.*
 endif
-
-ubbconfig: ubbconfig.in
-	cat $< \
-          | sed s:@TUXDIR@:$(TUXDIR):g \
-          | sed s:@UNAME@:`uname -n`:g \
-          | sed s:@CURDIR@:$(CURDIR):g \
-          | sed 's|@TLOGDEV@|$(TLOGDEV)|' \
-          | sed 's|@GROUPLINE@|$(GROUPLINE)|' > $@
-
-tuxconfig: ubbconfig
-	tmloadcf -y $<
 
 servera: servera.c
 	buildserver -o $@ -f $< -s SERVICEA -s FAILSERVICE -s LOCALSERVICE -s TXFWDFAIL -s FWDTX -s FWDNOTRAN -s FWDNOREPLY -s FWDNOSLOW -v -f "-Wl,--no-as-needed"

@@ -1,10 +1,4 @@
-ifndef TUXDIR
-$(error TUXDIR is not set)
-endif
-
-export PATH:=$(TUXDIR)/bin:$(PATH)
-export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
-export TUXCONFIG:=$(CURDIR)/tuxconfig
+include ../mk/domain.mk
 
 check: server mtserver failserver client defserver defmtserver tuxconfig tpreturn_client tpforward_client
 	-rm -f ULOG.*
@@ -48,15 +42,6 @@ check: server mtserver failserver client defserver defmtserver tuxconfig tpretur
 	! grep -E -q '[!:]failserver\..*:TEST: tpsvrthrinit called' ULOG.*
 	! grep -E -q '[!:]failserver\..*:TEST: tpsvrdone called' ULOG.*
 	! grep -E -q '[!:]failserver\..*:TEST: tpsvrthrdone called' ULOG.*
-
-ubbconfig: ubbconfig.in
-	cat $< \
-          | sed s:@TUXDIR@:$(TUXDIR):g \
-          | sed s:@UNAME@:`uname -n`:g \
-          | sed s:@CURDIR@:$(CURDIR):g > $@
-
-tuxconfig: ubbconfig
-	tmloadcf -y $<
 
 server: server.c
 	buildserver -o $@ -f $< -s SERVICE -v -f "-Wl,--no-as-needed"

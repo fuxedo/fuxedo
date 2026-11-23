@@ -1,10 +1,5 @@
-ifndef TUXDIR
-$(error TUXDIR is not set)
-endif
+include ../mk/domain.mk
 
-export PATH:=$(TUXDIR)/bin:$(PATH)
-export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
-export TUXCONFIG:=$(CURDIR)/tuxconfig
 export FLDTBLDIR32:=$(TUXDIR)/udataobj
 export FIELDTBLS32:=tpadm
 
@@ -22,15 +17,6 @@ check: server  tuxconfig
 	echo "pq" | tmadmin
 	tmshutdown -y
 	-tmshutdown -y -k KILL
-
-ubbconfig: ubbconfig.in
-	cat $< \
-          | sed s:@TUXDIR@:$(TUXDIR):g \
-          | sed s:@UNAME@:`uname -n`:g \
-          | sed s:@CURDIR@:$(CURDIR):g > $@
-
-tuxconfig: ubbconfig
-	tmloadcf -y $<
 
 server: server.c
 	buildserver -o $@ -f $< -s SERVICE -v -f "-Wl,--no-as-needed"

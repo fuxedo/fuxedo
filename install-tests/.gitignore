@@ -77,3 +77,8 @@ ubbconfig.fast
 /orarm/orarm.h
 /orarm/QUE
 /orarm/TMS_QM_ORARM
+/orarm/orasvr_gen.c
+/orarm/server.flat.c
+/orarm/server.flat.lis
+/orarm/server.proclog
+/qsample/TMS_QM

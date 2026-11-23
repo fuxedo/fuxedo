@@ -1,10 +1,4 @@
-ifndef TUXDIR
-$(error TUXDIR is not set)
-endif
-
-export PATH:=$(TUXDIR)/bin:$(PATH)
-export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
-export TUXCONFIG:=$(CURDIR)/tuxconfig
+include ../mk/domain.mk
 
 check:
 	!(buildserver -h)

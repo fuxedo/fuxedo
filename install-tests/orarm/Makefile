@@ -8,6 +8,8 @@ $(error ORACLE_HOME is not set)
 endif
 endif
 
+include ../mk/domain.mk
+
 export ORACLE_HOME
 export PATH := $(TUXDIR)/bin:$(ORACLE_HOME)/bin:$(PATH)
 export LD_LIBRARY_PATH := $(TUXDIR)/lib:$(ORACLE_HOME)/lib:$(LD_LIBRARY_PATH)
@@ -27,6 +29,10 @@ export OPENINFO := Oracle_XA:Oracle_XA+ACC=P/$(ORARM_USER)/$(ORARM_PASS)+SqlNet=
 
 IPCKEY := $(shell echo $$(( (RANDOM % 20000) + 41000 )))
 
+# extra @PLACEHOLDERS@ expanded by ../mk/domain.mk
+UBB_EXTRA_SED = | sed "s:@IPCKEY@:$(IPCKEY):g" \
+	  | sed "s|@OPENINFO@|$(OPENINFO)|g"
+
 check: scrub db-setup orasvr client TMS_ORACLE TMS_QM_ORARM tuxconfig crlog qsetup
 	-tmipcrm -y 2>/dev/null
 	tmboot -y
@@ -35,10 +41,12 @@ check: scrub db-setup orasvr client TMS_ORACLE TMS_QM_ORARM tuxconfig crlog qset
 	-tmshutdown -y
 	$(MAKE) verify
 
-# queue space for the two-RM scenarios
+# queue space for the two-RM scenarios: JOBS feeds TMQFORWARD (generous
+# retries for the redeliver-on-visibility semantics), RAWQ carries the
+# client's own probe messages
 qsetup:
 	rm -rf QUE
-	printf 'crdl %s 0 400\nqspacecreate -n 100B\nQSPACE\n46001\n100\n6\n4\n9\n3\nERRQ\nn\n16\nqopen QSPACE\nqcreate JOBS fifo none 2 30 100%% 0%% -\n' "$$(pwd)/QUE" | qmadmin "$$(pwd)/QUE"
+	printf 'crdl %s 0 400\nqspacecreate -n 100B\nQSPACE\n46001\n100\n6\n4\n9\n3\nERRQ\nn\n16\nqopen QSPACE\nqcreate JOBS fifo none 10 2 100%% 0%% -\nqcreate RAWQ fifo none 0 0 100%% 0%% -\n' "$$(pwd)/QUE" | qmadmin "$$(pwd)/QUE"
 
 TMS_QM_ORARM:
 	CFLAGS=-no-pie buildtms -o $@ -r TUXEDO/QM -v
@@ -62,29 +70,32 @@ scrub:
 # row visibility, asserted from outside the application
 verify:
 	@$(ORACLE_HOME)/bin/sqlplus -s $(ORARM_USER)/$(ORARM_PASS)@$(ORARM_DB) @verify.sql
-	@echo "expected: s1=1 s3=1 s5=1 s2=0 s4=0 s6=0 s7=1 s8=0"
-
-ubbconfig: ubbconfig.in
-	cat $< \
-	  | sed "s:@TUXDIR@:$(TUXDIR):g" \
-	  | sed "s:@UNAME@:$(shell uname -n):g" \
-	  | sed "s:@CURDIR@:$(CURDIR):g" \
-	  | sed "s:@IPCKEY@:$(IPCKEY):g" \
-	  | sed "s|@OPENINFO@|$(OPENINFO)|g" > $@
-
-tuxconfig: ubbconfig
-	tmloadcf -y $<
+	@echo "expected: s1=1 s3=1 s5=1 s2=0 s4=0 s6=0 s7=1 s8=0 q=5/5 qr=3/3"
+	@echo "pins verified live against Oracle 12.2.2: s5 aborts a"
+	@echo "server-begun tx left open at tpreturn + answers TPESVCERR;"
+	@echo "s6 times the transaction out (TPETIME) and rolls the row back"
 
 # the platform flow: allocate the log device, then initialize it
 crlog: tuxconfig
 	rm -rf TLOG QUE
 	printf 'crdl -b 200 -z %s\ncrlog -m tuxapp\nq\n' "$(CURDIR)/TLOG" | tmadmin
 
-orasvr: server.c orarm.h
+orasvr_gen.c: server.pc orarm.h
+	gcc -E -P -std=gnu89 -x c \
+	  -D'_Float128=long double' -D'__float128=long double' \
+	  -D'__attribute__(x)=' -D'__asm(x)=' -D'__asm__(x)=' \
+	  -D'__extension__=' -D'__inline=' -D'__const=' -D'__signed__=' \
+	  -D'__restrict=' -D'__volatile=' -D'__restrict__=' \
+	  -I$(CURDIR) -I$(TUXDIR)/include server.pc -o server.flat.c
+	$(ORACLE_HOME)/bin/proc iname=server.flat.c oname=$@ \
+	  code=ansi_c mode=ansi select_error=no > server.proclog 2>&1
+	@grep -qE "Syntax error|PCC-" server.proclog && \
+	  { tail -5 server.proclog; exit 1; } || true
+
+orasvr: orasvr_gen.c
 	buildserver -o $@ -r Oracle_XA -f $< -s INSERT -s INSERTFAIL \
-	  -s INSERTOWN \
-	  -f "-I$(ORACLE_HOME)/sdk/include -L$(ORACLE_HOME)/lib -lclntsh" \
-	  -v -f "-Wl,--no-as-needed"
+	  -s INSERTOWN -s SUBMIT -s JOBS \
+	  -v -f "-DSQLCODE=sqlca.sqlcode" -f "-Wl,--no-as-needed"
 
 client: client.c orarm.h
 	buildclient -o $@ -f $< -f "-I$(ORACLE_HOME)/sdk/include" \
@@ -100,7 +111,8 @@ orarm.h: orarm.flds
 clean:
 	-tmshutdown -y 2>/dev/null
 	-tmipcrm -y 2>/dev/null
-	rm -f ubbconfig tuxconfig orasvr client TMS_ORACLE TMS_QM_ORARM orarm.h \
+	rm -f ubbconfig tuxconfig orasvr orasvr_gen.c server.flat.c \
+	  server.proclog client TMS_ORACLE TMS_QM_ORARM orarm.h \
 	  orarm.fml ULOG.* stdout stderr
 	rm -rf TLOG QUE
 

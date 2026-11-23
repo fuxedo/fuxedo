@@ -1,10 +1,5 @@
-ifndef TUXDIR
-$(error TUXDIR is not set)
-endif
+include ../mk/domain.mk
 
-export PATH:=$(TUXDIR)/bin:$(PATH)
-export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
-export TUXCONFIG:=$(CURDIR)/tuxconfig
 export QMCONFIG:=$(CURDIR)/queues
 
 check: pump client tmsqm tuxconfig tlog
@@ -18,15 +13,6 @@ check: pump client tmsqm tuxconfig tlog
 	tmshutdown -y
 	-tmshutdown -y -k KILL
 	@crlog tlog | head -8
-
-ubbconfig: ubbconfig.in
-	cat $< \
-	  | sed s:@TUXDIR@:$(TUXDIR):g \
-	  | sed s:@UNAME@:`uname -n`:g \
-	  | sed s:@CURDIR@:$(CURDIR):g > $@
-
-tuxconfig: ubbconfig
-	tmloadcf -y $<
 
 tlog:
 	crdl -o 0 -s 100 tlog

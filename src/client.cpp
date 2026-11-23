@@ -267,6 +267,10 @@ int client::tpacall_group(int grpno, const char *svc, char *data, long len,
   // transaction passes through to the peer's resource managers, so
   // services imported through GWTDOMAIN stay callable in a transaction.
   if (!(flags & TPNOTRAN) && fux::tx::transactional() && target.grpno > 0) {
+    if (fux::tx::expired()) {
+      TPERROR(TPETIME, "transaction timed out");
+      return -1;
+    }
     auto gidx = mibcon_.find_group(static_cast<uint16_t>(target.grpno));
     if (gidx != mib::badoff &&
         mibcon_.groups().at(gidx).tmsname[0] == '\0' &&

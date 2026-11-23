@@ -168,6 +168,13 @@ int tpcommit(long flags) {
   }
 
   try {
+    if (fux::tx::expired()) {
+      // the transaction outlived its timeout: the platform answers
+      // TPETIME and rolls the work back (pinned on Oracle 12.2.2)
+      tx_rollback();
+      TPERROR(TPETIME, "transaction timed out");
+      return -1;
+    }
     int rc = tx_commit();
 
     if (rc == TX_OK) {

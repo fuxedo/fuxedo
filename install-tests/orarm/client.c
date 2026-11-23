@@ -60,7 +60,7 @@ int main(void) {
     strcpy(qmsg, "two-rm-commit");
     TPQCTL qctl;
     memset(&qctl, 0, sizeof(qctl));
-    int rc = tpenqueue("QSPACE", "JOBS", &qctl, qmsg, 0, 0);
+    int rc = tpenqueue("QSPACE", "RAWQ", &qctl, qmsg, 0, 0);
     printf("S7 enqueue rc=%d tperrno=%d\n", rc, tperrno);
     tpfree(qmsg);
   }
@@ -74,7 +74,7 @@ int main(void) {
     strcpy(qmsg, "two-rm-abort");
     TPQCTL qctl;
     memset(&qctl, 0, sizeof(qctl));
-    int rc = tpenqueue("QSPACE", "JOBS", &qctl, qmsg, 0, 0);
+    int rc = tpenqueue("QSPACE", "RAWQ", &qctl, qmsg, 0, 0);
     printf("S8 enqueue rc=%d tperrno=%d\n", rc, tperrno);
     tpfree(qmsg);
   }
@@ -86,9 +86,44 @@ int main(void) {
     TPQCTL qctl;
     memset(&qctl, 0, sizeof(qctl));
     long qlen = 64;
-    int rc = tpdequeue("QSPACE", "JOBS", &qctl, &qmsg, &qlen, 0);
+    int rc = tpdequeue("QSPACE", "RAWQ", &qctl, &qmsg, &qlen, 0);
     printf("S7 probe dequeue rc=%d tperrno=%d msg=%s\n", rc, tperrno,
            rc == 0 ? qmsg : "-");
+    tpfree(qmsg);
+  }
+
+  // S9: two-RM queue pipeline. SUBMIT inserts the row (Oracle RM) and
+  // enqueues its id (/Q RM) in one AUTOTRAN transaction; TMQFORWARD
+  // forwards each message to the JOBS service inside another
+  // transaction, which reads the row and marks it processed. The
+  // qretry batch fails its first delivery on purpose: a failed forward
+  // aborts the dequeue, so the message is redelivered - the same
+  // mechanism that covers /Q becoming visible before Oracle's commit.
+  for (long i = 0; i < 5; i++) {
+    svc("SUBMIT", 301 + i, "q");
+  }
+  for (long i = 0; i < 3; i++) {
+    svc("SUBMIT", 311 + i, "qretry");
+  }
+
+  // an empty JOBS queue means every forward committed, and each row
+  // update committed in the same transaction as its dequeue
+  {
+    char *qmsg = tpalloc("STRING", NULL, 64);
+    int drained = 0;
+    for (int tries = 0; tries < 90; tries++) {
+      TPQCTL qctl;
+      memset(&qctl, 0, sizeof(qctl));
+      long qlen = 64;
+      int rc = tpdequeue("QSPACE", "JOBS", &qctl, &qmsg, &qlen, TPQPEEK);
+      if (rc == -1 && tperrno == TPEDIAGNOSTIC &&
+          qctl.diagnostic == QMENOMSG) {
+        drained = 1;
+        break;
+      }
+      sleep(1);
+    }
+    printf("S9 queue drained: %s\n", drained ? "yes" : "NO - TIMEOUT");
     tpfree(qmsg);
   }
 

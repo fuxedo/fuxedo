@@ -1,10 +1,4 @@
-ifndef TUXDIR
-$(error TUXDIR is not set)
-endif
-
-export PATH:=$(TUXDIR)/bin:$(PATH)
-export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
-export TUXCONFIG:=$(CURDIR)/tuxconfig
+include ../mk/domain.mk
 
 check: test-fml32 test-expr test-view32 test-client test-hardening test-flags test-fml16 test-view16 tuxconfig
 	FLDTBLDIR32=../../tests FIELDTBLS32=fields ./test-fml32 -r console
@@ -15,15 +9,6 @@ check: test-fml32 test-expr test-view32 test-client test-hardening test-flags te
 	FLDTBLDIR32=../../tests FIELDTBLS32=fields ./test-flags -r console
 	FLDTBLDIR=../../tests FIELDTBLS=fields ./test-fml16 -r console
 	VIEWDIR=. VIEWFILES=view16test.V ./test-view16 -r console
-
-ubbconfig: ubbconfig.in
-	cat $< \
-          | sed s:@TUXDIR@:$(TUXDIR):g \
-          | sed s:@UNAME@:`uname -n`:g \
-          | sed s:@CURDIR@:$(CURDIR):g > $@
-
-tuxconfig: ubbconfig
-	tmloadcf -y $<
 
 CFLAGS=-I../../third_party/catch/ -I../../tests -I$(TUXDIR)/include
 

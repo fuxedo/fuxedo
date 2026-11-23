@@ -25,11 +25,7 @@
 #include "misc.h"
 #include "qm.h"
 #include "tmqwire.h"
-
-extern "C" {
-int _tmrunserver(int);
-extern int _tmbuilt_with_thread_option;
-}
+#include "servermain.h"
 
 static std::string g_qspace;
 static std::vector<std::string> g_services;
@@ -147,14 +143,9 @@ void tpsvrdone(void) { tpclose(); }
 
 static struct tmdsptchtbl_t _tmdsptchtbl[] = {
     {NULL, NULL, NULL, 0, 0, NULL}};
-static struct tmsvrargs_t tmsvrargs = {
-    &tuxq_switch, _tmdsptchtbl, 0,    tpsvrinit, tpsvrdone, _tmrunserver,
-    NULL,         NULL,         NULL, NULL,      tprminit,  tpsvrthrinit,
-    tpsvrthrdone, NULL};
-
-struct tmsvrargs_t *_tmgetsvrargs() {
-  return &tmsvrargs;
-}
+static struct tmsvrargs_t tmsvrargs =
+    fuxedo_server_args(&tuxq_switch, _tmdsptchtbl, true);
+struct tmsvrargs_t *_tmgetsvrargs() { return &tmsvrargs; }
 
 int main(int argc, char **argv) {
   // queue waits are served client-side (retry loop), never here

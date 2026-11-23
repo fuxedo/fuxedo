@@ -5,6 +5,8 @@ ifndef ORACLE_HOME
 $(error ORACLE_HOME is not set)
 endif
 
+include ../mk/domain.mk
+
 export PATH:=$(TUXDIR)/bin:$(ORACLE_HOME)/bin:$(PATH)
 export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(ORACLE_HOME)/lib:$(LD_LIBRARY_PATH)
 export TUXCONFIG:=$(CURDIR)/tuxconfig
@@ -28,21 +30,11 @@ check: oraxa server server1 server2 client tuxconfig
 	grep -q ':TEST: SERVICE2 called' ULOG.*
 	grep -q 'MAX=6' ULOG.*
 
-
-ubbconfig: ubbconfig.in
-	cat $< \
-          | sed s:@TUXDIR@:$(TUXDIR):g \
-          | sed s:@UNAME@:`uname -n`:g \
-          | sed s:@CURDIR@:$(CURDIR):g > $@
-
 server1.c: server1.pc
 	proc INAME=$< PARSE=NONE LINES=YES
 
 server2.c: server2.pc
 	proc INAME=$< PARSE=NONE LINES=YES
-
-tuxconfig: ubbconfig
-	tmloadcf -y $<
 
 oraxa:
 	buildtms -v -o $@ -r Oracle_XA

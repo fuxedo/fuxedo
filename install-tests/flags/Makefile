@@ -1,10 +1,4 @@
-ifndef TUXDIR
-$(error TUXDIR is not set)
-endif
-
-export PATH:=$(TUXDIR)/bin:$(PATH)
-export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
-export TUXCONFIG:=$(CURDIR)/tuxconfig
+include ../mk/domain.mk
 
 check: server client tuxconfig
 	-rm -f ULOG.*
@@ -18,16 +12,6 @@ check: server client tuxconfig
 	grep -q ':TEST: PRIO call=1 prio_in_svc=77' ULOG.*
 	grep -q ':TEST: PRIO call=2 prio_in_svc=50' ULOG.*
 	grep -q ':TEST: PRIO call=3 prio_in_svc=60' ULOG.*
-
-ubbconfig: ubbconfig.in
-	cat $< \
-          | sed s:@TUXDIR@:$(TUXDIR):g \
-          | sed s:@UNAME@:`uname -n`:g \
-          | sed s:@CURDIR@:$(CURDIR):g > $@
-
-tuxconfig: ubbconfig
-	-tmipcrm -y
-	tmloadcf -y $<
 
 server: server.c
 	buildserver -o $@ -f $< -s PRIO -v -f "-Wl,--no-as-needed"

@@ -20,6 +20,12 @@ bool autotran_begin();
 void set_autotran_begin(bool v);
 bool transactional();
 bool tx_active();
+// true when the current transaction outlived its timeout (tpbegin
+// seconds, or the service TRANTIME for AUTOTRAN): calls inside it
+// answer TPETIME and tpcommit/tpabort roll it back (pinned on Oracle
+// 12.2.2, where a 1s transaction around a 2s insert fails the call
+// with TPETIME and the row does not land)
+bool expired();
 XID current_xid();
 int tx_begin();
 int tx_rollback();

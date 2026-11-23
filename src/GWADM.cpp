@@ -15,11 +15,7 @@
 
 #include <userlog.h>
 #include <xatmi.h>
-
-extern "C" {
-int _tmrunserver(int);
-extern int _tmbuilt_with_thread_option;
-}
+#include "servermain.h"
 
 int tpsvrinit(int, char **) {
   return 0;
@@ -28,14 +24,9 @@ int tpsvrinit(int, char **) {
 void tpsvrdone() {}
 
 static struct tmdsptchtbl_t _tmdsptchtbl[] = {{NULL, NULL, NULL, 0, 0, NULL}};
-static struct tmsvrargs_t tmsvrargs = {
-    NULL, _tmdsptchtbl, 0,    tpsvrinit, tpsvrdone, _tmrunserver,
-    NULL, NULL,         NULL, NULL,      NULL,      NULL,
-    NULL, NULL};
-
-struct tmsvrargs_t *_tmgetsvrargs() {
-  return &tmsvrargs;
-}
+static struct tmsvrargs_t tmsvrargs =
+    fuxedo_server_args(nullptr, _tmdsptchtbl, false);
+struct tmsvrargs_t *_tmgetsvrargs() { return &tmsvrargs; }
 
 int main(int argc, char **argv) {
   _tmbuilt_with_thread_option = 0;

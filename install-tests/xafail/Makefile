@@ -1,10 +1,4 @@
-ifndef TUXDIR
-$(error TUXDIR is not set)
-endif
-
-export PATH:=$(TUXDIR)/bin:$(PATH)
-export LD_LIBRARY_PATH:=$(TUXDIR)/lib:$(LD_LIBRARY_PATH)
-export TUXCONFIG:=$(CURDIR)/tuxconfig
+include ../mk/domain.mk
 
 check: tmsxaf worker client tuxconfig tlog
 	-tmshutdown -y 2>/dev/null
@@ -32,15 +26,6 @@ rmline: xafail.o
 
 tmsxaf: xafail.o rmline
 	CC="$(CC)" buildtms -o TMSXAF -r XAFAIL -v
-
-ubbconfig: ubbconfig.in
-	cat $< \
-	  | sed s:@TUXDIR@:$(TUXDIR):g \
-	  | sed s:@UNAME@:`uname -n`:g \
-	  | sed s:@CURDIR@:$(CURDIR):g > $@
-
-tuxconfig: ubbconfig
-	tmloadcf -y $<
 
 tlog:
 	crdl -o 0 -s 100 tlog
