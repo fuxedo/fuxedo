@@ -168,9 +168,23 @@ static bool msgsnd_timed(int msqid, void *ptr, size_t len, enum flags flag,
       throw std::system_error(errno, std::system_category());
     }
   } else {  // noflags
-    // the platform paces blocking retries once a second; this is the
-    // cadence that shows up as 1s sleeps when queues are full
-    const long interval_msec = 1000;
+    // The platform paces blocking retries once a second; that quantum
+    // is what shows up as whole-second latency steps when queues are
+    // full, and it compounds hop by hop. Fuxedo paces at 100 ms by
+    // default: the API contract is "the send eventually lands or
+    // times out", and nothing observes the granularity except the
+    // latency. FUX_SEND_CADENCE_MS restores the platform's 1000 for
+    // strace-level comparisons.
+    static const long interval_msec = [] {
+      const char *env = getenv("FUX_SEND_CADENCE_MS");
+      long v = env != nullptr ? atol(env) : 100;
+      if (v < 1) {
+        v = 1;
+      } else if (v > 60000) {
+        v = 60000;
+      }
+      return v;
+    }();
     int times = msec / interval_msec + 2;
 
     for (int i = 0; i < times; i++) {

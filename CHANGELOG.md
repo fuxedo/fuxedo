@@ -43,6 +43,14 @@ All notable changes to Fuxedo are documented here. The format follows
   or outstanding calls, and its reply pump drops stale call
   descriptors instead of spinning when a pending call already
   completed with an error.
+- The blocking full-queue send cadence is 100 ms by default instead
+  of the platform's one second: the API contract ("the send lands or
+  times out") is unchanged, but the whole-second latency steps that
+  compound hop by hop on a busy system stay at 100 ms.
+  FUX_SEND_CADENCE_MS=1000 restores the platform pace for
+  strace-level comparisons; the spill decision matrix (NOBLOCK never
+  spills, payloads over 500 bytes spill, control messages retry
+  IPC_NOWAIT) is pinned unchanged against Oracle.
 - install-tests/orarm runs against Oracle Tuxedo too: the machine
   ENVFILE carries the loader path and ORACLE_HOME into the scrubbed
   server environment, qmadmin takes the prompt-fed form, and a second

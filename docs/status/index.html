@@ -120,8 +120,9 @@ on-disk subscription database.</td></tr>
 with TPQCTL, TMQUEUE, TMQFORWARD, future-dated messages, qmadmin.</td></tr>
 <tr><td>Networking</td>
 <td>GWTDOMAIN domain gateways with dmadmin, DMTLOG, links encrypted by
-default with trust-on-first-use pins, workstation clients via WSL and
-WSNADDR.</td></tr>
+default with trust-on-first-use pins (the no-configuration replacement
+for the platform's LLE link-level encryption and certificate SSL),
+workstation clients via WSL and WSNADDR over the same TLS.</td></tr>
 <tr><td>Observability</td>
 <td>ULOG, changetrace, printtrans, USDT probes (provider "fuxedo") at
 the ATMI, transaction, XA, /Q, and domain-wire boundaries, plus

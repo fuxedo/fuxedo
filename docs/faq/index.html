@@ -64,7 +64,11 @@ of a binary queue device, FML32 buffers skip the index section, wire
 bytes inside the IPC queues are Fuxedo's own. Everything an application
 or an administrator can see is pinned to the Oracle behavior, with one
 deliberate improvement: a busy system does not degrade under the
-one-second full-queue retry.</p>
+one-second full-queue retry - the blocking send cadence is 100
+milliseconds (FUX_SEND_CADENCE_MS restores 1000 for exact
+strace-level comparisons), so the latency steps that collapse
+production estates stay at 100 ms instead of compounding in whole
+seconds.</p>
 
 <p><strong>My Oracle_XA servers fail to boot with permission errors, but the
 database credentials are right. What is it?</strong> The
@@ -90,6 +94,17 @@ privilege for heuristic resolution.</p>
 against Fuxedo headers, boot from the same UBBCONFIG, run your tests.
 The <a href="/migration/">migration page</a> has the full
 shape.</p>
+
+<p><strong>Are the network links encrypted?</strong> Yes, the ones that
+leave the machine, and there is nothing to configure. Domain gateway
+links (GWTDOMAIN) and workstation links (WSL/WSNADDR) run over TLS with
+ephemeral-certificate identity and trust-on-first-use pinning. This
+replaces the platform's link-level encryption (LLE) and the
+certificate-file SSL setup: both Oracle options needed per-link
+configuration, and neither is needed for the fuxedo defaults. Inside
+one machine traffic stays on System V IPC, private to the host.
+Application-level authentication is SECURITY NONE today (every client
+is trusted), the platform default.</p>
 
 <p><strong>Who is behind it?</strong> <a
 href="https://aivarsk.com/about/">Aivars Kalvans</a>: author of
